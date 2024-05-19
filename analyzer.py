@@ -65,7 +65,7 @@ class Analyzer():
         self.stats = {'mean': self.mean, 'std': self.std,
                             'skewness': self.skewness, 'kurtosis': self.kurtosis}
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, int]:
 
         self.stats = {k: round(v,2) for k, v in self.stats.items()}
         return self.stats
