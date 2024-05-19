@@ -1,6 +1,7 @@
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import ttk, Event
 from enums import GraphType
+from samples import Sample
 
 import analyzer
 
@@ -21,9 +22,9 @@ class FilePanal(ctk.CTkFrame):
         super().__init__(master)
 
         self.analysis_panal = analysis_panal
-        self.sample: dict = {}
         self.samples_files_dir: str = ""
-        self.data: tuple = tuple()
+        self.sample: Sample = None # type: ignore
+        self.data: tuple = ()
 
         self.entry = ctk.CTkEntry(self, placeholder_text="Enter the sample folder")
         self.entry.bind("<KeyPress-Return>", command= lambda _event: self.import_files())
@@ -60,7 +61,7 @@ class FilePanal(ctk.CTkFrame):
         self.samples_files_dir: str = self.entry.get()
         self.samples_file_viewer.display_files(self.samples_files_dir)
 
-    def set_data(self, selection: tuple, _type: GraphType, event: Event=None):
+    def set_data(self, selection: tuple, _type: GraphType, event: Event=None): # type: ignore
 
         self.data = selection
         
@@ -74,12 +75,12 @@ class FilePanal(ctk.CTkFrame):
         sample_file_name = self.samples_file_viewer.get_data(table_selection)[-1]
         sample_data = pd.read_excel(f"{self.samples_files_dir}\\{sample_file_name}")
 
-        self.sample: dict = {"name": sample_file_name, "data": sample_data}
-        
+        self.sample: Sample = Sample(sample_file_name, sample_data) # type: ignore
+
         self.analysis_panal.write(self.sample, _type)
         self.save_btn.configure(state="normal")
     
-    def save_results(self, sample: dict):
+    def save_results(self, sample: Sample):
         
         self.analysis_panal.save_data(sample, self.samples_files_dir)
 
@@ -110,7 +111,7 @@ class FileViewer(ttk.Treeview):
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
 
         self.item(selection_id[0])
-        return self.item(selection_id)["values"]
+        return self.item(selection_id)["values"] # type: ignore
 
 
 class AnalysisPanal(ctk.CTkFrame):
@@ -129,9 +130,9 @@ class AnalysisPanal(ctk.CTkFrame):
         self.analysis_book.pack(expand=1, fill="both")
         self.result_dir: str = ""
 
-    def write(self, sample: dict, _type: GraphType):
+    def write(self, sample: Sample, _type: GraphType):
 
-        self.sample_name_label.configure(text=sample["name"].capitalize())
+        self.sample_name_label.configure(text=sample.get_name())
         self.analysis_book.write(sample, _type)
         self.analysis_book.draw_graph(sample, _type)
     
@@ -171,12 +172,12 @@ class AnalysisBook(ctk.CTkTabview):
         self.data_tab.pack(expand=1, fill="both")
         self.graph_tab.pack(expand=1, fill="both")
     
-    def write(self, sample: dict, _type: GraphType):
+    def write(self, sample: Sample, _type: GraphType):
 
         self.data_tab.write(sample, _type)
         self.draw_graph(sample, _type)
     
-    def draw_graph(self, sample: dict, _type: GraphType):
+    def draw_graph(self, sample: Sample, _type: GraphType):
         
         self.graph_tab.draw_graph(sample, _type)
 
@@ -195,18 +196,14 @@ class DataTab(ctk.CTkFrame):
         self.note.place(anchor="nw", relx=0, rely=0, relwidth=1, relheight=.5)
         self.stats_note.place(anchor="sw", relx=0, rely=1, relwidth=1, relheight=.5)        
     
-    def write(self, sample: dict, _type: GraphType):
-
-        sample_data = sample['data']
-        sample_data['wht%'] = (sample_data['wht']/sample_data['wht'].sum()).round(2)
-        sample_data['cum.wht%'] = sample_data['wht'].cumsum()
+    def write(self, sample: Sample, _type: GraphType):
 
         self.note.configure(state=ctk.NORMAL)
         self.note.delete("1.0", "end")
-        self.note.insert("1.0", sample_data)
+        self.note.insert("1.0", sample.get_data())
         self.note.configure(state=ctk.DISABLED)
         
-        self.stats = analyzer.Analyzer(sample_data, _type).get_stats()
+        self.stats = analyzer.Analyzer(sample.get_data(), _type).get_stats()
         self.stats_massage: str = "".join([f"\n{k.capitalize()} ---> {v}\n" for k ,v in self.stats.items()])
         
         self.stats_note.configure(state=ctk.NORMAL)
@@ -226,12 +223,12 @@ class GraphTab(ctk.CTkFrame):
         self.fig, self.ax = plt.subplots(1, 1)
         self.canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(master=self)
 
-    def draw_graph(self, sample:dict, graph_type: GraphType) -> None:
+    def draw_graph(self, sample: Sample, graph_type: GraphType) -> None:
 
         self.graph_name = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
 
-        self.sample_name: str = sample['name'].split(".")[0].capitalize()
-        self.sample_data: pd.DataFrame = sample['data']
+        self.sample_name: str = sample.get_name()
+        self.sample_data: pd.DataFrame = sample.get_data()
 
         self.ax.cla()
 

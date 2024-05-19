@@ -8,7 +8,7 @@ import numpy as np
 
 class Analyzer():
 
-    def __init__(self, sample_data, graph_type: GraphType):
+    def __init__(self, sample_data: pd.DataFrame, graph_type: GraphType):
 
         self.x = None
         self.y = None
@@ -43,7 +43,7 @@ class Analyzer():
 
         self.phi_perc: list[int] = [5, 16, 25, 50, 75, 84, 95]
         self.points = [
-                (round(np.interp(phi,y,x), 2), phi) for phi in self.phi_perc
+                (round(np.interp(phi,y,x), 2), phi) for phi in self.phi_perc# type: ignore
                 ]
         self.phi_quant: dict[str, float] = {f"{k}": v for v, k in self.points}
         
