@@ -23,7 +23,7 @@ class App(ctk.CTk):
         self.columnconfigure(0, weight=1, uniform="a")
         self.columnconfigure(1, weight=3, uniform="a")
 
-        self.data_panal: ctk.CTkFrame = AnalysisPanal   (self)
+        self.data_panal: ctk.CTkFrame = AnalysisPanal(self)
         self.file_picker: ctk.CTkFrame = FilePanal(self, self.data_panal)
 
         self.file_picker.grid(row=0, column=0, padx=2.5, pady=5, sticky="nwse")

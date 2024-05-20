@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 import pandas as pd
 
-@dataclass
+
 class Sample():
     '''
-        The class resembling the sample
+        The class resembling the sample:
+            - name: str.
+            - data: pd.DataFrame..
     '''
-    def __repr__(self) -> str:
-        return f"Sample(name= {self._name}, data={self._data})"
 
     def __init__(self, name: str = "", data: pd.DataFrame = pd.DataFrame()) -> None:
         
@@ -15,13 +15,15 @@ class Sample():
         self._data = data
         self.run_analysis()
 
-    def get_name(self) -> str:
+    def __repr__(self) -> str:
 
-        return self._name.split(".")[0].capitalize()
+        return f"{__class__.__name__} (name= {self._name}, data={self._data})"
     
-    def get_full_name(self) -> str:
+    def get_name(self, full: bool = False) -> str:
 
-        return self._name
+        name: str = self._name.split(".")[0].capitalize()
+
+        return name if not full else self._name      
     
     def get_data(self) -> pd.DataFrame:
 

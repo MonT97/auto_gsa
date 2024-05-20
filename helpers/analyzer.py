@@ -1,13 +1,14 @@
 from scipy.interpolate import CubicSpline
 from enums import GraphType
 
-import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import pandas as pd
 import numpy as np
 
 class Analyzer():
-
+    '''
+        The class that wrangles the data and then provides the stats and make the said data plot ready. 
+    '''
     def __init__(self, sample_data: pd.DataFrame, graph_type: GraphType):
 
         self.x = None
@@ -28,7 +29,6 @@ class Analyzer():
                 self.interp = CubicSpline(x, y)
                 self.x = np.linspace(x.min(), x.max(), 500)
                 self.y = self.interp(self.x)
-
 
             case GraphType.HIST:
 
@@ -77,7 +77,7 @@ class Analyzer():
 
 class Plotter():
     '''
-        The class handeling the plotting of the data booth in terms of going and showing!
+        The class handeling the plotting of the data both in terms of going and showing!
     '''
     def __init__(self, x: pd.Series, y: pd.Series,
                  points: list[tuple[float,float]],

@@ -11,6 +11,7 @@ import os
 
 class FilePanal(ctk.CTkFrame):
     '''
+        CTkFrame:
         The class handeling:
             - picking the samples path [enery].
             - picking a sample [file_viewer].
@@ -86,6 +87,7 @@ class FilePanal(ctk.CTkFrame):
 
 class FileViewer(ttk.Treeview):
     '''
+        Treeview:
         The class that views and give the ability to select samples.
         - display_files(dir: str) writes in the samples id and file_name.
         - get_data(selection_id: str) -> [id: int, sample_file_name: str].
@@ -105,7 +107,8 @@ class FileViewer(ttk.Treeview):
         if self.get_children():
             [self.delete(i) for i in self.get_children()] 
         for index, file_ in enumerate(os.listdir(_dir)):
-            self.insert("", "end", values=[index, file_])
+            if len(file_.split(".")) > 1:
+                self.insert("", "end", values=[index, file_])
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
 
@@ -115,7 +118,10 @@ class FileViewer(ttk.Treeview):
 
 class AnalysisPanal(ctk.CTkFrame):
     '''
-        The class that handels viewing and analyzing the data
+        CTkFrame:
+        The class that handels viewing and analyzing the data.
+            - display the sample name [sample_name_label: ctk.CTkLabel].
+            - display the sample data and the analysis result [analysis_book: AnalysisBook]
     '''
     def __init__(self, master: ctk.CTk):
         super().__init__(master)
@@ -154,7 +160,10 @@ class AnalysisPanal(ctk.CTkFrame):
 
 class AnalysisBook(ctk.CTkTabview):
     '''
-        The Tabview class
+        CTkTabview:
+        The class that handel the viewing and analyzing the data.
+            - display the data and the resulting stats [data_tab: DataTab].
+            - display the graphs [graph_tab: GraphTab]
     '''
     def __init__(self, master: ctk.CTkFrame):
         super().__init__(master)
@@ -183,8 +192,10 @@ class AnalysisBook(ctk.CTkTabview):
 
 class DataTab(ctk.CTkFrame):
     '''
-        The class that views the sample data and the resulting stats :
-        - write(sample: dict, _type: GraphType): writes the sample_data and stats.
+        CTkFrame:
+        The class that views the sample data and the resulting stats.
+        - display the data [note: CTkTextbox].
+        - display the resulting stats [stats_note: CTkTextbox].
     '''
     def __init__(self, master: ctk.CTkFrame):
         super().__init__(master)
@@ -213,12 +224,12 @@ class DataTab(ctk.CTkFrame):
 
 class GraphTab(ctk.CTkFrame):
     '''
-        Draw and graph the data:
-        - draw_graph(): draw/plot graph.
+        The class that draw and view the data.
     '''
     def __init__(self, master: ctk.CTkFrame):
         super().__init__(master)
 
+        # self.fig, self.axes = plt.subplots(1, 2) #? ?self.axes here is np[]
         self.fig, self.ax = plt.subplots(1, 1)
         self.canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(master=self)
 
@@ -241,5 +252,6 @@ class GraphTab(ctk.CTkFrame):
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(expand=1, fill="both", padx=5, pady=5)
         
-        #! add the analysis and the data results into the GUI
-        #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!   
+        #! add the analysis and the data results into the GUI - DONE👌
+        #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!
+        #? how well the end game well be? - contemplate! 
