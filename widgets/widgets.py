@@ -1,9 +1,8 @@
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import ttk, Event
 from enums import GraphType
-from samples import Sample
-
-import analyzer
+from helpers import Analyzer, Plotter
+from models import Sample
 
 import customtkinter as ctk
 import matplotlib.pyplot as plt
@@ -56,7 +55,7 @@ class FilePanal(ctk.CTkFrame):
         self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.analys_btn.pack(side="bottom", fill="x", padx=5, pady=5)
 
-    def import_files(self, event=None):
+    def import_files(self):
 
         self.samples_files_dir: str = self.entry.get()
         self.samples_file_viewer.display_files(self.samples_files_dir)
@@ -136,20 +135,20 @@ class AnalysisPanal(ctk.CTkFrame):
         self.analysis_book.write(sample, _type)
         self.analysis_book.draw_graph(sample, _type)
     
-    def save_data(self, sample: dict, sample_dir: str):
+    def save_data(self, sample: Sample, sample_dir: str):
 
         #! check for a better way to do it, and make it consistant between runs!
         if not self.result_dir:
             self.result_dir = os.path.join(sample_dir, "results")
         if not os.path.exists(self.result_dir):
             os.mkdir(self.result_dir)
-        with pd.ExcelWriter(os.path.join(self.result_dir, sample['name']),
+        with pd.ExcelWriter(os.path.join(self.result_dir, sample.get_name()),
                        engine='openpyxl',
                        mode='w') as writer:
-            sample['data'].to_excel(writer, index=False)
+            sample.get_data().to_excel(writer, index=False)
         self.analysis_book.graph_tab.fig.savefig(
             os.path.join(self.result_dir,
-                         f"{sample['name'].split(".")[0]}.svg"),
+                         f"{sample.get_name()}.svg"),
             format="svg")
 
 
@@ -203,7 +202,7 @@ class DataTab(ctk.CTkFrame):
         self.note.insert("1.0", sample.get_data())
         self.note.configure(state=ctk.DISABLED)
         
-        self.stats = analyzer.Analyzer(sample.get_data(), _type).get_stats()
+        self.stats = Analyzer(sample.get_data(), _type).get_stats()
         self.stats_massage: str = "".join([f"\n{k.capitalize()} ---> {v}\n" for k ,v in self.stats.items()])
         
         self.stats_note.configure(state=ctk.NORMAL)
@@ -234,8 +233,8 @@ class GraphTab(ctk.CTkFrame):
 
         self.title: str = f"{self.sample_name}\n{self.graph_name[graph_type]}"
 
-        self.x, self.y, self.points = analyzer.Analyzer(self.sample_data, graph_type).get_plot_data()
-        analyzer.Plotter(self.x, self.y, self.points, self.ax, graph_type)
+        self.x, self.y, self.points = Analyzer(self.sample_data, graph_type).get_plot_data()
+        Plotter(self.x, self.y, self.points, self.ax, graph_type)
                      
         self.ax.set_title(self.title)
         self.canvas.figure = self.fig

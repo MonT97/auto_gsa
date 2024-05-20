@@ -1,0 +1,1 @@
+from .widgets import FilePanal, AnalysisPanal
