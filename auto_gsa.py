@@ -34,6 +34,5 @@ class App(ctk.CTk):
         self.mainloop()
 
 
-
 app = App()
 app.run()

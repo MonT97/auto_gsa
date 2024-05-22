@@ -23,7 +23,7 @@ class FilePanal(ctk.CTkFrame):
 
         self.analysis_panal = analysis_panal
         self.samples_files_dir: str = ""
-        self.sample: Sample = None # type: ignore
+        self.sample: Sample = None #type: ignore
         self.data: tuple = ()
 
         self.entry = ctk.CTkEntry(self, placeholder_text="Enter the sample folder")
@@ -42,9 +42,14 @@ class FilePanal(ctk.CTkFrame):
         self.samples_file_viewer.bind("<<QuickAnalysisHis>>", 
                               lambda event: self.set_data(self.samples_file_viewer.selection(), GraphType.HIST, event))
 
-        self.analys_btn: ctk.CTkButton = ctk.CTkButton(self,
-            text="analys",
+        self.analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
+            text="analyze",
+            state="disabled",
             command=lambda: self.analyze(self.data, GraphType.CUM))
+        self.save_all_btn: ctk.CTkButton = ctk.CTkButton(self,
+                                                        text="save all",
+                                                        state="disabled",
+                                                        command=lambda: self.save_all())
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
                                                     text="save results",
                                                     state="disabled",
@@ -53,21 +58,23 @@ class FilePanal(ctk.CTkFrame):
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
         self.samples_file_viewer.pack(side="top", padx=5)
+        self.save_all_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
-        self.analys_btn.pack(side="bottom", fill="x", padx=5, pady=5)
-
+        self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=5)
+        
     def import_files(self):
 
         self.samples_files_dir: str = self.entry.get()
         self.samples_file_viewer.display_files(self.samples_files_dir)
+        self.save_all_btn.configure(state="normal")
 
     def set_data(self, selection: tuple, _type: GraphType, event: Event=None): # type: ignore
 
+        self.analyze_btn.configure(state="normal")
         self.data = selection
         
         if event.state:
             self.analyze(self.data, _type)
-        
 
     def analyze(self, table_selection: tuple, _type:GraphType):
 
@@ -84,6 +91,37 @@ class FilePanal(ctk.CTkFrame):
         
         self.analysis_panal.save_data(sample, self.samples_files_dir)
 
+    def save_all(self):
+
+        files: list[str] = os.listdir(self.samples_files_dir)
+        files = [_file for _file in files if len(_file.split(".")) > 1]
+
+        fig, ax = plt.subplots(4, 2, figsize=(9,12))
+
+        plts = []
+
+        itr = 0
+        page_num = 1
+
+        for ind, f_name in enumerate(files):
+
+            print(ind, itr)
+            name: str = f_name
+            data: pd.DataFrame = pd.read_excel(f"{self.samples_files_dir}\\{f_name}")
+            sample: Sample = Sample(name ,data)
+            cum, hist = [Analyzer(sample.get_data(), i).get_plot_data() for i in GraphType]
+            Plotter(hist[0], hist[1], hist[2],ax[itr,0], GraphType.HIST)
+            Plotter(cum[0], cum[1], cum[2],ax[itr,1], GraphType.CUM)
+            itr+=1
+            if ind == 3 and len(files)%3 != 0 :
+                print(f"lion king{page_num+1}")
+                self.analysis_panal.save_data(sample, self.samples_files_dir, page_num, fig)
+                fig, ax = plt.subplots(4, 2, figsize=(8,11))
+                itr = 0
+                page_num+=1
+        self.analysis_panal.save_data(sample, self.samples_files_dir, page_num, fig)
+
+
 
 class FileViewer(ttk.Treeview):
     '''
@@ -92,7 +130,7 @@ class FileViewer(ttk.Treeview):
         - display_files(dir: str) writes in the samples id and file_name.
         - get_data(selection_id: str) -> [id: int, sample_file_name: str].
     '''
-    def __init__(self, master: FilePanal):
+    def __init__(self, master: FilePanal) -> None :
         super().__init__(master)
 
         self.configure(selectmode="browse",
@@ -141,21 +179,23 @@ class AnalysisPanal(ctk.CTkFrame):
         self.analysis_book.write(sample, _type)
         self.analysis_book.draw_graph(sample, _type)
     
-    def save_data(self, sample: Sample, sample_dir: str):
+    def save_data(self, sample: Sample, sample_dir: str, itr: str | int = "", t = None):
 
         #! check for a better way to do it, and make it consistant between runs!
         if not self.result_dir:
             self.result_dir = os.path.join(sample_dir, "results")
         if not os.path.exists(self.result_dir):
             os.mkdir(self.result_dir)
-        with pd.ExcelWriter(os.path.join(self.result_dir, sample.get_name()),
-                       engine='openpyxl',
-                       mode='w') as writer:
-            sample.get_data().to_excel(writer, index=False)
-        self.analysis_book.graph_tab.fig.savefig(
-            os.path.join(self.result_dir,
-                         f"{sample.get_name()}.svg"),
-            format="svg")
+        if not t:
+            with pd.ExcelWriter(os.path.join(self.result_dir, f"{sample.get_name()}.xlsx"),
+                        engine='openpyxl',
+                        mode='w') as writer:
+                sample.get_data().to_excel(writer, index=False)
+            self.analysis_book.graph_tab.fig.savefig(
+            os.path.join(self.result_dir, f"{sample.get_name()}.svg"), format="svg")
+        if t:
+            t.savefig(os.path.join(self.result_dir, f"all_samples_{itr}.svg"), format="svg")
+        
 
 
 class AnalysisBook(ctk.CTkTabview):
@@ -200,27 +240,28 @@ class DataTab(ctk.CTkFrame):
     def __init__(self, master: ctk.CTkFrame):
         super().__init__(master)
 
-        self.note: ctk.CTkTextbox = ctk.CTkTextbox(self, state=ctk.DISABLED)
+        self.data_note: ctk.CTkTextbox = ctk.CTkTextbox(self, state=ctk.DISABLED)
         self.stats_note: ctk.CTkTextbox = ctk.CTkTextbox(self, state=ctk.DISABLED)
 
-        self.note.place(anchor="nw", relx=0, rely=0, relwidth=1, relheight=.5)
+        self.data_note.place(anchor="nw", relx=0, rely=0, relwidth=1, relheight=.5)
         self.stats_note.place(anchor="sw", relx=0, rely=1, relwidth=1, relheight=.5)        
     
-    def write(self, sample: Sample, _type: GraphType):
+    def write(self, sample: Sample, _type: GraphType) -> None:
 
-        self.note.configure(state=ctk.NORMAL)
-        self.note.delete("1.0", "end")
-        self.note.insert("1.0", sample.get_data())
-        self.note.configure(state=ctk.DISABLED)
+        def update_note(note: ctk.CTkTextbox, text: pd.DataFrame | str ) -> None:
+            
+            note.configure(state=ctk.NORMAL)
+            note.delete("1.0", "end")
+            note.insert("1.0", text)
+            note.configure(state=ctk.DISABLED)
         
+        update_note(self.data_note, sample.get_data())
+
         self.stats = Analyzer(sample.get_data(), _type).get_stats()
         self.stats_massage: str = "".join([f"\n{k.capitalize()} ---> {v}\n" for k ,v in self.stats.items()])
         
-        self.stats_note.configure(state=ctk.NORMAL)
-        self.stats_note.delete("1.0", "end")
-        self.stats_note.insert("1.0", self.stats_massage)
-        self.stats_note.configure(state=ctk.DISABLED)
-    
+        update_note(self.stats_note, self.stats_massage)
+
 
 class GraphTab(ctk.CTkFrame):
     '''
@@ -229,7 +270,6 @@ class GraphTab(ctk.CTkFrame):
     def __init__(self, master: ctk.CTkFrame):
         super().__init__(master)
 
-        # self.fig, self.axes = plt.subplots(1, 2) #? ?self.axes here is np[]
         self.fig, self.ax = plt.subplots(1, 1)
         self.canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(master=self)
 

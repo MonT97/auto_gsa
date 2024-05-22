@@ -9,22 +9,20 @@ class Analyzer():
     '''
         The class that wrangles the data and then provides the stats and make the said data plot ready. 
     '''
+    stats_list: list[dict[str,float]] = []
     def __init__(self, sample_data: pd.DataFrame, graph_type: GraphType):
 
         self.x = None
         self.y = None
 
         self.points: list[tuple[float,float]] = []
-        self.stats: dict = {}
-
-        self.original_x = sample_data['phi']
-        self.original_y = sample_data['cum.wht%']
+        self._stats: dict[str, float] = {}
 
         match graph_type:
 
             case GraphType.CUM:
 
-                x, y = self.original_x, self.original_y
+                x, y = sample_data['phi'], sample_data['cum.wht%']
 
                 self.interp = CubicSpline(x, y)
                 self.x = np.linspace(x.min(), x.max(), 500)
@@ -35,11 +33,9 @@ class Analyzer():
                 self.x = sample_data['phi']
                 self.y = sample_data['wht%']
 
-        self.calculate_stats()
+        self.calculate_stats(sample_data['phi'], sample_data['cum.wht%'])
 
-    def calculate_stats(self):
-
-        x, y = self.original_x, self.original_y
+    def calculate_stats(self, x: pd.Series, y: pd.Series):
 
         self.phi_perc: list[int] = [5, 16, 25, 50, 75, 84, 95]
         self.points = [
@@ -65,13 +61,15 @@ class Analyzer():
         self.stats = {'mean': self.mean, 'std': self.std,
                             'skewness': self.skewness, 'kurtosis': self.kurtosis}
 
-    def get_stats(self) -> dict[str, int]:
+    def get_stats(self) -> dict[str, float]:
 
         self.stats = {k: round(v,2) for k, v in self.stats.items()}
         return self.stats
 
     def get_plot_data(self) -> list:
-
+        '''
+            [returns: x, y, points]
+        '''
         return[self.x, self.y, self.points]
 
 

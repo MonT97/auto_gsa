@@ -8,12 +8,13 @@ class Sample():
             - name: str.
             - data: pd.DataFrame..
     '''
-
+    samples_list: list = []
     def __init__(self, name: str = "", data: pd.DataFrame = pd.DataFrame()) -> None:
         
         self._name = name
         self._data = data
         self.run_analysis()
+        Sample.samples_list.append(self)
 
     def __repr__(self) -> str:
 
