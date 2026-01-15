@@ -80,7 +80,7 @@ class Plotter():
     def __init__(self, x: pd.Series, y: pd.Series,
                  points: list[tuple[float,float]],
                  ax: Axes, _type: GraphType):
-        
+
         self.x = x
         self.y = y
         self.points = points
@@ -113,7 +113,7 @@ class Plotter():
             self.ax.plot(self.x_cords, self.y_cords, '--k')
             self.ax.plot(self.x_cord, self.y_cord, '--.k')
             self.ax.annotate(f"x={round(self.x_cord,2)}, y={self.y_cord}%",
-                            xy=(self.x_cord+.2, self.y_cord))
+                            xy=(0.2, self.y_cord))
         
         self.ax.set_xlabel("phi (\u00D8)")
         self.ax.set_ylabel("cumulative weight %")

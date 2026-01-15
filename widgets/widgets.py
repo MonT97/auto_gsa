@@ -98,29 +98,28 @@ class FilePanal(ctk.CTkFrame):
 
         fig, ax = plt.subplots(4, 2, figsize=(9,12))
 
-        plts = []
-
-        itr = 0
-        page_num = 1
+        itr: int = 0
+        graphs_per_page: int = 2
+        page_num: int = 1
 
         for ind, f_name in enumerate(files):
 
-            print(ind, itr)
             name: str = f_name
             data: pd.DataFrame = pd.read_excel(f"{self.samples_files_dir}\\{f_name}")
             sample: Sample = Sample(name ,data)
-            cum, hist = [Analyzer(sample.get_data(), i).get_plot_data() for i in GraphType]
-            Plotter(hist[0], hist[1], hist[2],ax[itr,0], GraphType.HIST)
-            Plotter(cum[0], cum[1], cum[2],ax[itr,1], GraphType.CUM)
+            cum_points, hist_points = [Analyzer(sample.get_data(), i).get_plot_data() for i in GraphType]
+            Plotter(hist_points[0], hist_points[1], hist_points[2],ax[itr,0], GraphType.HIST)
+            Plotter(cum_points[0], cum_points[1], cum_points[2],ax[itr,1], GraphType.CUM)
             itr+=1
-            if ind == 3 and len(files)%3 != 0 :
-                print(f"lion king{page_num+1}")
+
+            if ind == 3 and len(files)%3 != 0:
+
                 self.analysis_panal.save_data(sample, self.samples_files_dir, page_num, fig)
                 fig, ax = plt.subplots(4, 2, figsize=(8,11))
                 itr = 0
                 page_num+=1
-        self.analysis_panal.save_data(sample, self.samples_files_dir, page_num, fig)
 
+        self.analysis_panal.save_data(sample, self.samples_files_dir, page_num, fig)
 
 
 class FileViewer(ttk.Treeview):
@@ -166,7 +165,7 @@ class AnalysisPanal(ctk.CTkFrame):
 
         self.sample_name_label: ctk.CTkLabel = ctk.CTkLabel(self,
                                                             anchor="center",
-                                                            text="Sample Name:")
+                                                            text="Sample Name")
         self.analysis_book: AnalysisBook = AnalysisBook(self)
 
         self.sample_name_label.pack(fill="x", padx=5, ipady=10)
