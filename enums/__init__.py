@@ -1,1 +1,1 @@
-from .enums import GraphType
+from .enums import GraphType, FileFormat

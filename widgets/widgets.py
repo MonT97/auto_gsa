@@ -1,6 +1,6 @@
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import ttk, Event
-from enums import GraphType
+from enums import GraphType, FileFormat
 from helpers import Analyzer, Plotter
 from models import Sample
 
@@ -13,7 +13,7 @@ class FilePanal(ctk.CTkFrame):
     '''
         CTkFrame:
         The class handeling:
-            - picking the samples path [enery].
+            - picking the samples path [entry].
             - picking a sample [file_viewer].
             - Analyzing said sample [analyze_btn].
             - Saving said analysis resutls [save_btn].
@@ -26,7 +26,9 @@ class FilePanal(ctk.CTkFrame):
         self.sample: Sample = None #type: ignore
         self.data: tuple = ()
 
-        self.entry = ctk.CTkEntry(self, placeholder_text="Enter the sample folder")
+        self.supported_formats: list[str] = [i.value for i in FileFormat]
+
+        self.entry = ctk.CTkEntry(self, placeholder_text="Enter the samples folder path...")
         self.entry.bind("<KeyPress-Return>", command= lambda _event: self.import_files())
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import files",
@@ -57,7 +59,7 @@ class FilePanal(ctk.CTkFrame):
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
-        self.samples_file_viewer.pack(side="top", padx=5)
+        self.samples_file_viewer.pack(side="top", fill="x", padx=5)
         self.save_all_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=5)
@@ -69,7 +71,7 @@ class FilePanal(ctk.CTkFrame):
         self.save_all_btn.configure(state="normal")
 
     def set_data(self, selection: tuple, _type: GraphType, event: Event=None): # type: ignore
-
+        
         self.analyze_btn.configure(state="normal")
         self.data = selection
         
@@ -94,7 +96,7 @@ class FilePanal(ctk.CTkFrame):
     def save_all(self):
 
         files: list[str] = os.listdir(self.samples_files_dir)
-        files = [_file for _file in files if len(_file.split(".")) > 1]
+        files = [_file for _file in files if _file.split(".")[-1] in self.supported_formats]
 
         fig, ax = plt.subplots(4, 2, figsize=(9,12))
 
@@ -105,7 +107,8 @@ class FilePanal(ctk.CTkFrame):
         for ind, f_name in enumerate(files):
 
             name: str = f_name
-            data: pd.DataFrame = pd.read_excel(f"{self.samples_files_dir}\\{f_name}")
+            f_path: str = os.path.join(self.samples_files_dir, f_name)
+            data: pd.DataFrame = pd.read_excel(f_path)
             sample: Sample = Sample(name ,data)
             cum_points, hist_points = [Analyzer(sample.get_data(), i).get_plot_data() for i in GraphType]
             Plotter(hist_points[0], hist_points[1], hist_points[2],ax[itr,0], GraphType.HIST)
@@ -125,16 +128,20 @@ class FilePanal(ctk.CTkFrame):
 class FileViewer(ttk.Treeview):
     '''
         Treeview:
-        The class that views and give the ability to select samples.
+        The class that views and gives the ability to select samples.
         - display_files(dir: str) writes in the samples id and file_name.
         - get_data(selection_id: str) -> [id: int, sample_file_name: str].
     '''
     def __init__(self, master: FilePanal) -> None :
         super().__init__(master)
 
+        self.formats: list[str] = master.supported_formats
+
         self.configure(selectmode="browse",
                        show="headings",
                        columns = ["no", "file_name"])
+        
+        self.column('no', width=30, minwidth=30, stretch=False, anchor="center")
 
         self.heading("no", text="NO", anchor="w")
         self.heading("file_name", text="File Name", anchor="w")
@@ -142,10 +149,16 @@ class FileViewer(ttk.Treeview):
     def display_files(self, _dir: str) -> None:
         
         if self.get_children():
-            [self.delete(i) for i in self.get_children()] 
+            [self.delete(i) for i in self.get_children()]
+
+        #TODO: add format support
+
         for index, file_ in enumerate(os.listdir(_dir)):
-            if len(file_.split(".")) > 1:
-                self.insert("", "end", values=[index, file_])
+            if file_.split(".")[-1] in self.formats:
+                self.insert("", "end", values=[f'{index:02}', file_])
+            else:
+                #TODO: add an error logging capacity
+                pass
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
 
@@ -163,13 +176,12 @@ class AnalysisPanal(ctk.CTkFrame):
     def __init__(self, master: ctk.CTk):
         super().__init__(master)
 
-        self.sample_name_label: ctk.CTkLabel = ctk.CTkLabel(self,
-                                                            anchor="center",
-                                                            text="Sample Name")
+        self.sample_name_label: ctk.CTkLabel = ctk.CTkLabel(
+            self, text="\nSample Name", anchor="center")
         self.analysis_book: AnalysisBook = AnalysisBook(self)
 
-        self.sample_name_label.pack(fill="x", padx=5, ipady=10)
-        self.analysis_book.pack(expand=1, fill="both")
+        self.sample_name_label.pack(fill="x", ipady=5, padx=5, pady=5)
+        self.analysis_book.pack(expand=1, fill="both", padx=5, pady=5)
         self.result_dir: str = ""
 
     def write(self, sample: Sample, _type: GraphType):
@@ -210,11 +222,11 @@ class AnalysisBook(ctk.CTkTabview):
         self.add("data")
         self.add("graph")
 
+        self.configure(fg_color="#2b2b2b")
+
         self.data_tab: DataTab = DataTab(self.tab("data"))
-        self.data_tab.pack_propagate(False)
 
         self.graph_tab: GraphTab = GraphTab(self.tab("graph"))
-        self.graph_tab.pack_propagate(False)
 
         self.data_tab.pack(expand=1, fill="both")
         self.graph_tab.pack(expand=1, fill="both")
@@ -233,21 +245,27 @@ class DataTab(ctk.CTkFrame):
     '''
         CTkFrame:
         The class that views the sample data and the resulting stats.
-        - display the data [note: CTkTextbox].
+        - display the data [data_note: CTkTextbox].
         - display the resulting stats [stats_note: CTkTextbox].
     '''
     def __init__(self, master: ctk.CTkFrame):
         super().__init__(master)
 
+        self.pack_propagate(True)
         self.data_note: ctk.CTkTextbox = ctk.CTkTextbox(self, state=ctk.DISABLED)
         self.stats_note: ctk.CTkTextbox = ctk.CTkTextbox(self, state=ctk.DISABLED)
 
-        self.data_note.place(anchor="nw", relx=0, rely=0, relwidth=1, relheight=.5)
-        self.stats_note.place(anchor="sw", relx=0, rely=1, relwidth=1, relheight=.5)        
+        self.data_label:ctk.CTkLabel = ctk.CTkLabel(self, text='Data:', anchor="w", bg_color="#2b2b2b")
+        self.stats_label:ctk.CTkLabel = ctk.CTkLabel(self, text='Statistics:', anchor="w", bg_color="#2b2b2b")
+
+        self.data_label.place(anchor="n", relx=.5, rely=0, relwidth=1, relheight=.05)
+        self.data_note.place(anchor="n", relx=.5, rely=.05, relwidth=1, relheight=.45)
+        self.stats_label.place(anchor="n", relx=.5, rely=.5, relwidth=1, relheight=.05)
+        self.stats_note.place(anchor="n", relx=.5, rely=.55, relwidth=1, relheight=.45)        
     
     def write(self, sample: Sample, _type: GraphType) -> None:
 
-        def update_note(note: ctk.CTkTextbox, text: pd.DataFrame | str ) -> None:
+        def update_note(note: ctk.CTkTextbox, text: pd.DataFrame|str ) -> None:
             
             note.configure(state=ctk.NORMAL)
             note.delete("1.0", "end")
@@ -257,7 +275,9 @@ class DataTab(ctk.CTkFrame):
         update_note(self.data_note, sample.get_data())
 
         self.stats = Analyzer(sample.get_data(), _type).get_stats()
-        self.stats_massage: str = "".join([f"\n{k.capitalize()} ---> {v}\n" for k ,v in self.stats.items()])
+        #! The format doesn't show up correctly in the text panal (stats_note)
+        self.stats_massage: str = "".join([f"\n{k.capitalize()+' ':-<15}> {v}\n" for k ,v in self.stats.items()])
+        print(self.stats_massage)
         
         update_note(self.stats_note, self.stats_massage)
 
@@ -272,6 +292,13 @@ class GraphTab(ctk.CTkFrame):
         self.fig, self.ax = plt.subplots(1, 1)
         self.canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(master=self)
 
+        #TODO let the plotter produce both graphs then let the choice be done via this button!
+        self.graph_toggle_txt: ctk.StringVar = ctk.StringVar(self, value='graph')
+        self.graph_toggle: ctk.CTkButton = ctk.CTkButton(
+            self, text=self.graph_toggle_txt.get(),
+            textvariable=self.graph_toggle_txt)
+        self.graph_toggle.place(anchor='ne', relx=.975, rely=.025)
+
     def draw_graph(self, sample: Sample, graph_type: GraphType) -> None:
 
         self.graph_name = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
@@ -281,10 +308,11 @@ class GraphTab(ctk.CTkFrame):
 
         self.ax.cla()
 
-        self.title: str = f"{self.sample_name}\n{self.graph_name[graph_type]}"
+        self.title: str = f"{self.graph_name[graph_type]}\n{self.sample_name}"
 
         self.x, self.y, self.points = Analyzer(self.sample_data, graph_type).get_plot_data()
         Plotter(self.x, self.y, self.points, self.ax, graph_type)
+        self.graph_toggle_txt.set(value=f"{self.graph_name[graph_type].split(" ")[0]}")
                      
         self.ax.set_title(self.title)
         self.canvas.figure = self.fig

@@ -32,5 +32,9 @@ class Sample():
 
     def run_analysis(self):
 
-        self._data['wht%'] = (self._data['wht']/self._data['wht'].sum()).round(2)
+        self._data['wht%'] = (self._data['wht']/self._data['wht'].sum()).round(3)
+        
+        if self._data['wht'].sum() < 100:
+            self._data.iloc[-1, 1] += 100 - self._data['wht'].sum()
+
         self._data['cum.wht%'] = self._data['wht'].cumsum()
