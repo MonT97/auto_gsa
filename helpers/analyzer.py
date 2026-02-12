@@ -10,66 +10,73 @@ class Analyzer():
         The class that wrangles the data, provides the stats and prepares it for plotting. 
     '''
     stats_list: list[dict[str,float]] = []
-    def __init__(self, sample_data: pd.DataFrame, graph_type: GraphType):
-
-        self.x = None
-        self.y = None
-
-        self.graph_type = graph_type
+    def __init__(self, sample_data: pd.DataFrame):
+        
+        self.sample_data = sample_data
+        self.x, self.y = self.set_xy()
 
         self.points: list[tuple[float,float]] = []
-        self._stats: dict[str, float] = {}
+        self.stats: dict[str, float] = {}
 
+        self.calculate_stats(self.x, self.y)
+
+    def set_xy(self) -> tuple:
+        '''
+            Prepares the data [phi, cum.wt%] for stats calculation via interpolation using Scipy's PchipInterpolator, an implementation of Hermite plynomial interpolation.
+            - -> (phi, cum.wt%)
+        '''
+        self.x = self.sample_data['phi']
         self.trim_len: int = 0
 
-        self.x, self.y = sample_data['phi'], sample_data['cum.wht%']
+        self.y = self.sample_data['cum.wht%']
+        interp_f = PchipInterpolator(self.x, self.y) 
+        self.y = np.linspace(0, 100, 1000, endpoint=False)
+        self.x, self.trim_len = self.inverse(interp_f, self.y, self.x.min())
 
-        self.interp_f = PchipInterpolator(self.x, self.y)
+        self.x = self.x[self.trim_len:]
+        self.y = self.y[self.trim_len:]
+        
+        return (self.x, self.y)
 
-        match self.graph_type:
-
-            case GraphType.CUM:
-                
-                self.y = np.linspace(0, 100, 1000, endpoint=False)
-                self.x, self.trim_len = self.inverse(self.y, self.x.min())
-
-                self.x = self.x[self.trim_len:]
-                self.y = self.y[self.trim_len:]
-
-            case GraphType.HIST:
-
-                self.x = sample_data['phi']
-                self.y = sample_data['wht%']
-
-        self.calculate_stats()
-
-    def inverse(self, wt_prcnts: np.ndarray, min_phi: float) -> tuple[np.ndarray, int]:
-
-        temp_x: list = []
+    def inverse(
+            self, interpolation_fn: PchipInterpolator|CubicSpline,
+            wt_prcnts: np.ndarray, min_phi: float
+            ) -> tuple[np.ndarray, int]:
+        '''
+            Interpolation function inversion, get phi(x) at wt_prcnts(y).
+            - -> tuple[phis, trim_len]
+        '''
+        rounding_digits: int = 3
+        phis_inversed: list|np.ndarray = []
         trim_len: int = 0
 
         for wt_prcnt in wt_prcnts:
-            phi = self.interp_f.solve(wt_prcnt)
+            phi = interpolation_fn.solve(wt_prcnt)
             if len(phi) > 1:
-                temp_x.append(phi[1]) # type: ignore
+                phis_inversed.append(phi[1]) # type: ignore
                 if phi[1] < min_phi:
                     trim_len += 1
             else:
-                temp_x.append(min_phi)
+                phis_inversed.append(min_phi)
                 trim_len += 1
+        
+        phis_inversed = np.round(np.array(phis_inversed), rounding_digits)
 
-        return (np.round(np.array(temp_x), 3), trim_len)
+        return (phis_inversed, trim_len)
 
-    def calculate_stats(self):
-
-        self.wt_prcnts: list[int] = [5, 16, 25, 50, 75, 84, 95]
-        self.xy_combo = zip(self.x, np.round(self.y, 3))# type: ignore
+    def calculate_stats(self, x, y):
+        '''
+            Calculates stats: [mean, std, skewness, kurtosis], based on Folk&Ward 1957 graphical method if possible.
+        '''
+        #TODO Implement the mthod of moments as a back stop!
+        wt_prcnts: list[int] = [5, 16, 25, 50, 75, 84, 95]
+        xy_combo = zip(x, np.round(y, 3))# type: ignore
         
         self.points = [
-                (wt_prcnt.item(), phi.item()) for phi, wt_prcnt in self.xy_combo if wt_prcnt in self.wt_prcnts
+                (wt_prcnt.item(), phi.item()) for phi, wt_prcnt in xy_combo if wt_prcnt in wt_prcnts
                 ]
         
-        valid: bool = True if len(self.points) == len(self.wt_prcnts) else False
+        valid: bool = True if len(self.points) == len(wt_prcnts) else False
 
         self.stats: dict[str, float] = {'mean': 0.0, 'std': 0.0, 'skewness': 0.0, 'kurtosis': 0.0}
 
@@ -98,15 +105,29 @@ class Analyzer():
                 }
 
     def get_stats(self) -> dict[str, float]:
-
+        '''
+            Returns the stats.
+        '''
         self.stats = {k: round(v,2) for k, v in self.stats.items()}
         return self.stats
 
-    def get_plot_data(self) -> list:
+    def get_plot_data(self, graph_type: GraphType) -> list:
         '''
-            [returns: x, y, points]
+            Returns the plot ready data.
+            - -> [x, y], points]
         '''
-        return [self.x, self.y, self.points]
+        x = None
+        y = None
+
+        match graph_type:
+            case GraphType.HIST:
+                x = self.sample_data['phi']
+                y = self.sample_data['wht%']
+            case GraphType.CUM:
+                x = self.x
+                y = self.y
+
+        return [x,y,self.points]
 
 
 class Plotter():
@@ -139,7 +160,9 @@ class Plotter():
                 self.plot_histo()
     
     def plot_cum(self):
-
+        '''
+            Plot's the cumulative curve.
+        '''
         for point in self.points:
 
             self.y_cord, self.x_cord = point
@@ -154,6 +177,9 @@ class Plotter():
         self.ax.set_ylabel("cumulative weight %")
     
     def plot_histo(self):
+        '''
+            Plot's the Histogram.
+        '''
         
         str_x: list[str] = [str(i) for i in self.x] #? psedu categorical conversion
         self.ax.hist(str_x, weights=self.y, bins=len(str_x), **{'edgecolor': 'k'}) # type: ignore

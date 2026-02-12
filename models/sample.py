@@ -18,7 +18,7 @@ class Sample():
 
     def __repr__(self) -> str:
 
-        return f"{__class__.__name__} (name= {self._name}, data={self._data})"
+        return f"{__class__.__name__} (name={self._name}, data={self._data})"
     
     def get_name(self, full: bool = False) -> str:
 
@@ -30,10 +30,11 @@ class Sample():
 
         return self._data
 
-    def run_analysis(self):
+    def run_analysis(self) -> None:
 
         self._data['wht%'] = (self._data['wht']/self._data['wht'].sum()).round(3)
         
+        #? What effect does this have on the interpolatoin results?
         if self._data['wht'].sum() < 100:
             self._data.iloc[-1, 1] += 100 - self._data['wht'].sum()
 
