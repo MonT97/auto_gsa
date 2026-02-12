@@ -7,7 +7,7 @@ import numpy as np
 
 class Analyzer():
     '''
-        The class that wrangles the data, provides the stats and prepares it for plotting. 
+        The class that wrangles the data, provides the stats, then prepares it for plotting. 
     '''
     stats_list: list[dict[str,float]] = []
     def __init__(self, sample_data: pd.DataFrame):
@@ -66,7 +66,8 @@ class Analyzer():
 
     def calculate_stats(self, x, y):
         '''
-            Calculates stats: [mean, std, skewness, kurtosis], based on Folk&Ward 1957 graphical method if possible.
+            Calculates stats: [mean, std, skewness, kurtosis], based on Folk&Ward 1957 graphical method if possible, otherwise, the Method of Moments is used.
+            - x [wht%]. y [cum.wht%]
         '''
         #TODO Implement the mthod of moments as a back stop!
         wt_prcnts: list[int] = [5, 16, 25, 50, 75, 84, 95]
@@ -76,11 +77,11 @@ class Analyzer():
                 (wt_prcnt.item(), phi.item()) for phi, wt_prcnt in xy_combo if wt_prcnt in wt_prcnts
                 ]
         
-        valid: bool = True if len(self.points) == len(wt_prcnts) else False
+        graphical_valid: bool = True if len(self.points) == len(wt_prcnts) else False
 
         self.stats: dict[str, float] = {'mean': 0.0, 'std': 0.0, 'skewness': 0.0, 'kurtosis': 0.0}
 
-        if valid:
+        if graphical_valid:
             self.phi_prcnt: dict[str, float] = {f"{int(k)}": v for (k), v in self.points}
 
             self.mean: float = (self.phi_prcnt['16']+self.phi_prcnt['50']+self.phi_prcnt['84'])/3
@@ -98,11 +99,23 @@ class Analyzer():
                                     (self.phi_prcnt['95']-self.phi_prcnt['5'])/
                                     2.44*(self.phi_prcnt['75']/self.phi_prcnt['25'])
                                     )
-            
-            self.stats = {
-                'mean': self.mean, 'std': self.std,
-                'skewness': self.skewness, 'kurtosis': self.kurtosis
-                }
+        else:
+            phi: np.ndarray = np.array(self.sample_data['phi'])
+            f: np.ndarray = np.array(self.sample_data['wht%'])
+            f = np.append(f[:-2], f[-2:].sum()) #! as f is the median wt value, this is a temp fix
+            d: np.ndarray = np.array((phi[:-1]+phi[1:])/2)
+
+            N = f.sum() #? some say N=100, yet this is after ana_sed
+
+            self.mean = (np.sum(f*d))/N
+            self.std = ((np.sum(f*((d-self.mean)**2)))/N)**.5
+            self.skewness = ((np.sum(f*((d-self.mean)**3)))/(N*self.std**3))
+            self.kurtosis = ((np.sum(f*((d-self.mean)**4)))/(N*self.std**4))
+
+        self.stats = {
+            'mean': self.mean, 'std': self.std,
+            'skewness': self.skewness, 'kurtosis': self.kurtosis
+            }
 
     def get_stats(self) -> dict[str, float]:
         '''
@@ -132,7 +145,7 @@ class Analyzer():
 
 class Plotter():
     '''
-        The class handeling the plotting of the data
+        The class that handles the plotting of the data
     '''
     def __init__(self, x: pd.Series, y: pd.Series,
                  points: list[tuple[float,float]],
@@ -143,25 +156,24 @@ class Plotter():
         self.points = points
         
         self.ax = ax
-
         self.type = _type
 
         match self.type:
             
+            case GraphType.HIST:
+
+                self.plot_histo()
+
             case GraphType.CUM:
                 
                 self.padding: float = .35
                 self.ax.set_xlim(self.x.min()-self.padding, self.x.max()+self.padding)
                 self.ax.set_ylim(0-self.padding*10, 100+self.padding*10)
                 self.plot_cum()
-            
-            case GraphType.HIST:
-
-                self.plot_histo()
     
     def plot_cum(self):
         '''
-            Plot's the cumulative curve.
+            Plots the cumulative curve.
         '''
         for point in self.points:
 
@@ -178,9 +190,10 @@ class Plotter():
     
     def plot_histo(self):
         '''
-            Plot's the Histogram.
+            Plots the Histogram.
         '''
         
+        self.y
         str_x: list[str] = [str(i) for i in self.x] #? psedu categorical conversion
         self.ax.hist(str_x, weights=self.y, bins=len(str_x), **{'edgecolor': 'k'}) # type: ignore
 

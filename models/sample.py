@@ -32,9 +32,10 @@ class Sample():
 
     def run_analysis(self) -> None:
 
-        self._data['wht%'] = (self._data['wht']/self._data['wht'].sum()).round(3)
-        
-        #? What effect does this have on the interpolatoin results?
+        self._data['wht%'] = ((self._data['wht']/self._data['wht'].sum())*100).round(2)
+        #? What effect does this have on the interpolatoin results?. No so it doesn't matter
+        #? Move this to the Analysis() as it is a requirement for the method of moments
+        #? maybe show the pure data and use this for calculations??
         if self._data['wht'].sum() < 100:
             self._data.iloc[-1, 1] += 100 - self._data['wht'].sum()
 

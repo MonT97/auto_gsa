@@ -2,6 +2,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import ttk, Event
 from enums import GraphType, FileFormat
 from helpers import Analyzer, Plotter
+from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from models import Sample
 
@@ -40,10 +41,8 @@ class FilePanal(ctk.CTkFrame):
         self.samples_file_viewer.bind(
             "<<TreeviewSelect>>", 
             lambda event: self.set_data(self.samples_file_viewer.selection(), event))
-        self.samples_file_viewer.event_add("<<QuickAnalysisHis>>", "<Shift-Button-1>")
-        self.samples_file_viewer.bind(
-            "<<QuickAnalysisHis>>", 
-            lambda event: self.set_data(self.samples_file_viewer.selection(), event))
+        self.samples_file_viewer.bind("<KeyPress-Return>",
+            lambda _event: self.analyze(self.data))
 
         self.analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="analyze",
@@ -82,7 +81,7 @@ class FilePanal(ctk.CTkFrame):
             for _type in GraphType:
                 self.analyze(self.data, _type)
 
-    def analyze(self, table_selection: tuple, _type:GraphType):
+    def analyze(self, table_selection: tuple, _type:GraphType|None = None):
 
         sample_file_name = self.samples_file_viewer.get_data(table_selection)[-1]
         sample_data = pd.read_excel(f"{self.samples_files_dir}\\{sample_file_name}")
@@ -90,8 +89,9 @@ class FilePanal(ctk.CTkFrame):
         self.sample: Sample = Sample(sample_file_name, sample_data) # type: ignore
 
         self.analysis_panal.write(self.sample, _type)
-        self.analysis_panal.draw_graph(self.sample, _type)
+        self.analysis_panal.draw_graphs(self.sample, _type)
 
+        self.samples_file_viewer.focus_set() #! why broken??
         self.save_btn.configure(state="normal")
     
     def save_results(self, sample: Sample):
@@ -142,13 +142,35 @@ class FileViewer(ttk.Treeview):
 
         self.formats: list[str] = master.supported_formats
 
-        self.configure(selectmode="browse",
+        style = ttk.Style()
+        style.theme_use('default')
+        style.configure('Treeview',
+            foreground='white',
+            background='#333333',
+            bordercolor='#1f6aa5',
+            borderwidth=0,
+            rowheight=25, font=('Arial', 12),
+            fieldbackground='#333333')
+        style.map('Treeview')
+        
+        header_style = ttk.Style()
+        header_style.configure('Treeview.Heading', 
+            relief='flat',
+            foreground='white',
+            background='#1f6aa5',
+            bordercolor='#1f6aa5',
+            font=('Arial', 14, 'bold'))
+        header_style.map('Treeview.Heading',
+            background=[('active', '#144870')])
+
+        self.configure(style='Treeview', selectmode="browse",
                        show="headings",
                        columns = ["no", "file_name"])
         
-        self.column('no', width=30, minwidth=30, stretch=False, anchor="center")
+        self.column('no', width=40, minwidth=40, stretch=False, anchor="center")
+        self.column('file_name', width=194, minwidth=190, stretch=False)
 
-        self.heading("no", text="NO", anchor="w")
+        self.heading("no", text="NO", anchor="center")
         self.heading("file_name", text="File Name", anchor="w")
 
     def display_files(self, _dir: str) -> None:
@@ -158,8 +180,10 @@ class FileViewer(ttk.Treeview):
 
         #TODO: add format support
         supported: function = lambda _file: _file.split(".")[-1] in self.formats
-        for index, file_ in enumerate(os.listdir(_dir)):
+        index: int = 0
+        for file_ in os.listdir(_dir):
             if supported(file_):
+                index+=1
                 self.insert("", "end", values=[f'{index:02}', file_])
             else:
                 #TODO: add an error logging capacity
@@ -196,10 +220,12 @@ class AnalysisPanal(ctk.CTkFrame):
             column=0, columnspan=2, row=1, rowspan=1,
             padx=5, pady=5, sticky='nsew')
 
-    def draw_graph(self, sample: Sample, _type: GraphType):
-        self.graph_panal.draw_graph(sample, _type)
+    def draw_graphs(self, sample: Sample, _type: GraphType|None = None) -> None:
+        
+        #? is this the best place for this? NO
+        self.graph_panal.draw_graphs(sample, _type)      
 
-    def write(self, sample: Sample, _type: GraphType):
+    def write(self, sample: Sample, _type: GraphType) -> None:
         self.data_panal.write(sample, _type)
 
 
@@ -208,26 +234,39 @@ class GraphPanal(ctk.CTkFrame):
         CTkFrame:
         View the resulting graphs
     '''
+    #TODO add the ability to change the graph color, maybe only during saves as this is a preview!?
     def __init__(self, master: AnalysisPanal):
         super().__init__(master)
 
-
         self.graphs: list[Axes] = []
-        self.fig, self.ax = plt.subplots(1, 1)
-        #TODO side by side plots
-        # self.fig, self.ax = plt.subplots(1, 2)
-        # self.ax = self.ax.flatten()
-        self.canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(master=self)
-
-    def draw_graph(self, sample: Sample, graph_type: GraphType) -> None:
-
         self.graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
+
+    def draw_graphs(self, sample: Sample, graph_type: GraphType|None) -> None:
+        '''
+            Layout the graphs
+        '''
+        for i in self.place_slaves():
+            i.place_forget()
+        if graph_type:
+            graph = self.generate_graph(sample, graph_type)
+            graph.place(relx=0, rely=0, relwidth=1, relheight=1)
+        else:
+            for ind, graph_type in enumerate(GraphType):
+                graph = self.generate_graph(sample, graph_type)
+                graph.place(relx=0+ind/2, rely=0, relwidth=.5, relheight=1)
+
+    def generate_graph(self, sample: Sample, graph_type: GraphType) -> ctk.CTkCanvas:
+        '''
+            Generates the graph/plot as a layout ready widget
+            - -> ctk.CTkCanvas
+        '''
+        self.fig = Figure(layout='constrained')
+        self.ax = self.fig.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(self.fig, self) 
         self.graph_name = self.graph_names[graph_type]
 
         self.sample_name: str = sample.get_name()
         self.sample_data: pd.DataFrame = sample.get_data()
-
-        self.ax.cla()
 
         self.title: str = f"{self.graph_name}\n{self.sample_name}"
 
@@ -235,14 +274,14 @@ class GraphPanal(ctk.CTkFrame):
         Plotter(self.x, self.y, self.points, self.ax, graph_type)
                      
         self.ax.set_title(self.title)
-        self.canvas.figure = self.fig
-        self.canvas.draw()
+
+        return self.canvas.get_tk_widget() #type: ignore as the ctk one inherits the tk Canvas
 
 
 class DataPanal(ctk.CTkFrame):
     '''
         CTkFrame:
-        View the resulting graphs
+        View the data and resulting stats
     '''
 
     def __init__(self, master: AnalysisPanal):
@@ -259,7 +298,6 @@ class DataPanal(ctk.CTkFrame):
         stats = Analyzer(sample.get_data()).get_stats()
         #! The format doesn't show up correctly in the text panal (stats_note)
         stats_massage: str = "".join([f"\n{k.capitalize()+' ':-<15}> {v}\n" for k ,v in stats.items()])
-        print(stats_massage)
         
         self.data_note.update_note(sample.get_data())
         self.stats_note.update_note(stats_massage)
@@ -294,108 +332,6 @@ class StatsNote(ctk.CTkTextbox):
                 self.configure(state=ctk.DISABLED)  
 
 
-class AnalysisBook(ctk.CTkTabview):
-    '''
-        CTkTabview:
-        The class that handel the viewing and analyzing the data.
-            - display the data and the resulting stats [data_tab: DataTab].
-            - display the graphs [graph_tab: GraphTab]
-    '''
-    def __init__(self, master: ctk.CTkFrame):
-        super().__init__(master)
-
-        self.add("data")
-        self.add("graph")
-
-        self.configure(fg_color="#2b2b2b")
-
-        self.data_tab: DataTab = DataTab(self.tab("data"))
-
-        self.graph_tab: GraphTab = GraphTab(self.tab("graph"))
-
-        self.data_tab.pack(expand=1, fill="both")
-        self.graph_tab.pack(expand=1, fill="both")
-    
-    def write(self, sample: Sample, _type: GraphType):
-
-        self.data_tab.write(sample, _type)
-        self.draw_graph(sample, _type)
-    
-    def draw_graph(self, sample: Sample, _type: GraphType):
-        
-        self.graph_tab.draw_graph(sample, _type)
-
-
-class DataTab(ctk.CTkFrame):
-    '''
-        CTkFrame:
-        The class that views the sample data and the resulting stats.
-        - display the data [data_note: CTkTextbox].
-        - display the resulting stats [stats_note: CTkTextbox].
-    '''
-    def __init__(self, master: ctk.CTkFrame):
-        super().__init__(master)
-
-        self.pack_propagate(True)
-        self.data_note: ctk.CTkTextbox = ctk.CTkTextbox(self, state=ctk.DISABLED)
-        self.stats_note: ctk.CTkTextbox = ctk.CTkTextbox(self, state=ctk.DISABLED)
-
-        self.data_label:ctk.CTkLabel = ctk.CTkLabel(self, text='Data:', anchor="w", bg_color="#2b2b2b")
-        self.stats_label:ctk.CTkLabel = ctk.CTkLabel(self, text='Statistics:', anchor="w", bg_color="#2b2b2b")
-
-        self.data_label.place(anchor="n", relx=.5, rely=0, relwidth=1, relheight=.05)
-        self.data_note.place(anchor="n", relx=.5, rely=.05, relwidth=1, relheight=.45)
-        self.stats_label.place(anchor="n", relx=.5, rely=.5, relwidth=1, relheight=.05)
-        self.stats_note.place(anchor="n", relx=.5, rely=.55, relwidth=1, relheight=.45)        
-    
-    def write(self, sample: Sample, _type: GraphType) -> None:
-
-        def update_note(note: ctk.CTkTextbox, text: pd.DataFrame|str ) -> None:
-            
-            note.configure(state=ctk.NORMAL)
-            note.delete("1.0", "end")
-            note.insert("1.0", text)
-            note.configure(state=ctk.DISABLED)
-        
-        update_note(self.data_note, sample.get_data())
-
-        self.stats = Analyzer(sample.get_data()).get_stats()
-        #! The format doesn't show up correctly in the text panal (stats_note)
-        self.stats_massage: str = "".join([f"\n{k.capitalize()+' ':-<15}> {v}\n" for k ,v in self.stats.items()])
-        print(self.stats_massage)
-        
-        update_note(self.stats_note, self.stats_massage)
-
-
-class GraphTab(ctk.CTkFrame):
-    '''
-        The class that draw and view the data.
-    '''
-    def __init__(self, master: ctk.CTkFrame):
-        super().__init__(master)
-
-        self.fig, self.ax = plt.subplots(1, 1)
-        self.canvas: FigureCanvasTkAgg = FigureCanvasTkAgg(master=self)
-
-    def draw_graph(self, sample: Sample, graph_type: GraphType) -> None:
-
-        self.graph_name = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
-
-        self.sample_name: str = sample.get_name()
-        self.sample_data: pd.DataFrame = sample.get_data()
-
-        self.ax.cla()
-
-        self.title: str = f"{self.graph_name[graph_type]}\n{self.sample_name}"
-
-        self.x, self.y, self.points = Analyzer(self.sample_data).get_plot_data(graph_type)
-        Plotter(self.x, self.y, self.points, self.ax, graph_type)
-                     
-        self.ax.set_title(self.title)
-        self.canvas.figure = self.fig
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(expand=1, fill="both", padx=5, pady=5)
-        
         #! add the analysis and the data results into the GUI - DONE👌
         #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!
         #? how well the end game well be? - contemplate! 

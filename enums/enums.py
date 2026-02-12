@@ -6,8 +6,8 @@ class GraphType(Enum):
         - CUM -----> cumulative.
         - HIST ----> histogram.
     '''
-    CUM = 0
-    HIST = 1
+    HIST = 0
+    CUM = 1
 
 
 class FileFormat(Enum):
