@@ -1,20 +1,16 @@
+from typedefs import GraphType, SamplePoints, SampleStats, PlotInput, PlotData
 from scipy.interpolate import PchipInterpolator
-from enums import GraphType
 from matplotlib.axes import Axes
+
 import pandas as pd
 import numpy as np
-
-type SamplePoints = list[tuple[float, float]]
-type SampleStats = dict[str, float]
-type PlotInput = pd.Series|np.ndarray
-type PlotData = tuple[PlotInput, PlotInput, SamplePoints]
 
 class Analyzer():
     '''
         The class that wrangles the data, provides the stats, then prepares it for plotting. 
     '''
     stats_list: list[dict[str,float]] = []
-    def __init__(self, sample_data: pd.DataFrame):
+    def __init__(self, sample_data: pd.DataFrame) -> None:
         
         self.sample_data = sample_data
         self.x, self.y = self._set_xy(sample_data)
@@ -70,7 +66,7 @@ class Analyzer():
             - x [wht%]. y [cum.wht%]
         '''
         wt_prcnts: list[int] = [5, 16, 25, 50, 75, 84, 95]
-        xy_combo = zip(x, np.round(y, 3))# type: ignore
+        xy_combo = zip(x, np.round(y, 3))
         
         points: SamplePoints = [
                 (wt_prcnt.item(), phi.item()) for phi, wt_prcnt in xy_combo if wt_prcnt in wt_prcnts
@@ -130,7 +126,6 @@ class Analyzer():
             Returns the plot ready data.
             - -> [x, y], points]
         '''
-
         match graph_type:
             case GraphType.HIST:
                 x: PlotInput = self.sample_data['phi']
@@ -148,9 +143,9 @@ class Plotter():
     '''
     def __init__(self, x: PlotInput, y: PlotInput,
                  points: SamplePoints,
-                 ax: Axes, _type: GraphType):
+                 ax: Axes, graph_type: GraphType) -> None:
         
-        match _type:
+        match graph_type:
 
             case GraphType.HIST:
                 self._plot_histo(ax, x, y)

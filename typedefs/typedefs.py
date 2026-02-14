@@ -1,4 +1,14 @@
 from enum import Enum
+from tkinter import ttk
+
+import pandas as pd
+import numpy as np
+
+type SamplePoints = list[tuple[float, float]]
+type SampleStats = dict[str, float]
+type PlotInput = pd.Series|np.ndarray
+type PlotData = tuple[PlotInput, PlotInput, SamplePoints]
+
 
 class GraphType(Enum):
     '''

@@ -1,14 +1,16 @@
+import os
+
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from tkinter import ttk, Event
-from enums import GraphType, FileFormat
+from typedefs import GraphType, FileFormat, PlotData
 from helpers import Analyzer, Plotter
 from matplotlib.axes import Axes
+from tkinter import ttk, Event
 from models import Sample
 
-import customtkinter as ctk
 import matplotlib.pyplot as plt
+import customtkinter as ctk
+import tkinter as tk
 import pandas as pd
-import os
 
 class FilePanal(ctk.CTkFrame):
     '''
@@ -62,7 +64,7 @@ class FilePanal(ctk.CTkFrame):
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
-        self.samples_file_viewer.pack(side="top", fill="x", padx=5)
+        self.samples_file_viewer.pack(side="top", fill="x", pady=5, padx=5)
         self.save_all_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=5)
@@ -88,15 +90,15 @@ class FilePanal(ctk.CTkFrame):
             for _type in GraphType:
                 self.analyze(self.data, _type)
 
-    def analyze(self, table_selection: tuple, _type:GraphType|None = None):
+    def analyze(self, table_selection: tuple, graph_type: GraphType|None = None):
 
         sample_file_name = self.samples_file_viewer.get_data(table_selection)[-1]
         sample_data = pd.read_excel(f"{self.samples_files_dir}\\{sample_file_name}")
 
         self.sample: Sample = Sample(sample_file_name, sample_data) # type: ignore
 
-        self.analysis_panal.write(self.sample, _type)
-        self.analysis_panal.draw_graphs(self.sample, _type)
+        self.analysis_panal.write(self.sample, graph_type)
+        self.analysis_panal.draw_graphs(self.sample, graph_type)
 
         self.samples_file_viewer.focus_set() #! why broken??
         self.save_btn.configure(state="normal")
@@ -149,16 +151,16 @@ class FileViewer(ttk.Treeview):
 
         self.formats: list[str] = master.supported_formats
 
-        style = ttk.Style()
-        style.theme_use('default')
-        style.configure('Treeview',
+        row_style = ttk.Style()
+        row_style.theme_use('default')
+        row_style.configure('Treeview',
             foreground='white',
             background='#333333',
             bordercolor='#1f6aa5',
             borderwidth=0,
             rowheight=25, font=('Arial', 12),
             fieldbackground='#333333')
-        style.map('Treeview')
+        row_style.map('Treeview')
         
         header_style = ttk.Style()
         header_style.configure('Treeview.Heading', 
@@ -211,8 +213,10 @@ class AnalysisPanal(ctk.CTkFrame):
             - display the sample graphs [gaph_panal: ctk.CTkLabel].
             - display the sample data and the analysis result [data_panal: AnalysisBook]
     '''
-    def __init__(self, master: ctk.CTk):
+    def __init__(self, master: ctk.CTk) -> None:
         super().__init__(master)
+
+        self.current_sample: Sample = Sample()
 
         self.graph_panal: GraphPanal = GraphPanal(self)
         self.data_panal: DataPanal = DataPanal(self)
@@ -229,13 +233,18 @@ class AnalysisPanal(ctk.CTkFrame):
             column=0, columnspan=2, row=1, rowspan=1,
             padx=5, pady=5, sticky='nsew')
 
-    def draw_graphs(self, sample: Sample, _type: GraphType|None = None) -> None:
-        
-        #? is this the best place for this? NO
-        self.graph_panal.draw_graphs(sample, _type)      
+    def create_analyzer(self, sample: Sample) -> None:
+        if self.current_sample != sample:
+            self.analyzer: Analyzer = Analyzer(sample.get_data())
 
-    def write(self, sample: Sample, _type: GraphType) -> None:
-        self.data_panal.write(sample, _type)
+    def draw_graphs(self, sample: Sample, graph_type: GraphType|None = None) -> None:
+        self.create_analyzer(sample)
+        #? is this the best place for this? NO
+        self.graph_panal.draw_graphs(self.analyzer, sample.get_name(), graph_type)      
+
+    def write(self, sample: Sample, graph_type: GraphType) -> None:
+        self.create_analyzer(sample)
+        self.data_panal.write(self.analyzer, sample, graph_type)
 
 
 class GraphPanal(ctk.CTkFrame):
@@ -244,7 +253,7 @@ class GraphPanal(ctk.CTkFrame):
         View the resulting graphs
     '''
     #TODO add the ability to change the graph color, maybe only during saves as this is a preview!?
-    def __init__(self, master: AnalysisPanal):
+    def __init__(self, master: AnalysisPanal) -> None:
         super().__init__(master)
 
         self.graphs: list[Axes] = []
@@ -254,23 +263,26 @@ class GraphPanal(ctk.CTkFrame):
         self.columnconfigure(1, weight=1, uniform='a')
         self.rowconfigure(0, weight=1, uniform='a')
 
-    def draw_graphs(self, sample: Sample, graph_type: GraphType|None) -> None:
+    def draw_graphs(self, analyzer: Analyzer, sample_name: str, graph_type: GraphType|None) -> None:
         '''
             Layout the graphs
             - graph_type = None -> layout all the graphs in enums.GraphType
         '''
-        
+        #? resetting the layout!
         for i in self.grid_slaves():
             i.grid_forget()
+
         if graph_type:
-            graph = self.generate_graph(sample, graph_type)
+            graph = self.generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type)
             graph.grid(column=0, row=0, columnspan=2, rowspan=1)
         else:
             for ind, graph_type in enumerate(GraphType):
-                graph = self.generate_graph(sample, graph_type)
+                graph = self.generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type)
                 graph.grid(column=ind, row=0, columnspan=1, rowspan=1)
 
-    def generate_graph(self, sample: Sample, graph_type: GraphType) -> ctk.CTkCanvas:
+    def generate_graph(self, 
+                       plot_data: PlotData, sample_name: str, graph_type: GraphType
+                       ) -> tk.Canvas:
         '''
             Generates the graph/plot as a layout ready widget
             - -> ctk.CTkCanvas
@@ -278,54 +290,51 @@ class GraphPanal(ctk.CTkFrame):
         self.fig, self.ax = plt.subplots()
         self.fig.set_layout_engine('constrained')
         self.canvas = FigureCanvasTkAgg(self.fig, self) 
-        self.graph_name = self.graph_names[graph_type]
+        graph_name = self.graph_names[graph_type]
 
-        self.sample_name: str = sample.get_name()
-        self.sample_data: pd.DataFrame = sample.get_data()
+        title: str = f"{graph_name}\n{sample_name}"
 
-        self.title: str = f"{self.graph_name}\n{self.sample_name}"
-
-        self.x, self.y, self.points = Analyzer(self.sample_data).get_plot_data(graph_type)
+        self.x, self.y, self.points = plot_data
         Plotter(self.x, self.y, self.points, self.ax, graph_type)
                      
-        self.ax.set_title(self.title)
+        self.ax.set_title(title)
 
-        return self.canvas.get_tk_widget() #type: ignore as the ctk one inherits the tk Canvas
+        return self.canvas.get_tk_widget()
 
 
 class DataPanal(ctk.CTkFrame):
     '''
         CTkFrame:
-        View the data and resulting stats
+        Views the data and resulting stats
     '''
-
-    def __init__(self, master: AnalysisPanal):
+    def __init__(self, master: AnalysisPanal) -> None:
         super().__init__(master)
 
-        self.data_note: DataNote = DataNote(self) 
-        self.stats_note: StatsNote = StatsNote(self)
+        self.note_font: ctk.CTkFont = ctk.CTkFont('JetBrainsMono', 14, 'bold')
+
+        self.data_note: DataNote = DataNote(self, self.note_font) 
+        self.stats_note: StatsNote = StatsNote(self, self.note_font)
 
         self.data_note.pack(side='left', fill='both', expand=1, padx=5, pady=5)
         self.stats_note.pack(side='left', fill='both', expand=1, padx=5, pady=5)
 
-    def write(self, sample: Sample, _type: GraphType):
+    def write(self, analyzer: Analyzer, sample: Sample, _type: GraphType):
         
-        stats = Analyzer(sample.get_data()).get_stats()
+        stats = analyzer.get_stats()
         #! The format doesn't show up correctly in the text panal (stats_note)
-        stats_massage: str = "".join([f"\n{k.capitalize()+' ':-<15}> {v}\n" for k ,v in stats.items()])
-        
-        self.data_note.update_note(sample.get_data())
+        stats_massage: str = "".join([f"\n{k.capitalize()}\t>  {v:.3f}" for k ,v in stats.items()])
+        sample_data_massage: str = sample.get_data().to_string(index=False, col_space= 10, justify='center')
+        self.data_note.update_note(sample_data_massage)
         self.stats_note.update_note(stats_massage)
 
 
 class DataNote(ctk.CTkTextbox):
 
-    def __init__(self, master: DataPanal):
+    def __init__(self, master: DataPanal, font: ctk.CTkFont) -> None:
         super().__init__(master)
+        self.configure(state=ctk.DISABLED, font=font, tabs=150)  
 
-        self.configure(state=ctk.DISABLED)  
-
-    def update_note(self, text: pd.DataFrame|str ) -> None:
+    def update_note(self, text: str ) -> None:
                 
                 self.configure(state=ctk.NORMAL)
                 self.delete("1.0", "end")
@@ -335,9 +344,9 @@ class DataNote(ctk.CTkTextbox):
 
 class StatsNote(ctk.CTkTextbox):
 
-    def __init__(self, master: DataPanal):
+    def __init__(self, master: DataPanal, font: ctk.CTkFont) -> None:
         super().__init__(master)
-        self.configure(state=ctk.DISABLED)    
+        self.configure(state=ctk.DISABLED, font=font, tabs=150)    
 
     def update_note(self, text: pd.DataFrame|str ) -> None:
                 
@@ -345,7 +354,6 @@ class StatsNote(ctk.CTkTextbox):
                 self.delete("1.0", "end")
                 self.insert("1.0", text)
                 self.configure(state=ctk.DISABLED)  
-
 
         #! add the analysis and the data results into the GUI - DONE👌
         #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!
