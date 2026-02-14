@@ -2,7 +2,6 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import ttk, Event
 from enums import GraphType, FileFormat
 from helpers import Analyzer, Plotter
-from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from models import Sample
 
@@ -15,8 +14,8 @@ class FilePanal(ctk.CTkFrame):
     '''
         CTkFrame:
         The class handeling:
-            - picking the samples path [entry].
-            - picking a sample [file_viewer].
+            - Picking the samples path [entry].
+            - Picking a sample [file_viewer].
             - Analyzing said sample [analyze_btn].
             - Saving said analysis resutls [save_btn].
     '''
@@ -28,10 +27,12 @@ class FilePanal(ctk.CTkFrame):
         self.sample: Sample = None #type: ignore
         self.data: tuple = ()
 
-        self.supported_formats: list[str] = [i.value for i in FileFormat]
+        self.supported_formats: list[str] = [_format.value for _format in FileFormat]
 
         self.entry = ctk.CTkEntry(self, placeholder_text="Enter the samples folder path...")
         self.entry.bind("<KeyPress-Return>", command= lambda _event: self.import_files())
+        self.entry.bind('<Enter>', lambda _event: self.entry.focus_set())
+        self.entry.bind('<KeyPress-Escape>', lambda _event: self.reset_focus())
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import files",
             command=lambda: self.import_files())
@@ -65,12 +66,18 @@ class FilePanal(ctk.CTkFrame):
         self.save_all_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=5)
-        
-    def import_files(self):
+    
+    def reset_focus(self) -> None:
+
+        self.master.focus_set()
+
+    def import_files(self) -> None:
 
         self.samples_files_dir: str = self.entry.get()
         self.samples_file_viewer.display_files(self.samples_files_dir)
         self.save_all_btn.configure(state="normal")
+
+        self.reset_focus()
 
     def set_data(self, selection: tuple, event: Event=None): # type: ignore
         
@@ -98,7 +105,7 @@ class FilePanal(ctk.CTkFrame):
         
         self.analysis_panal.save_data(sample, self.samples_files_dir)
 
-    def save_all(self):
+    def save_all(self) -> None:
 
         files: list[str] = os.listdir(self.samples_files_dir)
         files = [_file for _file in files if _file.split(".")[-1] in self.supported_formats]
@@ -179,15 +186,17 @@ class FileViewer(ttk.Treeview):
             [self.delete(i) for i in self.get_children()]
 
         #TODO: add format support
-        supported: function = lambda _file: _file.split(".")[-1] in self.formats
-        index: int = 0
-        for file_ in os.listdir(_dir):
-            if supported(file_):
-                index+=1
-                self.insert("", "end", values=[f'{index:02}', file_])
-            else:
-                #TODO: add an error logging capacity
-                pass
+        supported: function = lambda file_: file_.split(".")[-1] in self.formats
+        supported_files: list[str] = [file_ for file_ in os.listdir(_dir) if supported(file_)]
+        padding: int = len(str(len(supported_files)))+1
+
+        try:
+            for index, file_ in enumerate(supported_files):
+                self.insert("", "end", values=[f'{index+1:0{padding}}', file_])
+        except FileNotFoundError as e:
+            raise e
+            #TODO: add an error logging capacity if no files are found len(supp_files==0)
+            pass
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
 
@@ -241,27 +250,33 @@ class GraphPanal(ctk.CTkFrame):
         self.graphs: list[Axes] = []
         self.graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
 
+        self.columnconfigure(0, weight=1, uniform='a')
+        self.columnconfigure(1, weight=1, uniform='a')
+        self.rowconfigure(0, weight=1, uniform='a')
+
     def draw_graphs(self, sample: Sample, graph_type: GraphType|None) -> None:
         '''
             Layout the graphs
+            - graph_type = None -> layout all the graphs in enums.GraphType
         '''
-        for i in self.place_slaves():
-            i.place_forget()
+        
+        for i in self.grid_slaves():
+            i.grid_forget()
         if graph_type:
             graph = self.generate_graph(sample, graph_type)
-            graph.place(relx=0, rely=0, relwidth=1, relheight=1)
+            graph.grid(column=0, row=0, columnspan=2, rowspan=1)
         else:
             for ind, graph_type in enumerate(GraphType):
                 graph = self.generate_graph(sample, graph_type)
-                graph.place(relx=0+ind/2, rely=0, relwidth=.5, relheight=1)
+                graph.grid(column=ind, row=0, columnspan=1, rowspan=1)
 
     def generate_graph(self, sample: Sample, graph_type: GraphType) -> ctk.CTkCanvas:
         '''
             Generates the graph/plot as a layout ready widget
             - -> ctk.CTkCanvas
         '''
-        self.fig = Figure(layout='constrained')
-        self.ax = self.fig.add_subplot(111)
+        self.fig, self.ax = plt.subplots()
+        self.fig.set_layout_engine('constrained')
         self.canvas = FigureCanvasTkAgg(self.fig, self) 
         self.graph_name = self.graph_names[graph_type]
 

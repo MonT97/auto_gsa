@@ -1,9 +1,13 @@
-from scipy.interpolate import PchipInterpolator, CubicSpline
+from scipy.interpolate import PchipInterpolator
 from enums import GraphType
-
 from matplotlib.axes import Axes
 import pandas as pd
 import numpy as np
+
+type SamplePoints = list[tuple[float, float]]
+type SampleStats = dict[str, float]
+type PlotInput = pd.Series|np.ndarray
+type PlotData = tuple[PlotInput, PlotInput, SamplePoints]
 
 class Analyzer():
     '''
@@ -13,76 +17,71 @@ class Analyzer():
     def __init__(self, sample_data: pd.DataFrame):
         
         self.sample_data = sample_data
-        self.x, self.y = self.set_xy()
+        self.x, self.y = self._set_xy(sample_data)
+        self.points, self.stats = self._calculate_stats(self.x, self.y)
 
-        self.points: list[tuple[float,float]] = []
-        self.stats: dict[str, float] = {}
-
-        self.calculate_stats(self.x, self.y)
-
-    def set_xy(self) -> tuple:
+    def _set_xy(self, sample_data: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         '''
             Prepares the data [phi, cum.wt%] for stats calculation via interpolation using Scipy's PchipInterpolator, an implementation of Hermite plynomial interpolation.
             - -> (phi, cum.wt%)
         '''
-        self.x = self.sample_data['phi']
-        self.trim_len: int = 0
+        phi: pd.Series = sample_data['phi']
+        phi_min: float = phi.min()
+        cum_wht: pd.Series = sample_data['cum.wht%']
 
-        self.y = self.sample_data['cum.wht%']
-        interp_f = PchipInterpolator(self.x, self.y) 
-        self.y = np.linspace(0, 100, 1000, endpoint=False)
-        self.x, self.trim_len = self.inverse(interp_f, self.y, self.x.min())
+        def _inverse(
+                interpolation_fn: PchipInterpolator,
+                wt_prcnts: np.ndarray, min_phi: float
+                ) -> tuple[np.ndarray, int]:
+            '''
+                Interpolation function inversion, get phi(x) at wt_prcnts(y).
+                - -> tuple[phis, trim_len]
+            '''
+            rounding_digits: int = 3
+            phis_inversed: np.ndarray = np.zeros(shape=(len(wt_prcnts)))
+            trim_len: int = 0
 
-        self.x = self.x[self.trim_len:]
-        self.y = self.y[self.trim_len:]
-        
-        return (self.x, self.y)
-
-    def inverse(
-            self, interpolation_fn: PchipInterpolator|CubicSpline,
-            wt_prcnts: np.ndarray, min_phi: float
-            ) -> tuple[np.ndarray, int]:
-        '''
-            Interpolation function inversion, get phi(x) at wt_prcnts(y).
-            - -> tuple[phis, trim_len]
-        '''
-        rounding_digits: int = 3
-        phis_inversed: list|np.ndarray = []
-        trim_len: int = 0
-
-        for wt_prcnt in wt_prcnts:
-            phi = interpolation_fn.solve(wt_prcnt)
-            if len(phi) > 1:
-                phis_inversed.append(phi[1]) # type: ignore
-                if phi[1] < min_phi:
+            for ind, wt_prcnt in enumerate(wt_prcnts):
+                phi = interpolation_fn.solve(wt_prcnt)
+                if len(phi) > 1:
+                    phis_inversed[ind] = phi[1]
+                    if phi[1] < min_phi:
+                        trim_len += 1
+                else:
+                    phis_inversed[ind] = min_phi
                     trim_len += 1
-            else:
-                phis_inversed.append(min_phi)
-                trim_len += 1
+
+            return (np.round(phis_inversed, rounding_digits), trim_len)
         
-        phis_inversed = np.round(np.array(phis_inversed), rounding_digits)
+        interp_f = PchipInterpolator(phi, cum_wht) 
+        y = np.linspace(0, 100, 1000, endpoint=False)
+        x, trim_len = _inverse(interp_f, y, phi_min)
 
-        return (phis_inversed, trim_len)
+        x = x[trim_len:]
+        y = y[trim_len:]
+        
+        return (x, y)
 
-    def calculate_stats(self, x, y):
+    def _calculate_stats(self,
+            x: np.ndarray, y: np.ndarray
+            ) -> tuple[SamplePoints, SampleStats]:
         '''
             Calculates stats: [mean, std, skewness, kurtosis], based on Folk&Ward 1957 graphical method if possible, otherwise, the Method of Moments is used.
             - x [wht%]. y [cum.wht%]
         '''
-        #TODO Implement the mthod of moments as a back stop!
         wt_prcnts: list[int] = [5, 16, 25, 50, 75, 84, 95]
         xy_combo = zip(x, np.round(y, 3))# type: ignore
         
-        self.points = [
+        points: SamplePoints = [
                 (wt_prcnt.item(), phi.item()) for phi, wt_prcnt in xy_combo if wt_prcnt in wt_prcnts
                 ]
         
-        graphical_valid: bool = True if len(self.points) == len(wt_prcnts) else False
+        graphical_valid: bool = True if len(points) == len(wt_prcnts) else False
 
-        self.stats: dict[str, float] = {'mean': 0.0, 'std': 0.0, 'skewness': 0.0, 'kurtosis': 0.0}
+        stats: SampleStats = {'mean': 0.0, 'std': 0.0, 'skewness': 0.0, 'kurtosis': 0.0}
 
         if graphical_valid:
-            self.phi_prcnt: dict[str, float] = {f"{int(k)}": v for (k), v in self.points}
+            self.phi_prcnt: dict[str, float] = {f"{int(k)}": v for (k), v in points}
 
             self.mean: float = (self.phi_prcnt['16']+self.phi_prcnt['50']+self.phi_prcnt['84'])/3
             self.std: float = (
@@ -111,91 +110,83 @@ class Analyzer():
             self.std = ((np.sum(f*((d-self.mean)**2)))/N)**.5
             self.skewness = ((np.sum(f*((d-self.mean)**3)))/(N*self.std**3))
             self.kurtosis = ((np.sum(f*((d-self.mean)**4)))/(N*self.std**4))
-
-        self.stats = {
+    
+        stats = {
             'mean': self.mean, 'std': self.std,
             'skewness': self.skewness, 'kurtosis': self.kurtosis
             }
+        
+        return (points,stats)
 
-    def get_stats(self) -> dict[str, float]:
+    def get_stats(self) -> SampleStats:
         '''
             Returns the stats.
         '''
         self.stats = {k: round(v,2) for k, v in self.stats.items()}
         return self.stats
 
-    def get_plot_data(self, graph_type: GraphType) -> list:
+    def get_plot_data(self, graph_type: GraphType) -> PlotData:
         '''
             Returns the plot ready data.
             - -> [x, y], points]
         '''
-        x = None
-        y = None
 
         match graph_type:
             case GraphType.HIST:
-                x = self.sample_data['phi']
-                y = self.sample_data['wht%']
+                x: PlotInput = self.sample_data['phi']
+                y: PlotInput = self.sample_data['wht%']
             case GraphType.CUM:
-                x = self.x
-                y = self.y
+                x: PlotInput = self.x
+                y: PlotInput = self.y
 
-        return [x,y,self.points]
+        return (x,y,self.points)
 
 
 class Plotter():
     '''
         The class that handles the plotting of the data
     '''
-    def __init__(self, x: pd.Series, y: pd.Series,
-                 points: list[tuple[float,float]],
+    def __init__(self, x: PlotInput, y: PlotInput,
+                 points: SamplePoints,
                  ax: Axes, _type: GraphType):
-
-        self.x = x
-        self.y = y
-        self.points = points
         
-        self.ax = ax
-        self.type = _type
+        match _type:
 
-        match self.type:
-            
             case GraphType.HIST:
-
-                self.plot_histo()
+                self._plot_histo(ax, x, y)
 
             case GraphType.CUM:
                 
-                self.padding: float = .35
-                self.ax.set_xlim(self.x.min()-self.padding, self.x.max()+self.padding)
-                self.ax.set_ylim(0-self.padding*10, 100+self.padding*10)
-                self.plot_cum()
+                padding: float = .35
+                ax.set_xlim(x.min()-padding, x.max()+padding)
+                ax.set_ylim(0-padding*10, 100+padding*10)
+                self._plot_cum(ax, x, y, points)
     
-    def plot_cum(self):
-        '''
-            Plots the cumulative curve.
-        '''
-        for point in self.points:
-
-            self.y_cord, self.x_cord = point
-            self.x_cords: list = [self.ax.get_xlim()[0], self.x_cord, self.x_cord]
-            self.y_cords: list = [self.y_cord, self.y_cord, self.ax.get_ylim()[0]]
-
-            self.ax.plot(self.x_cords, self.y_cords, '--k', alpha=.25, zorder=2)
-            self.ax.plot(self.x_cord, self.y_cord, '--.k', alpha=.25, zorder=1)
-        
-        self.ax.plot(self.x, self.y) #? this fixed the double plotting issue!
-        self.ax.set_xlabel("phi (\u00D8)")
-        self.ax.set_ylabel("cumulative weight %")
-    
-    def plot_histo(self):
+    def _plot_histo(self, ax: Axes, x: PlotInput, y: PlotInput) -> None:
         '''
             Plots the Histogram.
         '''
-        
-        self.y
-        str_x: list[str] = [str(i) for i in self.x] #? psedu categorical conversion
-        self.ax.hist(str_x, weights=self.y, bins=len(str_x), **{'edgecolor': 'k'}) # type: ignore
+        cat_x: list[str] = [str(i) for i in x] #? psedu categorical conversion
 
-        self.ax.set_xlabel("phi (\u00D8)")
-        self.ax.set_ylabel("weight %")
+        ax.hist(cat_x, weights=y, bins=len(cat_x), **{'edgecolor': 'k'}) # type: ignore
+
+        ax.set_xlabel("phi (\u00D8)")
+        ax.set_ylabel("weight %")
+
+    def _plot_cum(self, ax: Axes, x: PlotInput, y: PlotInput, points: SamplePoints) -> None:
+        '''
+            Plots the cumulative curve.
+        '''
+
+        for point in points:
+
+            y_cord, x_cord = point
+            x_cords: list = [ax.get_xlim()[0], x_cord, x_cord]
+            y_cords: list = [y_cord, y_cord, ax.get_ylim()[0]]
+
+            ax.plot(x_cords, y_cords, '--k', alpha=.25, zorder=2)
+            ax.plot(x_cord, y_cord, '--.k', alpha=.25, zorder=1)
+        
+        ax.plot(x, y) #? this fixed the double plotting issue!
+        ax.set_xlabel("phi (\u00D8)")
+        ax.set_ylabel("cumulative weight %") 

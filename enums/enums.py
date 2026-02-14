@@ -2,7 +2,7 @@ from enum import Enum
 
 class GraphType(Enum):
     '''
-        Enum representing graph types:
+        An Enum representing the graph types:
         - CUM -----> cumulative.
         - HIST ----> histogram.
     '''
@@ -12,7 +12,7 @@ class GraphType(Enum):
 
 class FileFormat(Enum):
     '''
-        Enum representing data file's formats:
+        An Enum representing the data file's formats:
         - EXCEL ----> .xlsx excel file.
         - CSV ------> .csv file.
     '''
