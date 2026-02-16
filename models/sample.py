@@ -1,7 +1,4 @@
-from dataclasses import dataclass
-
 import pandas as pd
-
 
 class Sample():
     '''
@@ -27,12 +24,6 @@ class Sample():
 
         if not data.empty:
             data['wht%'] = ((data['wht']/data['wht'].sum())*100).round(2)
-            #? What effect does this have on the interpolatoin results?. No so it doesn't matter
-            #? Move this to the Analysis() as it is a requirement for the method of moments
-            #? maybe show the pure data and use this for calculations??
-            if data['wht'].sum() < 100:
-                data.iloc[-1, 1] += 100 - data['wht'].sum()
-
             data['cum.wht%'] = data['wht'].cumsum()
             Sample.samples_list.append(self)
         

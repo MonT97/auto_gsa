@@ -1,5 +1,4 @@
 from enum import Enum
-from tkinter import ttk
 
 import pandas as pd
 import numpy as np

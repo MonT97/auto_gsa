@@ -26,7 +26,7 @@ class FilePanal(ctk.CTkFrame):
 
         self.analysis_panal = analysis_panal
         self.samples_files_dir: str = ""
-        self.sample: Sample = None #type: ignore
+        self.sample: Sample = Sample()
         self.data: tuple = ()
 
         self.supported_formats: list[str] = [_format.value for _format in FileFormat]
@@ -187,7 +187,7 @@ class FileViewer(ttk.Treeview):
         if self.get_children():
             [self.delete(i) for i in self.get_children()]
 
-        #TODO: add format support
+        #TODO: add format support read from a config maybe?!
         supported: function = lambda file_: file_.split(".")[-1] in self.formats
         supported_files: list[str] = [file_ for file_ in os.listdir(_dir) if supported(file_)]
         padding: int = len(str(len(supported_files)))+1
@@ -239,7 +239,7 @@ class AnalysisPanal(ctk.CTkFrame):
 
     def draw_graphs(self, sample: Sample, graph_type: GraphType|None = None) -> None:
         self.create_analyzer(sample)
-        #? is this the best place for this? NO
+        #? is this the best place for this? NO, actually it might
         self.graph_panal.draw_graphs(self.analyzer, sample.get_name(), graph_type)      
 
     def write(self, sample: Sample, graph_type: GraphType) -> None:
@@ -327,7 +327,7 @@ class DataPanal(ctk.CTkFrame):
         self.data_note.update_note(sample_data_massage)
         self.stats_note.update_note(stats_massage)
 
-
+#TODO make it a table, TreeView, parent with file picker??, maybe not, as we don't need to scelect here!
 class DataNote(ctk.CTkTextbox):
 
     def __init__(self, master: DataPanal, font: ctk.CTkFont) -> None:
