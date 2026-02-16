@@ -10,7 +10,7 @@ class Sample():
     def __init__(self, name: str = "", data: pd.DataFrame = pd.DataFrame()) -> None:
         
         self._name = name
-        self._data = self.run_analysis(data)
+        self._data = self._run_analysis(data)
     
     def __repr__(self) -> str:
 
@@ -20,7 +20,7 @@ class Sample():
         
         return True if (self._name == other._name) and (self._data == other._data) else False
 
-    def run_analysis(self, data: pd.DataFrame) -> pd.DataFrame:
+    def _run_analysis(self, data: pd.DataFrame) -> pd.DataFrame:
 
         if not data.empty:
             data['wht%'] = ((data['wht']/data['wht'].sum())*100).round(2)

@@ -32,35 +32,35 @@ class FilePanal(ctk.CTkFrame):
         self.supported_formats: list[str] = [_format.value for _format in FileFormat]
 
         self.entry = ctk.CTkEntry(self, placeholder_text="Enter the samples folder path...")
-        self.entry.bind("<KeyPress-Return>", command= lambda _event: self.import_files())
+        self.entry.bind("<KeyPress-Return>", command= lambda _event: self._import_files())
         self.entry.bind('<Enter>', lambda _event: self.entry.focus_set())
-        self.entry.bind('<KeyPress-Escape>', lambda _event: self.reset_focus())
+        self.entry.bind('<KeyPress-Escape>', lambda _event: self._reset_focus())
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import files",
-            command=lambda: self.import_files())
+            command=lambda: self._import_files())
 
         self.samples_file_viewer: FileViewer = FileViewer(self)
 
         self.samples_file_viewer.bind(
             "<<TreeviewSelect>>", 
-            lambda event: self.set_data(self.samples_file_viewer.selection(), event))
+            lambda event: self._set_data(self.samples_file_viewer.selection(), event))
         self.samples_file_viewer.bind("<KeyPress-Return>",
-            lambda _event: self.analyze(self.data))
+            lambda _event: self._analyze(self.data))
 
         self.analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="analyze",
             state="disabled",
-            command=lambda: self.analyze(self.data, GraphType.CUM))
+            command=lambda: self._analyze(self.data, GraphType.CUM))
         self.save_all_btn: ctk.CTkButton = ctk.CTkButton(
             self,
             text="save all",
             state="disabled",
-            command=lambda: self.save_all())
+            command=lambda: self._save_all())
         self.save_btn: ctk.CTkButton = ctk.CTkButton(
             self,
             text="save results",
             state="disabled",
-            command=lambda: self.save_results(self.sample))
+            command=lambda: self._save_results(self.sample))
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
@@ -69,28 +69,28 @@ class FilePanal(ctk.CTkFrame):
         self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=5)
     
-    def reset_focus(self) -> None:
+    def _reset_focus(self) -> None:
 
         self.master.focus_set()
 
-    def import_files(self) -> None:
+    def _import_files(self) -> None:
 
         self.samples_files_dir: str = self.entry.get()
         self.samples_file_viewer.display_files(self.samples_files_dir)
         self.save_all_btn.configure(state="normal")
 
-        self.reset_focus()
+        self._reset_focus()
 
-    def set_data(self, selection: tuple, event: Event=None): # type: ignore
+    def _set_data(self, selection: tuple, event: Event=None): # type: ignore
         
         self.analyze_btn.configure(state="normal")
         self.data = selection
         
         if event.state:
             for _type in GraphType:
-                self.analyze(self.data, _type)
+                self._analyze(self.data, _type)
 
-    def analyze(self, table_selection: tuple, graph_type: GraphType|None = None):
+    def _analyze(self, table_selection: tuple, graph_type: GraphType|None = None):
 
         sample_file_name = self.samples_file_viewer.get_data(table_selection)[-1]
         sample_data = pd.read_excel(f"{self.samples_files_dir}\\{sample_file_name}")
@@ -103,11 +103,11 @@ class FilePanal(ctk.CTkFrame):
         self.samples_file_viewer.focus_set() #! why broken??
         self.save_btn.configure(state="normal")
     
-    def save_results(self, sample: Sample):
+    def _save_results(self, sample: Sample):
         
         self.analysis_panal.save_data(sample, self.samples_files_dir)
 
-    def save_all(self) -> None:
+    def _save_all(self) -> None:
 
         files: list[str] = os.listdir(self.samples_files_dir)
         files = [_file for _file in files if _file.split(".")[-1] in self.supported_formats]
@@ -233,17 +233,17 @@ class AnalysisPanal(ctk.CTkFrame):
             column=0, columnspan=2, row=1, rowspan=1,
             padx=5, pady=5, sticky='nsew')
 
-    def create_analyzer(self, sample: Sample) -> None:
+    def _create_analyzer(self, sample: Sample) -> None:
         if self.current_sample != sample:
             self.analyzer: Analyzer = Analyzer(sample.get_data())
 
     def draw_graphs(self, sample: Sample, graph_type: GraphType|None = None) -> None:
-        self.create_analyzer(sample)
+        self._create_analyzer(sample)
         #? is this the best place for this? NO, actually it might
         self.graph_panal.draw_graphs(self.analyzer, sample.get_name(), graph_type)      
 
     def write(self, sample: Sample, graph_type: GraphType) -> None:
-        self.create_analyzer(sample)
+        self._create_analyzer(sample)
         self.data_panal.write(self.analyzer, sample, graph_type)
 
 
@@ -263,6 +263,27 @@ class GraphPanal(ctk.CTkFrame):
         self.columnconfigure(1, weight=1, uniform='a')
         self.rowconfigure(0, weight=1, uniform='a')
 
+    def _generate_graph(self, 
+                       plot_data: PlotData, sample_name: str, graph_type: GraphType
+                       ) -> tk.Canvas:
+        '''
+            Generates the graph/plot as a layout ready widget
+            - -> ctk.CTkCanvas
+        '''
+        fig, ax = plt.subplots()
+        fig.set_layout_engine('constrained')
+        canvas = FigureCanvasTkAgg(fig, self) 
+        graph_name = self.graph_names[graph_type]
+
+        title: str = f"{graph_name}\n{sample_name}"
+
+        self.x, self.y, self.points = plot_data
+        Plotter(self.x, self.y, self.points, ax, graph_type)
+                     
+        ax.set_title(title)
+        plt.close()
+        return canvas.get_tk_widget()
+
     def draw_graphs(self, analyzer: Analyzer, sample_name: str, graph_type: GraphType|None) -> None:
         '''
             Layout the graphs
@@ -273,33 +294,12 @@ class GraphPanal(ctk.CTkFrame):
             i.grid_forget()
 
         if graph_type:
-            graph = self.generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type)
+            graph = self._generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type)
             graph.grid(column=0, row=0, columnspan=2, rowspan=1)
         else:
             for ind, graph_type in enumerate(GraphType):
-                graph = self.generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type)
+                graph = self._generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type)
                 graph.grid(column=ind, row=0, columnspan=1, rowspan=1)
-
-    def generate_graph(self, 
-                       plot_data: PlotData, sample_name: str, graph_type: GraphType
-                       ) -> tk.Canvas:
-        '''
-            Generates the graph/plot as a layout ready widget
-            - -> ctk.CTkCanvas
-        '''
-        self.fig, self.ax = plt.subplots()
-        self.fig.set_layout_engine('constrained')
-        self.canvas = FigureCanvasTkAgg(self.fig, self) 
-        graph_name = self.graph_names[graph_type]
-
-        title: str = f"{graph_name}\n{sample_name}"
-
-        self.x, self.y, self.points = plot_data
-        Plotter(self.x, self.y, self.points, self.ax, graph_type)
-                     
-        self.ax.set_title(title)
-
-        return self.canvas.get_tk_widget()
 
 
 class DataPanal(ctk.CTkFrame):

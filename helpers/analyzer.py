@@ -13,22 +13,21 @@ class Analyzer():
     def __init__(self, sample_data: pd.DataFrame) -> None:
         
         self.sample_data = sample_data
-        self.x, self.y = self._set_xy(sample_data)
-        self.points, self.stats = self._calculate_stats(self.x, self.y)
+        self.x, self.y, interp_f = self._get_input(sample_data)
+        self.points, self.stats = self._calculate_stats(self.y.min(), interp_f)
 
-    def _set_xy(self, sample_data: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    def _get_input(self,
+                   sample_data: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, PchipInterpolator]:
         '''
             Prepares the data [phi, cum.wt%] for stats calculation via interpolation using Scipy's PchipInterpolator, an implementation of Hermite plynomial interpolation.
             - -> (phi, cum.wt%)
         '''
         phi: pd.Series = sample_data['phi']
-        phi_min: float = phi.min()
         cum_wht: pd.Series = sample_data['cum.wht%']
 
         def _inverse(
                 interpolation_fn: PchipInterpolator,
-                wt_prcnts: np.ndarray, min_phi: float
-                ) -> tuple[np.ndarray, np.ndarray]:
+                wt_prcnts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
             '''
                 Interpolation function inversion, get phi(x) at wt_prcnts(y).
                 - -> tuple[phis, wt_prcnts]
@@ -39,68 +38,65 @@ class Analyzer():
 
             for wt_prcnt in wt_prcnts:
                 phi = interpolation_fn.solve(wt_prcnt)
-                if (len(phi) > 1) and (phi[1] >= min_phi):
-                    phis_inversed.append(phi[1])
-                    valid_wt_prcnts.append(wt_prcnt)
+                phis_inversed.append(phi[1])
+                valid_wt_prcnts.append(wt_prcnt)
             
             x: np.ndarray = np.round(phis_inversed, rounding_digits)
             y: np.ndarray = np.round(valid_wt_prcnts, rounding_digits)
 
             return (x, y)
         
-        interp_f = PchipInterpolator(phi, cum_wht) 
-        y = np.linspace(0, cum_wht.max(), int(cum_wht.max()*100), endpoint=False)
+        interp_f = PchipInterpolator(phi, cum_wht)
+        cap: float = cum_wht.max()
+        step: float = cum_wht.min()
+        y = np.linspace(step, cap, int(cap)*100, endpoint=False)
         
-        return (_inverse(interp_f, y, phi_min))
+        return (*_inverse(interp_f, y), interp_f)
 
     def _calculate_stats(self,
-            x: np.ndarray, y: np.ndarray
+            min_y: float, interp_f: PchipInterpolator
             ) -> tuple[SamplePoints, SampleStats]:
         '''
             Calculates stats: [mean, std, skewness, kurtosis], based on Folk&Ward 1957 graphical method if possible, otherwise, the Method of Moments is used.
-            - x [phi]
-            - y [cum.wht%]
+            - min_y [cum.wht%].min()
+            - interp_f [the interpolation function]
         '''
-        wt_prcnts: list[int] = [5, 16, 25, 50, 75, 84, 95]
-        xy_combo = zip(x, np.round(y, 3))
+        wt_prcnts: list[float] = [5.0, 16.0, 25.0, 50.0, 75.0, 84.0, 95.0]
         
         points: SamplePoints = [
-                (wt_prcnt.item(), phi.item()) for phi, wt_prcnt in xy_combo if wt_prcnt in wt_prcnts
-                ]
-        
-        graphical_valid: bool = True if len(points) == len(wt_prcnts) else False
+            (wt_prcnt, interp_f.solve(wt_prcnt)[1]) for wt_prcnt in wt_prcnts if wt_prcnt > min_y
+            ]
 
+        graphical_valid: bool = True if len(points) == len(wt_prcnts) else False
+        
         #TODO: Turn this into a dataclass?!
         stats: SampleStats = {'mean': 0.0, 'std': 0.0, 'skewness': 0.0, 'kurtosis': 0.0}
 
         if graphical_valid:
+            _get_phi: function = lambda phi: self.phi_prcnt[f'{phi}']
             self.phi_prcnt: dict[str, float] = {f"{int(k)}": v for (k), v in points}
 
-            stats['mean'] = (self.phi_prcnt['16']+self.phi_prcnt['50']+self.phi_prcnt['84'])/3
-            stats['std'] = (
-                            ((self.phi_prcnt['84']-self.phi_prcnt['16'])/4)+
-                            ((self.phi_prcnt['95']-self.phi_prcnt['5'])/6.6)
-                                )
+            stats['mean'] = (_get_phi(16)+_get_phi(50)+_get_phi(84))/3
+            stats['std'] = (((_get_phi(84)-_get_phi(16))/4)+((_get_phi(95)-_get_phi(5))/6.6))
             stats['skewness'] = (
-                                ((self.phi_prcnt['16']+self.phi_prcnt['84']-(2*self.phi_prcnt['50']))/
-                                (2*(self.phi_prcnt['84'])-self.phi_prcnt['16']))+
-                                (self.phi_prcnt['5']+self.phi_prcnt['95']-(2*self.phi_prcnt['50']))/
-                                (2*(self.phi_prcnt['95'])-self.phi_prcnt['5'])
+                                ((_get_phi(16)+_get_phi(84)-(2*_get_phi(50)))/
+                                (2*(_get_phi(84))-_get_phi(16)))+
+                                (_get_phi(5)+_get_phi(95)-(2*_get_phi(50)))/
+                                (2*(_get_phi(95))-_get_phi(5))
                                 )
             stats['kurtosis'] = (
-                                (self.phi_prcnt['95']-self.phi_prcnt['5'])/
-                                2.44*(self.phi_prcnt['75']/self.phi_prcnt['25'])
+                                (_get_phi(95)-_get_phi(5))/
+                                2.44*(_get_phi(75)/_get_phi(25))
                                 )
         else:
             #TODO: I assume a 100g sample, universalize!
             sample_wht: float = 100.0 # to allow for measurement erro +- .1g
 
             phis = self.sample_data['phi']
-            d: np.ndarray = np.append(
-                [(phis[i]+phis[i+1])/2 for i in range(len(phis)-1)], phis.max())
+            _get_midpoint: function = lambda i: (phis[i]+phis[i+1])/2
+            d: np.ndarray = np.append([_get_midpoint(i) for i in range(len(phis)-1)], phis.max())
             f: np.ndarray = np.array(self.sample_data['wht%'])
             pan_fraction: float = sample_wht - f.sum()
-            print(f'{d=}\n{f=}')
 
             if pan_fraction < 5.0:
                 N = f.sum() #? some say N=100, yet this is after ana_sed
