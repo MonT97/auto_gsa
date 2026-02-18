@@ -1,7 +1,7 @@
 import os
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from typedefs import GraphType, FileFormat, PlotData
+from typedefs import GraphType, FileFormat, PlotData, SampleStats, StatsInterpretation
 from helpers import Analyzer, Plotter
 from matplotlib.axes import Axes
 from tkinter import ttk, Event
@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import customtkinter as ctk
 import tkinter as tk
 import pandas as pd
+import numpy as np
 
 class FilePanal(ctk.CTkFrame):
     '''
@@ -310,7 +311,7 @@ class DataPanal(ctk.CTkFrame):
     def __init__(self, master: AnalysisPanal) -> None:
         super().__init__(master)
 
-        self.note_font: ctk.CTkFont = ctk.CTkFont('JetBrainsMono', 14, 'bold')
+        self.note_font: ctk.CTkFont = ctk.CTkFont('Arial', 14, 'bold')
 
         self.data_note: DataNote = DataNote(self, self.note_font) 
         self.stats_note: StatsNote = StatsNote(self, self.note_font)
@@ -321,11 +322,29 @@ class DataPanal(ctk.CTkFrame):
     def write(self, analyzer: Analyzer, sample: Sample, _type: GraphType):
         
         stats = analyzer.get_stats()
-        #! The format doesn't show up correctly in the text panal (stats_note)
-        stats_massage: str = "".join([f"\n{k.capitalize()}\t>  {v:.3f}" for k ,v in stats.items()])
-        sample_data_massage: str = sample.get_data().to_string(index=False, col_space= 10, justify='center')
-        self.data_note.update_note(sample_data_massage)
-        self.stats_note.update_note(stats_massage)
+        interpretation = analyzer.get_interpretation()
+        
+        def _get_msg(inp) -> str:
+            
+            msg: str = ''
+            inp_type = type(inp)
+
+            if inp_type is SampleStats:
+                msg = "".join([f"{k.capitalize()}\t> {v:.3f}\n" for k,v in inp.to_dict().items()])
+            elif inp_type is StatsInterpretation:
+                msg = "".join(
+                    [f"{k.capitalize()}\t> {v.capitalize()}\n" for k,v in inp.to_dict().items()])
+            elif inp_type is Sample:
+                msg = inp.get_data().to_string(index=False, col_space= 10, justify='center')
+            
+            return msg
+        
+        sample_data_msg: str = _get_msg(sample)
+        stats_msg: str = _get_msg(stats)
+        interp_msg: str = _get_msg(interpretation)
+
+        self.data_note.update_note(sample_data_msg)
+        self.stats_note.update_note(stats_msg, interp_msg)
 
 #TODO make it a table, TreeView, parent with file picker??, maybe not, as we don't need to scelect here!
 class DataNote(ctk.CTkTextbox):
@@ -346,13 +365,17 @@ class StatsNote(ctk.CTkTextbox):
 
     def __init__(self, master: DataPanal, font: ctk.CTkFont) -> None:
         super().__init__(master)
-        self.configure(state=ctk.DISABLED, font=font, tabs=150)    
+        self.configure(state=ctk.DISABLED, font=font, tabs=95)    
 
-    def update_note(self, text: pd.DataFrame|str ) -> None:
+    def update_note(self, stats: str, interpretation: str ) -> None:
                 
                 self.configure(state=ctk.NORMAL)
                 self.delete("1.0", "end")
-                self.insert("1.0", text)
+                self.insert(self.index(tk.INSERT), "-Stats:\n")
+                self.insert(self.index(tk.INSERT), stats)
+                self.insert(self.index(tk.INSERT), "\n")
+                self.insert(self.index(tk.INSERT), "-Interpretation:\n")
+                self.insert(self.index(tk.INSERT), interpretation)
                 self.configure(state=ctk.DISABLED)  
 
         #! add the analysis and the data results into the GUI - DONE👌
