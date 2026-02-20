@@ -2,6 +2,7 @@ from typedefs import GraphType, SamplePoints, SampleStats, PlotInput, PlotData, 
 from scipy.interpolate import PchipInterpolator
 from matplotlib.axes import Axes
 
+import scipy.stats as stats
 import pandas as pd
 import numpy as np
 
@@ -208,35 +209,47 @@ class Analyzer():
 class Plotter():
     '''
     The class that handles the plotting of the data
+    - clr ------> face color, hexadecimal.
+    - line_clr -> kde color, hexadecimal.
     '''
     def __init__(self, x: PlotInput, y: PlotInput,
-                 points: SamplePoints,
-                 ax: Axes, graph_type: GraphType) -> None:
+                 points: SamplePoints, ax: Axes, graph_type: GraphType,
+                 clr: str = '#1f7bb4', kde_clr: str = 'k') -> None:
         
         match graph_type:
 
             case GraphType.HIST:
-                self._plot_histo(ax, x, y)
+                self._plot_histo(ax, x, y, clr, kde_clr)
 
             case GraphType.CUM:
                 
                 padding: float = .35
                 ax.set_xlim(x.min()-padding, x.max()+padding)
                 ax.set_ylim(0-padding*10, 100+padding*10)
-                self._plot_cum(ax, x, y, points)
+                self._plot_cum(ax, x, y, points, clr)
     
-    def _plot_histo(self, ax: Axes, x: PlotInput, y: PlotInput) -> None:
+    def _plot_histo(self, ax: Axes, x: PlotInput, y: PlotInput, color: str, kde_color: str) -> None:
         '''
         Plots the Histogram.
         '''
         cat_x: list[str] = [str(i) for i in x] #? psedu categorical conversion
 
-        ax.hist(cat_x, weights=y, bins=len(cat_x), **{'edgecolor': 'k'}) # type: ignore
+        ax.hist(x, weights=y, bins=len(x)-1,
+                color=color, density=True, label='histogram', **{'edgecolor': 'k'}) # type: ignore
 
+        ax_t: Axes = ax.twinx()#type: ignore
+        kde = stats.gaussian_kde(x, weights=y)
+        x_range = np.linspace(min(x), max(x), 50)
+        ax_t.plot(x_range, kde(x_range), label='kde', color=kde_color)
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(cat_x)
+        
         ax.set_xlabel("phi (\u00D8)")
         ax.set_ylabel("weight %")
 
-    def _plot_cum(self, ax: Axes, x: PlotInput, y: PlotInput, points: SamplePoints) -> None:
+    def _plot_cum(self, ax: Axes, x: PlotInput, y: PlotInput,
+                  points: SamplePoints, color: str) -> None:
         '''
         Plots the cumulative curve.
         '''
@@ -249,6 +262,6 @@ class Plotter():
             ax.plot(x_cords, y_cords, '--k', alpha=.25, zorder=2)
             ax.plot(x_cord, y_cord, '--.k', alpha=.25, zorder=1)
         
-        ax.plot(x, y) #? this fixed the double plotting issue!
+        ax.plot(x, y, color=color) #? this fixed the double plotting issue!
         ax.set_xlabel("phi (\u00D8)")
         ax.set_ylabel("cumulative weight %")
