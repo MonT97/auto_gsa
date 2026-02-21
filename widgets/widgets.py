@@ -49,17 +49,17 @@ class FilePanal(ctk.CTkFrame):
 
         self.analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="analyze",
-            state="disabled",
+            state=ctk.DISABLED,
             command=lambda: self._analyze(self.data))
         self.save_all_btn: ctk.CTkButton = ctk.CTkButton(
             self,
             text="save all",
-            state="disabled",
+            state=ctk.DISABLED,
             command=lambda: self._save_all())
         self.save_btn: ctk.CTkButton = ctk.CTkButton(
             self,
             text="save results",
-            state="disabled",
+            state=ctk.DISABLED,
             command=lambda: self._save_results(self.sample))
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
@@ -77,13 +77,13 @@ class FilePanal(ctk.CTkFrame):
 
         self.samples_files_dir: str = self.entry.get()
         self.samples_file_viewer.display_files(self.samples_files_dir)
-        self.save_all_btn.configure(state="normal")
+        self.save_all_btn.configure(state=ctk.NORMAL)
 
         self._reset_focus()
 
     def _set_data(self, selection: tuple, event: Event=None) -> None: # type: ignore
         
-        self.analyze_btn.configure(state="normal")
+        self.analyze_btn.configure(state=ctk.NORMAL)
         self.data = selection
         
         if event.state:
@@ -101,7 +101,7 @@ class FilePanal(ctk.CTkFrame):
         self.analysis_panal.draw_graphs(self.sample, graph_type)
 
         self.samples_file_viewer.focus_set() #! why broken??
-        self.save_btn.configure(state="normal")
+        self.save_btn.configure(state=ctk.NORMAL)
     
     def _save_results(self, sample: Sample):
         
@@ -237,7 +237,7 @@ class AnalysisPanal(ctk.CTkFrame):
         if self.current_sample != sample:
             self.analyzer: Analyzer = Analyzer(sample.get_data())
 
-    def draw_graphs(self, sample: Sample, graph_type: GraphType|None = None) -> None:
+    def draw_graphs(self, sample: Sample, graph_type: GraphType|None) -> None:
         self._create_analyzer(sample)
         #? is this the best place for this? NO, actually it might
         self.graph_panal.draw_graphs(self.analyzer, sample.get_name(), graph_type)      
@@ -267,7 +267,7 @@ class GraphPanal(ctk.CTkFrame):
 
         self.graph_frame.pack(fill='both', expand=1, padx=5, pady=5)
 
-        self.cust_bar: CustomizationBar = CustomizationBar(self, .3, .23)
+        self.cust_bar: CustomizationBar = CustomizationBar(self, .3, .28)
 
     def _generate_graph(self, 
                        plot_data: PlotData, sample_name: str, graph_type: GraphType,
@@ -284,7 +284,6 @@ class GraphPanal(ctk.CTkFrame):
 
         title: str = f"{graph_name}\n{sample_name}"
 
-        #TODO link the vlues to 3 sliders
         self.x, self.y, self.points = plot_data
         Plotter(self.x, self.y, self.points, ax, graph_type, color)
                      
@@ -292,7 +291,9 @@ class GraphPanal(ctk.CTkFrame):
         plt.close()
         return canvas.get_tk_widget()
 
-    def draw_graphs(self, analyzer: Analyzer, sample_name: str, graph_type: GraphType|None) -> None:
+    def draw_graphs(self,
+                    analyzer: Analyzer, sample_name: str,
+                    graph_type: GraphType|None, graph_color:str = '#1f7bb4') -> None:
         '''
         Layout the graphs
         - graph_type = None -> layout all the graphs in enums.GraphType
@@ -302,12 +303,15 @@ class GraphPanal(ctk.CTkFrame):
             i.grid_forget()
 
         if graph_type:
-            graph = self._generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type, self.graph_color)
+            graph = self._generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type, graph_color)
             graph.grid(column=0, row=0, columnspan=2, rowspan=1)
         else:
-            for ind, graph_type in enumerate(GraphType):
-                graph = self._generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type, self.graph_color)
+            for ind, _type in enumerate(GraphType):
+                graph = self._generate_graph(analyzer.get_plot_data(_type), sample_name, _type, graph_color)
                 graph.grid(column=ind, row=0, columnspan=1, rowspan=1)
+        
+        #! Rework the architecture to GraphPanal <--- cust_bar ---> clr_pickr
+        self.cust_bar.set_graph_params(self.draw_graphs, analyzer, sample_name, graph_type)
 
 
 class DataPanal(ctk.CTkFrame):
@@ -387,13 +391,23 @@ class StatsNote(ctk.CTkTextbox):
 
 
 class CustomizationBar(ctk.CTkFrame):
+    '''
+    Gives the ability to change the graph preview visuals.
+    '''
     def __init__(self, master:GraphPanal,
                  width: float, height:float, anim_speed: float =.01) -> None:
         super().__init__(master)
-        '''
-        Edit Graph preview visuals.
-        '''
-        offset: float = .02
+
+        #TODO: 2 row 1 col frame later for move_btn and the prior for the clr_pikr [as a frame]
+        # self.columnconfigure(0, weight=1)
+        # self.rowconfigure(0, weight=4)
+        # self.rowconfigure(1, weight=1)
+
+        #TODO: move mv_btn here, and it mvmnt related functionality.
+
+        #TODO: This handels the graph updating.
+
+        offset: float = 0
 
         self.anim_speed: float = anim_speed
 
@@ -408,6 +422,10 @@ class CustomizationBar(ctk.CTkFrame):
 
         self.clr_pikr: ColorPicker = ColorPicker(self)
         self.clr_pikr.pack(expand=1, fill='both')
+        self.move_btn: ctk.CTkButton = self.clr_pikr.move_btn
+        self.move_btn_txt: str = self.move_btn.cget('text')
+
+        self._deligate_animation_function()
 
         self.place(anchor='s',
                 relx=.5, rely=self.crnt_y_pos, relheight=self.height, relwidth=self.width)
@@ -424,36 +442,51 @@ class CustomizationBar(ctk.CTkFrame):
                 self.crnt_y_pos += self.anim_speed
                 _move()
                 return
-            self.clr_pikr.move_btn.configure(text= '/ config graph \\')
+            self.move_btn.configure(text= f'/ {self.move_btn_txt} \\')
             self.in_start_pos = not self.in_start_pos
         else:
             if self.crnt_y_pos > self.initial_pos:
                 self.crnt_y_pos -= self.anim_speed
                 _move()
                 return
-            self.clr_pikr.move_btn.configure(text= '\\ config graph /')
+            self.move_btn.configure(text= f'\\ {self.move_btn_txt} /')
             self.in_start_pos = not self.in_start_pos
+    
+    def _deligate_animation_function(self) -> None:
+        self.clr_pikr.set_animate_func(self.animate)
+
+    def set_graph_params(self,
+                         func, analyzer: Analyzer, sample_name: str,
+                         graph_type: GraphType|None) -> None:
+        
+        self.clr_pikr.set_graph_params(func, analyzer, sample_name, graph_type)
 
 
 class ColorPicker(ctk.CTkFrame):
+    '''
+    An (RGB) color picker.
+    '''
     def __init__(self, master: CustomizationBar) -> None:
         super().__init__(master)
 
         #! admittedly a weak architectural choice, look for a better option!
-        self.graph_master: GraphPanal = master.master #type: ignore
+
+        self.columnconfigure(0, weight=1, uniform='a')
+        self.rowconfigure(0, weight=2, uniform='a')
+        self.rowconfigure(1, weight=1, uniform='a')
 
         self.clr_frame = ctk.CTkFrame(self)
-        self.clr_frame.columnconfigure(0, weight=1, uniform='a')
-        self.clr_frame.columnconfigure(1, weight=2, uniform='a')
-        self.clr_frame.rowconfigure(0, weight=1, uniform='a')
-        self.clr_frame.rowconfigure(1, weight=1, uniform='a')
-        self.clr_frame.rowconfigure(2, weight=1, uniform='a')
+        self.clr_frame.columnconfigure(0, weight=1, uniform='b')
+        self.clr_frame.columnconfigure(1, weight=2, uniform='b')
+        self.clr_frame.rowconfigure(0, weight=1, uniform='b')
+        self.clr_frame.rowconfigure(1, weight=1, uniform='b')
+        self.clr_frame.rowconfigure(2, weight=1, uniform='b')
 
         self.color: str = '#000000'
 
         self.preview = ctk.CTkButton(self.clr_frame,
-                                     text='\n', border_color='red', border_width=2,
-                                     command= lambda: self.get_color())
+                                     text='set', border_color='red', border_width=2,
+                                     command= lambda: self.update_graph())
 
         r: ctk.IntVar = ctk.IntVar(self, value=138)
         g: ctk.IntVar = ctk.IntVar(self, value=117)
@@ -461,22 +494,23 @@ class ColorPicker(ctk.CTkFrame):
 
         self._set_color((r,g,b))
 
-        self.move_btn: ctk.CTkButton = ctk.CTkButton(self, text='\\ config graph /',
-                command=lambda: self.move(master))
+        self.move_btn: ctk.CTkButton = ctk.CTkButton(self, corner_radius=0,
+                text='\\ configuration /', state=ctk.DISABLED, height=100,
+                command=lambda: self.move())
 
         r_slider: ctk.CTkSlider = ctk.CTkSlider(self.clr_frame,
-                height=7, button_corner_radius=5, border_width=2, button_length=18,
-                button_color='#b50000', progress_color='#855656',
+                height=13, button_corner_radius=5, border_width=5, button_length=18,
+                button_color='#b50000', button_hover_color='#ff0000', progress_color='#855656',
                 from_=0, to=255, number_of_steps=255, variable=r,
                 command=lambda _: self._set_color((r,g,b)))
         g_slider: ctk.CTkSlider = ctk.CTkSlider(self.clr_frame,
-                height=7, button_corner_radius=5, border_width=2, button_length=18,
-                button_color='#00b500', progress_color='#568556',
+                height=13, button_corner_radius=5, border_width=5, button_length=18,
+                button_color='#00b500', button_hover_color='#00ff00', progress_color='#568556',
                 from_=0, to=255, number_of_steps=255, variable=g,
                 command=lambda _: self._set_color((r,g,b)))
         b_slider: ctk.CTkSlider = ctk.CTkSlider(self.clr_frame,
-                height=7, button_corner_radius=5, border_width=2, button_length=18,
-                button_color='#0000b5', progress_color='#565685',
+                height=13, button_corner_radius=5, border_width=5, button_length=18,
+                button_color='#0000b5', button_hover_color='#0000ff', progress_color='#565685',
                 from_=0, to=255, number_of_steps=255, variable=b,
                 command=lambda _: self._set_color((r,g,b)))
     
@@ -485,27 +519,56 @@ class ColorPicker(ctk.CTkFrame):
         g_slider.grid(column=1, row=1, rowspan=1, padx=5)
         b_slider.grid(column=1, row=2, rowspan=1, padx=5)
 
-        self.clr_frame.pack(fill='x', expand=1)
-        self.move_btn.pack(fill='y', expand=1)
+        self.clr_frame.grid(column=0, row=0, sticky='nsew')
+        self.move_btn.grid(column=0, row=1, sticky='nsew')
 
     def _set_color(self, rgb: tuple[ctk.IntVar,ctk.IntVar,ctk.IntVar]) -> None:
-        
+        '''
+        Sets the color.
+        '''
         clr = tuple(i.get() for i in rgb)
-        self.color = "#%02x%02x%02x"%clr
-        self.preview.configure(fg_color = self.color)
-        if self.graph_master.graph_color != self.color:
-            self.preview.configure(border_color= 'red')
-
-    def get_color(self):
-        '''
-        Hex color.
-        '''
-        self.graph_master.graph_color = self.color
-        self.preview.configure(border_color= 'green')
-    
-    def move(self, master: CustomizationBar) -> None:
         
-        master.animate()
+        self.color = f'#{clr[0]:02x}{clr[1]:02x}{clr[2]:02x}'
+        self.preview.configure(fg_color = self.color)
+
+        if sum(clr) > 245:
+            self.preview.configure(text_color = '#000000')
+        if sum(clr) < 245:
+            self.preview.configure(text_color = '#ffffff')
+
+        if self.preview.cget('border_color') != 'red':
+            self.preview.configure(border_color='red', text='set')
+
+    def set_graph_params(self,
+                         func, analyzer: Analyzer, sample_name: str,
+                         graph_type: GraphType|None) -> None:
+        '''
+        This represents the connection to the extra widget graphing function.
+        '''
+        self.widget_graph_func = func
+        self.analyzer = analyzer
+        self.sample_name = sample_name
+        self.graph_type = graph_type
+        self.move_btn.configure(state=ctk.NORMAL)
+
+    def set_animate_func(self, animate_func) -> None:
+        '''
+        This represents the connection to the extra widget animation function.
+        '''
+        self.animate_func = animate_func
+
+    def update_graph(self) -> None:
+        '''
+        Update the graph with the new color
+        '''
+        self.widget_graph_func(self.analyzer, self.sample_name, self.graph_type, self.color)
+        self.preview.configure(border_color='green', text='set!')
+    
+    def move(self) -> None:
+        '''
+        Animate.
+        '''
+        self.animate_func()
 
         #! add the analysis and the data results into the GUI - DONE👌
         #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!
