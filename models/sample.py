@@ -30,7 +30,9 @@ class Sample():
         return data
     
     def get_name(self, full: bool = False) -> str:
-
+        '''
+        full: returns the full name if true.
+        '''
         name: str = self._name.split(".")[0].capitalize()
 
         return name if not full else self._name      

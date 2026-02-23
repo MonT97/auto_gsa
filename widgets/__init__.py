@@ -1,1 +1,5 @@
-from .widgets import FilePanal, AnalysisPanal
+'''
+The main widgets.
+'''
+
+from .main_panal import MainPanal
