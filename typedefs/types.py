@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 type SamplePoints = list[tuple[float, float]]
 type PlotInput = pd.Series|np.ndarray
@@ -18,6 +18,7 @@ class SampleStats():
     
     def to_dict(self) -> dict[str, float]:
         return self.__dict__
+    
     
 @dataclass
 class StatsInterpretation():

@@ -2,4 +2,5 @@
 The main widgets.
 '''
 
-from .main_panal import MainPanal
+from .analysis_panal import AnalysisPanal
+from .file_panal import FilePanal

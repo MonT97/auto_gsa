@@ -1,5 +1,6 @@
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from collections.abc import Callable
 from helpers import Analyzer, Plotter
 from matplotlib.axes import Axes
 from models import Sample
@@ -40,11 +41,17 @@ class AnalysisPanal(ctk.CTkFrame):
             self.analyzer: Analyzer = Analyzer(sample.get_data())
 
     def draw_graphs(self, sample: Sample, graph_type: GraphType|None) -> None:
+        '''
+        Triggered by an outside signal.
+        '''
         self._create_analyzer(sample)
         #? is this the best place for this? NO, actually it might
         self.graph_panal.draw_graphs(self.analyzer, sample.get_name(), graph_type)      
 
     def write(self, sample: Sample, graph_type: GraphType|None) -> None:
+        '''
+        Triggered by an outside signal.
+        '''
         self._create_analyzer(sample)
         self.data_panal.write(self.analyzer, sample, graph_type)
 
@@ -79,19 +86,20 @@ class GraphPanal(ctk.CTkFrame):
         Generates the graph/plot as a layout ready widget
         - -> ctk.CTkCanvas
         '''
-        fig, ax = plt.subplots()
-        fig.set_layout_engine('constrained')
-        canvas = FigureCanvasTkAgg(fig, self.graph_frame) 
-        graph_name = self.graph_names[graph_type]
+        _fig, _ax = plt.subplots()
+        _fig.set_layout_engine('constrained')
+        _canvas = FigureCanvasTkAgg(_fig, self.graph_frame) 
+        _graph_name = self.graph_names[graph_type]
 
-        title: str = f"{graph_name}\n{sample_name}"
+        _title: str = f"{_graph_name}\n{sample_name}"
 
         self.x, self.y, self.points = plot_data
-        Plotter(self.x, self.y, self.points, ax, graph_type, color)
+        Plotter(self.x, self.y, self.points, _ax, graph_type, color)
                      
-        ax.set_title(title)
+        _ax.set_title(_title)
         plt.close()
-        return canvas.get_tk_widget()
+
+        return _canvas.get_tk_widget()
 
     def _set_graph_params(self, analyzer: Analyzer, sample_name: str,
                           graph_type: GraphType|None, graph_color: str = '#1f7bb4') -> None:
@@ -158,34 +166,39 @@ class DataPanal(ctk.CTkFrame):
 
     def write(self, analyzer: Analyzer, sample: Sample, _type: GraphType|None):
         
-        stats = analyzer.get_stats()
-        interpretation = analyzer.get_interpretation()
+        _stats = analyzer.get_stats()
+        _interpretation = analyzer.get_interpretation()
         
         def _get_msg(inp) -> str:
             
-            msg: str = ''
-            inp_type = type(inp)
+            _inp_type = type(inp)
 
-            if inp_type is SampleStats:
-                msg = "".join([f"{k.capitalize()}\t> {v:.3f}\n" for k,v in inp.to_dict().items()])
-            elif inp_type is StatsInterpretation:
-                msg = "".join(
-                    [f"{k.capitalize()}\t> {v.capitalize()}\n" for k,v in inp.to_dict().items()])
-            elif inp_type is Sample:
-                msg = inp.get_data().to_string(index=False, col_space= 10, justify='center')
+            if _inp_type is SampleStats:
+                _msg = "".join([f"{k.capitalize()}\t> {v:.3f}\n" for k,v in inp.to_dict().items()])
+            elif _inp_type is StatsInterpretation:
+                _msg = "".join(
+                    [f"{k.capitalize()}\t> {v.capitalize()}\n" for k,v in inp.to_dict().items()]
+                    )
+            elif _inp_type is Sample:
+                _msg = inp.get_data().to_string(index=False, col_space= 10, justify='center')
+            else:
+                _msg = ''
             
-            return msg
+            return _msg
         
-        sample_data_msg: str = _get_msg(sample)
-        stats_msg: str = _get_msg(stats)
-        interp_msg: str = _get_msg(interpretation)
-
-        self.data_note.update_note(sample_data_msg)
-        self.stats_note.update_note(stats_msg, interp_msg)
+        _sample_data_msg: str = _get_msg(sample)
+        _stats_msg: str = _get_msg(_stats)
+        _interp_msg: str = _get_msg(_interpretation)
+        _ana_method: str = analyzer.get_method()
+        
+        self.data_note.update_note(_sample_data_msg)
+        self.stats_note.update_note(_stats_msg, _interp_msg, _ana_method)
 
 #TODO make it a table, TreeView, parent with file picker??, maybe not, as we don't need to select here!
 class DataNote(ctk.CTkTextbox):
-
+    '''
+    CTkTextbox
+    '''
     def __init__(self, master: DataPanal, font: ctk.CTkFont) -> None:
         super().__init__(master)
         self.configure(state=ctk.DISABLED, font=font, tabs=150)  
@@ -199,12 +212,14 @@ class DataNote(ctk.CTkTextbox):
 
 
 class StatsNote(ctk.CTkTextbox):
-
+    '''
+    CTkTextbox
+    '''
     def __init__(self, master: DataPanal, font: ctk.CTkFont) -> None:
         super().__init__(master)
         self.configure(state=ctk.DISABLED, font=font, tabs=95)    
 
-    def update_note(self, stats: str, interpretation: str ) -> None:
+    def update_note(self, stats: str, interpretation: str, analysis_method: str) -> None:
                 
                 self.configure(state=ctk.NORMAL)
                 self.delete("1.0", "end")
@@ -213,18 +228,21 @@ class StatsNote(ctk.CTkTextbox):
                 self.insert(self.index(tk.INSERT), "\n")
                 self.insert(self.index(tk.INSERT), "-Interpretation:\n")
                 self.insert(self.index(tk.INSERT), interpretation)
+                self.insert(self.index(tk.INSERT), "[Method Used]: ")
+                self.insert(self.index(tk.INSERT), analysis_method)
                 self.configure(state=ctk.DISABLED)  
 
 
 class CustomizationBar(ctk.CTkFrame):
     '''
-    CkFrame: gives the ability to change the graph preview visuals.
+    CkFrame:
+        Gives the ability to change the graph preview visuals.
     '''
     def __init__(self, master:GraphPanal,
                  width: float, height:float, anim_speed: float =.01) -> None:
         super().__init__(master)
         
-        offset: float = 0
+        _offset: float = 0
 
         self.columnconfigure(0, weight=1, uniform='a')
         self.rowconfigure(0, weight=3, uniform='a')
@@ -238,18 +256,18 @@ class CustomizationBar(ctk.CTkFrame):
 
         self.initial_pos = .07
         self.crnt_y_pos = self.initial_pos
-        self.final_pos = self.height + offset
+        self.final_pos = self.height + _offset
 
         self.in_start_pos:bool = True
 
-        self.clr_pikr: ColorPicker = ColorPicker(self)
+        _clr_pikr: ColorPicker = ColorPicker(self)
 
         self.move_btn_txt: str = 'configuration'
         self.move_btn: ctk.CTkButton = ctk.CTkButton(self, corner_radius=0,
                 height=100, text=f'\\ {self.move_btn_txt} /', state=ctk.DISABLED,
                 command=lambda: self.animate())
         
-        self.clr_pikr.grid(column=0, row=0, sticky='nsew')
+        _clr_pikr.grid(column=0, row=0, sticky='nsew')
         self.move_btn.grid(column=0, row=1, sticky='nsew')
 
         self.place(anchor='s',
@@ -261,7 +279,7 @@ class CustomizationBar(ctk.CTkFrame):
         '''
         self.master.update_graphs(graph_params)
 
-    def animate(self):
+    def animate(self) -> None:
         '''
         Animates self into place
         '''
@@ -303,12 +321,11 @@ class CustomizationBar(ctk.CTkFrame):
 
 class ColorPicker(ctk.CTkFrame):
     '''
-    CTkFrame: an (RGB) color picker.
+    CTkFrame:
+        An (RGB) color picker.
     '''
     def __init__(self, master: CustomizationBar) -> None:
         super().__init__(master)
-
-        #! admittedly a weak architectural choice, look for a better option!
 
         self.columnconfigure(0, weight=1, uniform='b')
         self.columnconfigure(1, weight=2, uniform='b')
@@ -318,36 +335,24 @@ class ColorPicker(ctk.CTkFrame):
 
         self.color: str = '#000000'
 
-        self.preview = ctk.CTkButton(self,
-                                     text='set', border_color='red', border_width=2,
-                                     command= lambda: self._update_color(master, self.color))
+        self.preview: ctk.CTkButton = ctk.CTkButton(self,
+                text='set', border_color='red', border_width=2,
+                command= lambda: self._update_color(master, self.color))
 
-        r: ctk.IntVar = ctk.IntVar(self, value=138)
-        g: ctk.IntVar = ctk.IntVar(self, value=117)
-        b: ctk.IntVar = ctk.IntVar(self, value=216)
+        _r: ctk.IntVar = ctk.IntVar(self, value=138)
+        _g: ctk.IntVar = ctk.IntVar(self, value=117)
+        _b: ctk.IntVar = ctk.IntVar(self, value=216)
 
-        self._set_color((r,g,b))
+        self._set_color((_r,_g,_b))
 
-        r_slider: ctk.CTkSlider = ctk.CTkSlider(self,
-                height=13, button_corner_radius=5, border_width=5, button_length=18,
-                button_color='#b50000', button_hover_color='#ff0000', progress_color='#855656',
-                from_=0, to=255, number_of_steps=255, variable=r,
-                command=lambda _: self._set_color((r,g,b)))
-        g_slider: ctk.CTkSlider = ctk.CTkSlider(self,
-                height=13, button_corner_radius=5, border_width=5, button_length=18,
-                button_color='#00b500', button_hover_color='#00ff00', progress_color='#568556',
-                from_=0, to=255, number_of_steps=255, variable=g,
-                command=lambda _: self._set_color((r,g,b)))
-        b_slider: ctk.CTkSlider = ctk.CTkSlider(self,
-                height=13, button_corner_radius=5, border_width=5, button_length=18,
-                button_color='#0000b5', button_hover_color='#0000ff', progress_color='#565685',
-                from_=0, to=255, number_of_steps=255, variable=b,
-                command=lambda _: self._set_color((r,g,b)))
+        _r_slider: ColorSlider = ColorSlider(self, 'r', _r, lambda _: self._set_color((_r,_g,_b)))
+        _g_slider: ColorSlider = ColorSlider(self, 'g', _g, lambda _: self._set_color((_r,_g,_b)))
+        _b_slider: ColorSlider = ColorSlider(self, 'b', _b, lambda _: self._set_color((_r,_g,_b)))
     
         self.preview.grid(column=0, row=0, rowspan=3, padx=5, pady=2, sticky='nsew')
-        r_slider.grid(column=1, row=0, rowspan=1, padx=5)
-        g_slider.grid(column=1, row=1, rowspan=1, padx=5)
-        b_slider.grid(column=1, row=2, rowspan=1, padx=5)
+        _r_slider.grid(column=1, row=0, rowspan=1, padx=5)
+        _g_slider.grid(column=1, row=1, rowspan=1, padx=5)
+        _b_slider.grid(column=1, row=2, rowspan=1, padx=5)
 
         self.grid(column=0, row=0, sticky='nsew')
 
@@ -357,7 +362,7 @@ class ColorPicker(ctk.CTkFrame):
         '''
         clr = tuple(i.get() for i in rgb)
         
-        self.color = f'#{clr[0]:02x}{clr[1]:02x}{clr[2]:02x}'
+        self.color = '#'+''.join([f'{c:02x}' for c in clr])
         self.preview.configure(fg_color = self.color)
 
         if sum(clr) > 245:
@@ -374,6 +379,35 @@ class ColorPicker(ctk.CTkFrame):
         '''
         master.update_graph_params_clr(color)
         self.preview.configure(border_color='green', text='set!')
+
+
+class ColorSlider(ctk.CTkSlider):
+    '''
+    CTkSlider:
+        For picking the color bandwise.
+        - clr_band [str]:what band of the (R,G,B) band the slider represents.
+        - variable [ctk.IntVar]:value to be adjusted through the slider.
+        - command [Callable]:the behaviour to be linked with.
+    '''
+    def __init__(self,
+                 master: ColorPicker, clr_band: str, variable: ctk.IntVar,
+                 command: Callable) -> None:
+        super().__init__(master)
+        clrs: tuple[str, str, str] = ('','','')
+
+        match clr_band:
+            case 'r':
+                clrs = ('#b50000', '#ff0000', '#855656')
+            case 'g':
+                clrs = ('#00b500', '#00ff00', '#568556')
+            case 'b':
+                clrs = ('#0000b5', '#0000ff', '#565685')
+
+        self.configure(variable=variable, height=13,
+            button_color=clrs[0], button_hover_color=clrs[1], progress_color=clrs[2],
+            button_corner_radius=5, border_width=5, button_length=18,
+            from_=0, to=255, number_of_steps=255, command=command)
+
 
         #! add the analysis and the data results into the GUI - DONE👌
         #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!
