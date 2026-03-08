@@ -30,6 +30,7 @@ class Sample():
             - data [pd.DataFrame]: the data itself.
         '''
         _name: str = ''
+        _format: str = ''
         _data = pd.DataFrame()
 
         if path:
@@ -45,14 +46,14 @@ class Sample():
             _data = _read_fn(_format)
         
             _data['wht%'] = ((_data['wht']/_data['wht'].sum())*100).round(2)
-            _data['cum.wht%'] = _data['wht'].cumsum()
+            _data['cum.wht%'] = _data['wht'].cumsum().round(2)
             Sample.samples_list.append(self)
         
-        return (_name, _data)
+        return (f'{_name}.{_format}', _data)
     
     def get_name(self, full: bool = False) -> str:
         '''
-        full: returns the full name if true.
+        full: returns [file_name.format] if true.
         '''
         _short_name: str = self._name.split(".")[0].capitalize()
 
@@ -60,6 +61,6 @@ class Sample():
     
     def get_data(self) -> pd.DataFrame:
         '''
-        Returns the sample dataa as a DataFrame.
+        Returns the sample data.
         '''
         return self._data

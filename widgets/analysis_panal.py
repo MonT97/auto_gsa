@@ -360,15 +360,18 @@ class ColorPicker(ctk.CTkFrame):
         '''
         Sets the color.
         '''
-        clr = tuple(i.get() for i in rgb)
+        clr: tuple[int,int,int] = tuple(i.get() for i in rgb)#type: ignore
+        crnt_hvr_clr: list[str] = self.preview.cget('hover_color')
         
         self.color = '#'+''.join([f'{c:02x}' for c in clr])
         self.preview.configure(fg_color = self.color)
 
         if sum(clr) > 245:
             self.preview.configure(text_color = '#000000')
+            self.preview.configure(hover_color=[crnt_hvr_clr[0],'#ffffff'])
         if sum(clr) < 245:
             self.preview.configure(text_color = '#ffffff')
+            self.preview.configure(hover_color=[crnt_hvr_clr[0],'#000000'])
 
         if self.preview.cget('border_color') != 'red':
             self.preview.configure(border_color='red', text='set')

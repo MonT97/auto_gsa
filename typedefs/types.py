@@ -19,13 +19,25 @@ class SampleStats():
     def to_dict(self) -> dict[str, float]:
         return self.__dict__
     
+    def to_frame(self) -> pd.DataFrame:
+        _frame = pd.DataFrame(
+            {'statistic': list(self.__dict__.keys()), 'values': list(self.__dict__.values())}
+            )
+        return _frame
     
 @dataclass
 class StatsInterpretation():
     
     sorting: str = ""
-    skewness: str = ""
     kurtosis: str = ""
+    skewness: str = ""
 
     def to_dict(self) -> dict[str, str]:
         return self.__dict__
+    
+    def to_frame(self) -> pd.DataFrame:
+        _frame = pd.DataFrame(
+            {'statistic': list(self.__dict__.keys()),
+             'interpretation': list(self.__dict__.values())}
+            )
+        return _frame

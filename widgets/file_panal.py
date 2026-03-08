@@ -8,6 +8,7 @@ from models import Sample
 
 import matplotlib.pyplot as plt
 import customtkinter as ctk
+import pandas as pd
 
 class FilePanal(ctk.CTkFrame):
     '''
@@ -22,7 +23,9 @@ class FilePanal(ctk.CTkFrame):
         super().__init__(master)
         
         self.master = master
-        self.samples_files_dir: str = ""
+        self.samples_files_dir: str = "" #!cnfig
+        self.results_folder_name: str = "analysis_results" #!cnfig
+        self.raw_results_folder_name: str = "raw_files" #!cnfig
         self.data: tuple[int,] = (0,)
 
         self.supported_formats: list[str] = [_format.value for _format in FileFormat]
@@ -56,7 +59,7 @@ class FilePanal(ctk.CTkFrame):
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save results",
             state=ctk.DISABLED,
-            command=lambda: self._save_results(self.sample))
+            command=lambda: self._save_results(self.sample, fmt=FileFormat.EXCEL))
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
@@ -105,38 +108,69 @@ class FilePanal(ctk.CTkFrame):
         self.graph_type = graph_type
 
     #TODO: this needs a redo, stay here??, sperate class, who knows?!    
-    def _save_results(self, sample: Sample):
+    def _save_results(self,
+                      sample: Sample, prfx: str = 'result_', rounding: int = 3,
+                      fmt: FileFormat = FileFormat.CSV) -> None:
+
+        _result_file_name: str = prfx+sample.get_name().lower()
+        _results_dir: str = os.path.join(self.samples_files_dir, self.results_folder_name)
+        _raw_results_dir: str = os.path.join(_results_dir, self.raw_results_folder_name) #!rawThing
+
+        _file_path: str = os.path.join(_results_dir, _result_file_name)
+        _raw_file_path: str = os.path.join(_raw_results_dir, _result_file_name)
+
+        _sample_data: pd.DataFrame = sample.get_data()
+
+        _ana: Analyzer = Analyzer(_sample_data)
+        _stats_sheet_name: str = f'stats({_ana.get_method()})'
+        _stats = _ana.get_stats().to_frame()
+        _interp = _ana.get_interpretation().to_frame()
+
+        if not os.path.exists(_results_dir):
+            os.mkdir(_results_dir)
         
-        self.master.save_data(sample, self.samples_files_dir)
+        if not os.path.exists(_raw_results_dir):
+            os.mkdir(_raw_results_dir)
+        
+        with pd.ExcelWriter(f'{_file_path}.xlsx', engine='openpyxl', mode='w') as writer:
+            _sample_data.to_excel(writer, index=False, sheet_name='data')
+            _stats.to_excel(writer, index=False, float_format=f'%.{rounding}f',
+                            merge_cells=False, sheet_name=_stats_sheet_name)
+            _interp.to_excel(writer, index=False,
+                            merge_cells=False, startrow=_stats.shape[0]+2,
+                            sheet_name=_stats_sheet_name)
+
+        _sample_data.to_csv(f'{_raw_file_path}.csv', index=False)
+
+        for _type in GraphType:
+            _graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
+            _title: str = _graph_names[_type]
+            _graph_file_name: str = f'{sample.get_name().lower()}_{_title.lower().replace(' ', '_')}'
+            _graph_file_path: str = os.path.join(_results_dir, _graph_file_name)
+            _raw_graph_file_path: str = os.path.join(_raw_results_dir, _graph_file_name)
+            
+            _fig, _ax = plt.subplots()
+            _fig.set_layout_engine('constrained')
+            _x, _y, _points = _ana.get_plot_data(_type)
+            Plotter(_x, _y, _points, _ax, _type)
+            _ax.set_title(f'{sample.get_name()}\n{_title}')
+            _fig.savefig(_graph_file_path+'.png', dpi=300, format='png')
+            _fig.savefig(_raw_graph_file_path+'.svg', dpi=300, format='svg')
+            plt.close()
+            
+        print(f'[{sample.get_name().lower()}] saved...') #TODO: log
 
     def _save_all(self) -> None:
 
         files: list[str] = os.listdir(self.samples_files_dir)
         files = [_file for _file in files if _file.split(".")[-1] in self.supported_formats]
 
-        fig, ax = plt.subplots(4, 2, figsize=(9,12))
-
-        itr: int = 0
-        graphs_per_page: int = 2
-        page_num: int = 1
-
-        for ind, f_name in enumerate(files):
-
-            f_path: str = os.path.join(self.samples_files_dir, f_name)
-            sample: Sample = Sample(f_path)
-            cum_points, hist_points = [Analyzer(sample.get_data()).get_plot_data(i) for i in GraphType]
-            Plotter(hist_points[0], hist_points[1], hist_points[2],ax[itr,0], GraphType.HIST)
-            Plotter(cum_points[0], cum_points[1], cum_points[2],ax[itr,1], GraphType.CUM)
-            itr+=1
-
-            if ind == 3 and len(files)%3 != 0:
-
-                self.master.save_data(sample, self.samples_files_dir, page_num, fig)
-                fig, ax = plt.subplots(4, 2, figsize=(8,11))
-                itr = 0
-                page_num+=1
-
-        self.master.save_data(sample, self.samples_files_dir, page_num, fig)
+        for sample_name in files:
+            _path: str = os.path.join(self.samples_files_dir, sample_name)
+            _sample = Sample(_path)
+            self._save_results(_sample)
+        
+        print('all samples saved...') #TODO: log
 
     def get_analysis_data(self) -> tuple[Sample, GraphType|None]:
         '''

@@ -9,7 +9,7 @@ import numpy as np
 
 class Analyzer():
     '''
-    The class that wrangles the data, provides the stats, then prepares it for plotting. 
+    The class that wrangles the data, provides the stats it's interpretation, then prepares it for plotting. 
     '''
     stats_list: list[dict[str,float]] = []
     def __init__(self, sample_data: pd.DataFrame) -> None:
@@ -196,7 +196,7 @@ class Analyzer():
 
     def get_interpretation(self) -> StatsInterpretation:
         '''
-        Returns the interpretation results.
+        Returns the interpretation of the stats.
         '''
         return self.interpretation
 
