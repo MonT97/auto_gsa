@@ -1,4 +1,4 @@
-from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation
+from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from collections.abc import Callable
 from helpers import Analyzer, Plotter
@@ -6,6 +6,7 @@ from matplotlib.axes import Axes
 from models import Sample
 
 import matplotlib.pyplot as plt
+from tktooltip import ToolTip
 import customtkinter as ctk
 import tkinter as tk
 
@@ -18,6 +19,8 @@ class AnalysisPanal(ctk.CTkFrame):
     '''
     def __init__(self, master: ctk.CTkFrame) -> None:
         super().__init__(master)
+
+        self.configure(corner_radius=0)
 
         self.current_sample: Sample = Sample()
 
@@ -59,7 +62,7 @@ class AnalysisPanal(ctk.CTkFrame):
 class GraphPanal(ctk.CTkFrame):
     '''
     CTkFrame:
-    View the resulting graphs
+    Views the resulting graphs.
     '''
     #TODO add the ability to change the graph color, maybe only during saves as this is a preview!?
     def __init__(self, master: AnalysisPanal) -> None:
@@ -76,12 +79,11 @@ class GraphPanal(ctk.CTkFrame):
 
         self.graph_frame.pack(fill='both', expand=1, padx=5, pady=5)
 
-        self.cust_bar: CustomizationBar = CustomizationBar(self, .3, .28)
+        self.cust_bar: CustomizationBar = CustomizationBar(self, .3, .25, .04)
 
     def _generate_graph(self, 
                        plot_data: PlotData, sample_name: str, graph_type: GraphType,
-                       color: str
-                       ) -> tk.Canvas:
+                       color: str) -> tk.Canvas:
         '''
         Generates the graph/plot as a layout ready widget
         - -> ctk.CTkCanvas
@@ -93,8 +95,8 @@ class GraphPanal(ctk.CTkFrame):
 
         _title: str = f"{_graph_name}\n{sample_name}"
 
-        self.x, self.y, self.points = plot_data
-        Plotter(self.x, self.y, self.points, _ax, graph_type, color)
+        self.x, self.y, self.points, _analysis_method = plot_data
+        Plotter(self.x, self.y, self.points, _ax, graph_type, _analysis_method, color)
                      
         _ax.set_title(_title)
         plt.close()
@@ -189,7 +191,7 @@ class DataPanal(ctk.CTkFrame):
         _sample_data_msg: str = _get_msg(sample)
         _stats_msg: str = _get_msg(_stats)
         _interp_msg: str = _get_msg(_interpretation)
-        _ana_method: str = analyzer.get_method()
+        _ana_method: AnalysisMethod = analyzer.get_method()
         
         self.data_note.update_note(_sample_data_msg)
         self.stats_note.update_note(_stats_msg, _interp_msg, _ana_method)
@@ -219,7 +221,7 @@ class StatsNote(ctk.CTkTextbox):
         super().__init__(master)
         self.configure(state=ctk.DISABLED, font=font, tabs=95)    
 
-    def update_note(self, stats: str, interpretation: str, analysis_method: str) -> None:
+    def update_note(self, stats: str, interpretation: str, analysis_method: AnalysisMethod) -> None:
                 
                 self.configure(state=ctk.NORMAL)
                 self.delete("1.0", "end")
@@ -229,7 +231,7 @@ class StatsNote(ctk.CTkTextbox):
                 self.insert(self.index(tk.INSERT), "-Interpretation:\n")
                 self.insert(self.index(tk.INSERT), interpretation)
                 self.insert(self.index(tk.INSERT), "[Method Used]: ")
-                self.insert(self.index(tk.INSERT), analysis_method)
+                self.insert(self.index(tk.INSERT), analysis_method.value)
                 self.configure(state=ctk.DISABLED)  
 
 

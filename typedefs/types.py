@@ -5,7 +5,6 @@ import pandas as pd
 
 type SamplePoints = list[tuple[float, float]]
 type PlotInput = pd.Series|np.ndarray
-type PlotData = tuple[PlotInput, PlotInput, SamplePoints]
 
 
 @dataclass
@@ -28,9 +27,9 @@ class SampleStats():
 @dataclass
 class StatsInterpretation():
     
-    sorting: str = ""
-    kurtosis: str = ""
-    skewness: str = ""
+    sorting: str = ''
+    kurtosis: str = ''
+    skewness: str = ''
 
     def to_dict(self) -> dict[str, str]:
         return self.__dict__
@@ -41,3 +40,12 @@ class StatsInterpretation():
              'interpretation': list(self.__dict__.values())}
             )
         return _frame
+
+@dataclass
+class SaveObject():
+
+    prefix: str = ''
+    results_folder_name: str = ''
+
+    def to_dict(self) -> dict:
+        return self.__dict__

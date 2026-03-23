@@ -18,3 +18,13 @@ class FileFormat(Enum):
     '''
     EXCEL = 'xlsx'
     CSV = 'csv'
+
+
+class AnalysisMethod(Enum):
+    '''
+    An Enum representing the analysis method type:
+    - GRAPHICAL ----> Folk&Ward graphical method.
+    - MOMENTS ------> the statistical moments based method.
+    '''
+    GRAPHICAL = 'Graphical'
+    MOMENTS = 'Method of Moments'

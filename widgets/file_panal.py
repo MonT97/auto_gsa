@@ -1,16 +1,15 @@
 import os
 
-from typedefs import GraphType, FileFormat
-from helpers import Analyzer, Plotter
 from collections.abc import Callable
 from tkinter import ttk, Event
+from typedefs import GraphType, FileFormat, SaveObject
+from mixins import CanSave
 from models import Sample
+from popups import SaveAll
 
-import matplotlib.pyplot as plt
 import customtkinter as ctk
-import pandas as pd
 
-class FilePanal(ctk.CTkFrame):
+class FilePanal(ctk.CTkFrame, CanSave):
     '''
     CTkFrame:
     The class handeling:
@@ -21,16 +20,16 @@ class FilePanal(ctk.CTkFrame):
     '''
     def __init__(self, master):
         super().__init__(master)
-        
+        #!config = add to a perminent config file!.
+        self.configure(corner_radius=0)
         self.master = master
         self.samples_files_dir: str = "" #!cnfig
-        self.results_folder_name: str = "analysis_results" #!cnfig
         self.raw_results_folder_name: str = "raw_files" #!cnfig
-        self.data: tuple[int,] = (0,)
+        self.data: tuple[str,...] = ('',)
 
         self.supported_formats: list[str] = [_format.value for _format in FileFormat]
 
-        self.entry = ctk.CTkEntry(self, placeholder_text="Enter the samples folder path...")
+        self.entry = ctk.CTkEntry(self, placeholder_text="Samples folder path...")
         self.entry.bind("<KeyPress-Return>", lambda _: self._import_files())
         self.entry.bind("<Enter>", lambda _: self.entry.focus_set())
         self.entry.bind("<KeyPress-Escape>", lambda _: self._reset_focus())
@@ -42,7 +41,7 @@ class FilePanal(ctk.CTkFrame):
         self.samples_file_viewer: FileViewer = FileViewer(self)
         self.samples_file_viewer.bind(
             "<<TreeviewSelect>>", 
-            lambda event: self._set_data(self.samples_file_viewer.selection(), event))
+            lambda event: self._set_data(event))
         self.samples_file_viewer.bind("<KeyPress-Return>",
             lambda _: self._analyze(self.data))
         
@@ -54,12 +53,12 @@ class FilePanal(ctk.CTkFrame):
         self.save_all_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save all",
             state=ctk.DISABLED,
-            command=lambda: self._save_all())
+            command=lambda: self._launch_save_screen())
         
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save results",
             state=ctk.DISABLED,
-            command=lambda: self._save_results(self.sample, fmt=FileFormat.EXCEL))
+            command=lambda: self._save_results(self.sample))
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
@@ -75,21 +74,26 @@ class FilePanal(ctk.CTkFrame):
     def _import_files(self) -> None:
         
         self.samples_files_dir: str = self.entry.get()
+        
+        if not os.path.exists(self.samples_files_dir):
+            self._set_log_massage(f'path [{self.samples_files_dir}] doesn\'t exist.', error=True)
+
         self.samples_file_viewer.display_files(self.samples_files_dir)
         self.save_all_btn.configure(state=ctk.NORMAL)
 
         self._reset_focus()
+        self._set_log_massage(f'files imported from [{self.samples_files_dir}].')
 
-    def _set_data(self, selection: tuple, event: Event) -> None:
+    def _set_data(self, event: Event) -> None:
         
         self.analyze_btn.configure(state=ctk.NORMAL)
-        self.data = selection
+        self.data = self.samples_file_viewer.selection()
         
         if event.state:
             for _type in GraphType:
                     self._analyze(self.data, _type)
 
-    def _analyze(self, table_selection: tuple, graph_type: GraphType|None = None):
+    def _analyze(self, table_selection: tuple, graph_type: GraphType|None = None) -> None:
 
         _sample_file_name: str = self.samples_file_viewer.get_data(table_selection)[-1]#type: ignore
         _sample_file_path: str = os.path.join(self.samples_files_dir, _sample_file_name)
@@ -98,79 +102,63 @@ class FilePanal(ctk.CTkFrame):
 
         self._set_analysis_data(_sample, graph_type)
         self.winfo_toplevel().event_generate("<<FilePanal-analyze>>")
+        self._set_log_massage(f'[{_sample.get_name().lower()}] analyzed.')
 
         self.samples_file_viewer.focus_set() #! why broken??
         self.save_btn.configure(state=ctk.NORMAL)
     
     def _set_analysis_data(self, sample: Sample, graph_type: GraphType|None) -> None:
-
+        '''
+        Setting for an outside signal trigger.
+        '''
         self.sample = sample
         self.graph_type = graph_type
 
-    #TODO: this needs a redo, stay here??, sperate class, who knows?!    
+    def _set_log_massage(self, massage: str, error: bool = False) -> None:
+        '''
+        Setting for an outside signal trigger.
+        '''
+        self.log_massage: str = massage if not error else '<!> Error: '+ massage
+        self.winfo_toplevel().event_generate("<<FilePanal-log>>")
+
+    def get_log_massage(self) -> str:
+        '''
+        Triggered by an outside signal.
+        '''
+        return self.log_massage
+    
+    #? Check the args handiling, it needs to be further trimmed down.
     def _save_results(self,
-                      sample: Sample, prfx: str = 'result_', rounding: int = 3,
-                      fmt: FileFormat = FileFormat.CSV) -> None:
+                      sample: Sample, prfx: str = 'result_',
+                      results_folder_name: str = 'analysis_results') -> None:
+        self.cs_save_results(sample,
+                             self.samples_files_dir, results_folder_name, self.raw_results_folder_name, prfx)
 
-        _result_file_name: str = prfx+sample.get_name().lower()
-        _results_dir: str = os.path.join(self.samples_files_dir, self.results_folder_name)
-        _raw_results_dir: str = os.path.join(_results_dir, self.raw_results_folder_name) #!rawThing
+        self._set_log_massage(f'[{sample.get_name().lower()}] saved...')
 
-        _file_path: str = os.path.join(_results_dir, _result_file_name)
-        _raw_file_path: str = os.path.join(_raw_results_dir, _result_file_name)
+    def _launch_save_screen(self) -> None:
+        '''
+        Launchs the save all dialouge.
+        '''
+        self.save_popup: SaveAll = SaveAll(self)
 
-        _sample_data: pd.DataFrame = sample.get_data()
+    def save_all(self) -> None:
+        '''
+        Triggered by an outside signal.
+        '''
+        _params: SaveObject = self.save_popup.get_params()
+        _prfx: str = _params.prefix #!config
+        _results_folder_name = _params.results_folder_name #!config
 
-        _ana: Analyzer = Analyzer(_sample_data)
-        _stats_sheet_name: str = f'stats({_ana.get_method()})'
-        _stats = _ana.get_stats().to_frame()
-        _interp = _ana.get_interpretation().to_frame()
+        _files: list[str] = os.listdir(self.samples_files_dir)
+        _files = [_file for _file in _files if _file.split(".")[-1] in self.supported_formats]
 
-        if not os.path.exists(_results_dir):
-            os.mkdir(_results_dir)
-        
-        if not os.path.exists(_raw_results_dir):
-            os.mkdir(_raw_results_dir)
-        
-        with pd.ExcelWriter(f'{_file_path}.xlsx', engine='openpyxl', mode='w') as writer:
-            _sample_data.to_excel(writer, index=False, sheet_name='data')
-            _stats.to_excel(writer, index=False, float_format=f'%.{rounding}f',
-                            merge_cells=False, sheet_name=_stats_sheet_name)
-            _interp.to_excel(writer, index=False,
-                            merge_cells=False, startrow=_stats.shape[0]+2,
-                            sheet_name=_stats_sheet_name)
-
-        _sample_data.to_csv(f'{_raw_file_path}.csv', index=False)
-
-        for _type in GraphType:
-            _graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
-            _title: str = _graph_names[_type]
-            _graph_file_name: str = f'{sample.get_name().lower()}_{_title.lower().replace(' ', '_')}'
-            _graph_file_path: str = os.path.join(_results_dir, _graph_file_name)
-            _raw_graph_file_path: str = os.path.join(_raw_results_dir, _graph_file_name)
-            
-            _fig, _ax = plt.subplots()
-            _fig.set_layout_engine('constrained')
-            _x, _y, _points = _ana.get_plot_data(_type)
-            Plotter(_x, _y, _points, _ax, _type)
-            _ax.set_title(f'{sample.get_name()}\n{_title}')
-            _fig.savefig(_graph_file_path+'.png', dpi=300, format='png')
-            _fig.savefig(_raw_graph_file_path+'.svg', dpi=300, format='svg')
-            plt.close()
-            
-        print(f'[{sample.get_name().lower()}] saved...') #TODO: log
-
-    def _save_all(self) -> None:
-
-        files: list[str] = os.listdir(self.samples_files_dir)
-        files = [_file for _file in files if _file.split(".")[-1] in self.supported_formats]
-
-        for sample_name in files:
+        for sample_name in _files:
             _path: str = os.path.join(self.samples_files_dir, sample_name)
             _sample = Sample(_path)
-            self._save_results(_sample)
+            self._save_results(_sample, _prfx, _results_folder_name)
         
-        print('all samples saved...') #TODO: log
+        self._set_log_massage('all samples saved...')
 
     def get_analysis_data(self) -> tuple[Sample, GraphType|None]:
         '''
@@ -189,6 +177,7 @@ class FileViewer(ttk.Treeview):
     def __init__(self, master: FilePanal) -> None :
         super().__init__(master)
 
+        self.master: FilePanal = master
         self.formats: list[str] = master.supported_formats
 
         _row_style = ttk.Style()
@@ -236,9 +225,7 @@ class FileViewer(ttk.Treeview):
             for _index, file_ in enumerate(_supported_files):
                 self.insert("", "end", values=[f'{_index+1:0{_padding}}', file_])
         except FileNotFoundError as e:
-            raise e
-            #TODO: add an error logging capacity if no files are found len(supp_files==0)
-            pass
+            self.master._set_log_massage(f'No sample files found; {e}', error=True)
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
         

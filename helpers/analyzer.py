@@ -1,4 +1,4 @@
-from typedefs import GraphType, SamplePoints, SampleStats, PlotInput, PlotData, StatsInterpretation
+from typedefs import GraphType, SamplePoints, SampleStats, PlotInput, PlotData, StatsInterpretation, AnalysisMethod
 from scipy.interpolate import PchipInterpolator
 from collections.abc import Callable
 from matplotlib.axes import Axes
@@ -71,7 +71,7 @@ class Analyzer():
             ]
 
         _graphical_is_valid: bool = True if len(_points) == len(_wt_prcnts) else False
-        self.method = 'Graphical' if _graphical_is_valid else 'Method of Moment'
+        self.method = AnalysisMethod.GRAPHICAL if _graphical_is_valid else AnalysisMethod.MOMENTS
 
         _stats: SampleStats = SampleStats()
 
@@ -187,7 +187,7 @@ class Analyzer():
         '''
         return self.stats
 
-    def get_method(self) -> str:
+    def get_method(self) -> AnalysisMethod:
         '''
         Retruns the analysis method used.
         - -> str
@@ -203,7 +203,7 @@ class Analyzer():
     def get_plot_data(self, graph_type: GraphType) -> PlotData:
         '''
         Returns the plot ready data.
-        - -> [x, y], points]
+        - -> [x, y], points, analysis_method]
         '''
         match graph_type:
             case GraphType.HIST:
@@ -213,7 +213,7 @@ class Analyzer():
                 _x: PlotInput = self.x
                 _y: PlotInput = self.y
 
-        return (_x,_y,self.points)
+        return (_x,_y,self.points, self.method)
 
 
 class Plotter():
@@ -224,8 +224,11 @@ class Plotter():
     '''
     def __init__(self, x: PlotInput, y: PlotInput,
                  points: SamplePoints, ax: Axes, graph_type: GraphType,
-                 clr: str = '#1f7bb4', kde_clr: str = 'k') -> None:
+                 analysis_method: AnalysisMethod, clr: str = '#1f7bb4',
+                 kde_clr: str = 'k') -> None:
         
+        self._method: AnalysisMethod = analysis_method
+
         match graph_type:
 
             case GraphType.HIST:
@@ -263,14 +266,16 @@ class Plotter():
         '''
         Plots the cumulative curve.
         '''
-        for _point in points:
 
-            _y_cord, _x_cord = _point
-            _x_cords: list = [ax.get_xlim()[0], _x_cord, _x_cord]
-            _y_cords: list = [_y_cord, _y_cord, ax.get_ylim()[0]]
+        if self._method == AnalysisMethod.GRAPHICAL:
+            for _point in points:
 
-            ax.plot(_x_cords, _y_cords, '--k', alpha=.25, zorder=2)
-            ax.plot(_x_cord, _y_cord, '--.k', alpha=.25, zorder=1)
+                _y_cord, _x_cord = _point
+                _x_cords: list = [ax.get_xlim()[0], _x_cord, _x_cord]
+                _y_cords: list = [_y_cord, _y_cord, ax.get_ylim()[0]]
+
+                ax.plot(_x_cords, _y_cords, '--k', alpha=.25, zorder=2)
+                ax.plot(_x_cord, _y_cord, '--.k', alpha=.25, zorder=1)
         
         ax.plot(x, y, color=color) #? this fixed the double plotting issue!
         ax.set_xlabel("phi (\u00D8)")
