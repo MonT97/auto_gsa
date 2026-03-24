@@ -73,7 +73,7 @@ class FilePanal(ctk.CTkFrame, CanSave):
 
     def _import_files(self) -> None:
         
-        self.samples_files_dir: str = self.entry.get()
+        self.samples_files_dir = self.entry.get()
         
         if not os.path.exists(self.samples_files_dir):
             self._set_log_massage(f'path [{self.samples_files_dir}] doesn\'t exist.', error=True)
@@ -130,9 +130,11 @@ class FilePanal(ctk.CTkFrame, CanSave):
     #? Check the args handiling, it needs to be further trimmed down.
     def _save_results(self,
                       sample: Sample, prfx: str = 'result_',
+                      color: str = '', results_path: str = '',
                       results_folder_name: str = 'analysis_results') -> None:
-        self.cs_save_results(sample,
-                             self.samples_files_dir, results_folder_name, self.raw_results_folder_name, prfx)
+        
+        self.cs_save_results(sample, results_path, results_folder_name,
+                             self.raw_results_folder_name, prfx, color)
 
         self._set_log_massage(f'[{sample.get_name().lower()}] saved...')
 
@@ -140,15 +142,28 @@ class FilePanal(ctk.CTkFrame, CanSave):
         '''
         Launchs the save all dialouge.
         '''
+        self._reset_focus()
         self.save_popup: SaveAll = SaveAll(self)
+        self.save_popup.set_color(self.color)
+        self.save_popup.change_default_path(self.samples_files_dir)
+
+    def set_saveobj_color(self, color: str) -> None:
+        '''
+        Triggered by an outside signal.
+        '''
+        self.color = color
 
     def save_all(self) -> None:
         '''
         Triggered by an outside signal.
         '''
+        self._set_log_massage('saving all samples...')
+
         _params: SaveObject = self.save_popup.get_params()
         _prfx: str = _params.prefix #!config
-        _results_folder_name = _params.results_folder_name #!config
+        _results_path: str = _params.resutls_path #!config
+        _results_folder_name: str = _params.results_folder_name #!config
+        _color: str = _params.color #!config, Here I am; bool and color retrival!.
 
         _files: list[str] = os.listdir(self.samples_files_dir)
         _files = [_file for _file in _files if _file.split(".")[-1] in self.supported_formats]
@@ -156,9 +171,9 @@ class FilePanal(ctk.CTkFrame, CanSave):
         for sample_name in _files:
             _path: str = os.path.join(self.samples_files_dir, sample_name)
             _sample = Sample(_path)
-            self._save_results(_sample, _prfx, _results_folder_name)
+            self._save_results(_sample, _prfx, _color, _results_path, _results_folder_name)
         
-        self._set_log_massage('all samples saved...')
+        self._set_log_massage(f'all samples saved in [{_results_path}\\{_results_folder_name}]')
 
     def get_analysis_data(self) -> tuple[Sample, GraphType|None]:
         '''

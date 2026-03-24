@@ -58,7 +58,7 @@ class PrefixPicker(BasePicker):
         return self.prfx_var.get()
 
 
-class FolderPicker(BasePicker):
+class FolderNamePicker(BasePicker):
     '''
     Picking the Folder to house the results within.
     '''
@@ -75,3 +75,46 @@ class FolderPicker(BasePicker):
         Returns the parameters.
         '''
         return self.folder_name_var.get()
+
+
+class ResultsPathPicker(BasePicker):
+    '''
+    Picking the paths to house the results within.
+    '''
+    def __init__(self, master) -> None:
+        super().__init__(master, 'Path')
+        self.dir_var: ctk.StringVar = ctk.StringVar(self, value='results\\files\\path')
+        self.entry: ctk.CTkEntry = ctk.CTkEntry(self,
+                    state=ctk.DISABLED, textvariable=self.dir_var)
+        
+        self._pack_all()
+    
+    def change_default_value(self, value: str) -> None:
+        '''
+        Changes the default value of the parameter.
+        '''
+        self.dir_var.set(value)
+
+    def get_value(self) -> str:
+        '''
+        Returns the parameters.
+        '''
+        return self.dir_var.get()
+
+
+class GraphColorPicker(ctk.CTkFrame):
+    '''
+    Picking the paths to house the results within.
+    '''
+    def __init__(self, master) -> None:
+        super().__init__(master)
+
+        self.check_box: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
+            text='Use color from preview', checkbox_height=20, checkbox_width=20)
+
+        self.check_box.pack(side='left')
+    
+
+    def get_value(self) -> bool:
+        
+        return bool(self.check_box.get())

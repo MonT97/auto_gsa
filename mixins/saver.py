@@ -14,18 +14,18 @@ class CanSave():
     - save_resutlts.
     '''
     def cs_save_results(self, sample: Sample,
-                     files_dir: str, result_folder_name: str, raw_dir: str,
-                     prfx: str = 'result_', rounding: int = 3) -> None:
+                     results_dir: str, result_folder_name: str, raw_dir: str,
+                     prfx: str = 'result_', clr: str = '#1f7bb4', rounding: int = 3) -> None:
         '''
         Saves the results graphs and spreadsheets to desk.
-        - files_dir: the directory that contains the sample files.
+        - results_dir: the directory to contain the processed result files.
         - raw_dir: the dirctory that contains the raw result files, [svg] graphs and [csv] spreadsheets.
         - result_folder_name: the name of the results files containing folder.
         - prfx: a prefex to append to the resulting spreadsheets name.
         - rounding: rounding the values in the output sheet.
         '''
         _result_file_name: str = prfx+sample.get_name().lower()
-        _results_dir: str = os.path.join(files_dir, result_folder_name)
+        _results_dir: str = os.path.join(results_dir, result_folder_name)
         _raw_results_dir: str = os.path.join(_results_dir, raw_dir) #!rawThing
 
         _file_path: str = os.path.join(_results_dir, _result_file_name)
@@ -65,7 +65,7 @@ class CanSave():
             _fig, _ax = plt.subplots()
             _fig.set_layout_engine('constrained')
             _x, _y, _points, _method = _ana.get_plot_data(_type)
-            Plotter(_x, _y, _points, _ax, _type, _method)
+            Plotter(_x, _y, _points, _ax, _type, _method, clr)
             _ax.set_title(f'{sample.get_name()}\n{_title}')
             _fig.savefig(_graph_file_path+'.png', dpi=300, format='png')
             _fig.savefig(_raw_graph_file_path+'.svg', dpi=300, format='svg')

@@ -57,6 +57,12 @@ class AnalysisPanal(ctk.CTkFrame):
         '''
         self._create_analyzer(sample)
         self.data_panal.write(self.analyzer, sample, graph_type)
+    
+    def get_graph_color(self) -> str:
+        '''
+        Triggered by an outside signal.
+        '''
+        return self.graph_panal.get_graph_params()['graph_color']
 
 
 class GraphPanal(ctk.CTkFrame):
@@ -126,6 +132,7 @@ class GraphPanal(ctk.CTkFrame):
         Redraws the graph usin the new parameters.
         '''
         self.draw_graphs(**graph_params)
+        self.graph_params = graph_params
 
     def draw_graphs(self,
                     analyzer: Analyzer, sample_name: str,
@@ -312,6 +319,7 @@ class CustomizationBar(ctk.CTkFrame):
         graph_params: dict = self.master.get_graph_params()
         graph_params['graph_color'] = color
         self._update_graphs(graph_params)
+        self.winfo_toplevel().event_generate("<<AnalysisPanal-color>>")
 
     def enable(self) -> None:
         '''

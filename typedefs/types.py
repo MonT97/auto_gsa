@@ -9,7 +9,9 @@ type PlotInput = pd.Series|np.ndarray
 
 @dataclass
 class SampleStats():
-
+    '''
+    An object holding the calculated sample statistics.
+    '''
     mean: float = 0.0
     std: float = 0.0
     kurtosis: float = 0.0
@@ -20,13 +22,16 @@ class SampleStats():
     
     def to_frame(self) -> pd.DataFrame:
         _frame = pd.DataFrame(
-            {'statistic': list(self.__dict__.keys()), 'values': list(self.__dict__.values())}
+            {'statistic': list(self.__dict__.keys()),
+             'values': list(self.__dict__.values())}
             )
         return _frame
     
 @dataclass
 class StatsInterpretation():
-    
+    '''
+    An object holding the interpretation of the calculated sample stats.
+    '''
     sorting: str = ''
     kurtosis: str = ''
     skewness: str = ''
@@ -43,9 +48,13 @@ class StatsInterpretation():
 
 @dataclass
 class SaveObject():
-
+    '''
+    Under development.
+    '''
     prefix: str = ''
+    resutls_path: str = ''
     results_folder_name: str = ''
+    color: str = ''
 
     def to_dict(self) -> dict:
         return self.__dict__
