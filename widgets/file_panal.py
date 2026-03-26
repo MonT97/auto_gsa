@@ -1,8 +1,10 @@
 import os
 
+from typedefs import GraphType, FileFormat, SaveObject
 from collections.abc import Callable
 from tkinter import ttk, Event
-from typedefs import GraphType, FileFormat, SaveObject
+from tktooltip import ToolTip
+from PIL import Image
 from mixins import CanSave
 from models import Sample
 from popups import SaveAll
@@ -22,10 +24,13 @@ class FilePanal(ctk.CTkFrame, CanSave):
         super().__init__(master)
         #!config = add to a perminent config file!.
         self.configure(corner_radius=0)
+
         self.master = master
         self.samples_files_dir: str = "" #!cnfig
         self.raw_results_folder_name: str = "raw_files" #!cnfig
         self.data: tuple[str,...] = ('',)
+
+        self.saveobj_color: str = '#1f7bb4' #!config
 
         self.supported_formats: list[str] = [_format.value for _format in FileFormat]
 
@@ -34,9 +39,16 @@ class FilePanal(ctk.CTkFrame, CanSave):
         self.entry.bind("<Enter>", lambda _: self.entry.focus_set())
         self.entry.bind("<KeyPress-Escape>", lambda _: self._reset_focus())
 
+        self.import_btn_icon: ctk.CTkImage = ctk.CTkImage(
+            Image.open('assets/import.png'), size=(11,11))
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
-            text="import files",
+            text="import",
+            image=self.import_btn_icon,
+            compound='right',
             command=lambda: self._import_files())
+        ToolTip(self.file_import_btn,
+                msg='import files from path above',
+                fg='#ffffff', bg='#000000')
 
         self.samples_file_viewer: FileViewer = FileViewer(self)
         self.samples_file_viewer.bind(
@@ -50,20 +62,30 @@ class FilePanal(ctk.CTkFrame, CanSave):
             state=ctk.DISABLED,
             command=lambda: self._analyze(self.data))
         
-        self.save_all_btn: ctk.CTkButton = ctk.CTkButton(self,
-            text="save all",
-            state=ctk.DISABLED,
+        self.export_btn_icon: ctk.CTkImage = ctk.CTkImage(
+            Image.open('assets/upload.png'), size=(11,11))
+        self.export_btn: ctk.CTkButton = ctk.CTkButton(self,
+            text="export",
+            image=self.export_btn_icon,
+            compound='right',
+            state=ctk.DISABLED, 
             command=lambda: self._launch_save_screen())
+        ToolTip(self.export_btn,
+                msg='a more elaborate saving function',
+                fg='#ffffff', bg='#000000')
         
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save results",
             state=ctk.DISABLED,
             command=lambda: self._save_results(self.sample))
+        ToolTip(self.save_btn,
+                msg='save the results of the currently selected sample',
+                fg='#ffffff', bg='#000000')
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
         self.samples_file_viewer.pack(side="top", expand=1, fill="both", pady=5, padx=5)
-        self.save_all_btn.pack(side="bottom", fill="x", padx=5, pady=5)
+        self.export_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=5)
 
@@ -76,10 +98,10 @@ class FilePanal(ctk.CTkFrame, CanSave):
         self.samples_files_dir = self.entry.get()
         
         if not os.path.exists(self.samples_files_dir):
-            self._set_log_massage(f'path [{self.samples_files_dir}] doesn\'t exist.', error=True)
-
+            self._set_log_massage(f'path [{self.samples_files_dir}] is invalid or doesn\'t exist.', error=True)
+            
         self.samples_file_viewer.display_files(self.samples_files_dir)
-        self.save_all_btn.configure(state=ctk.NORMAL)
+        self.export_btn.configure(state=ctk.NORMAL)
 
         self._reset_focus()
         self._set_log_massage(f'files imported from [{self.samples_files_dir}].')
@@ -144,14 +166,14 @@ class FilePanal(ctk.CTkFrame, CanSave):
         '''
         self._reset_focus()
         self.save_popup: SaveAll = SaveAll(self)
-        self.save_popup.set_color(self.color)
+        self.save_popup.set_color(self.saveobj_color)
         self.save_popup.change_default_path(self.samples_files_dir)
 
-    def set_saveobj_color(self, color: str) -> None:
+    def update_saveobj_color(self, color: str) -> None:
         '''
         Triggered by an outside signal.
         '''
-        self.color = color
+        self.saveobj_color = color
 
     def save_all(self) -> None:
         '''
@@ -164,9 +186,25 @@ class FilePanal(ctk.CTkFrame, CanSave):
         _results_path: str = _params.resutls_path #!config
         _results_folder_name: str = _params.results_folder_name #!config
         _color: str = _params.color #!config, Here I am; bool and color retrival!.
-
+        _index, _interval = _params.interval #!cofig
+        
         _files: list[str] = os.listdir(self.samples_files_dir)
-        _files = [_file for _file in _files if _file.split(".")[-1] in self.supported_formats]
+
+        def _prep_files_list(index: int, list_: list[str], interval: list[int]) -> list[str]:
+
+            list_ = [_file for _file in list_ if _file.split(".")[-1] in self.supported_formats]
+            
+            match index:
+                case 0:
+                    list_ = list_
+                case 1:
+                    list_ = list_[interval[0]:interval[1]]
+                case 2:
+                    list_ = [list_[i] for i in interval]
+            
+            return list_
+
+        _files = _prep_files_list(_index, _files, _interval)
 
         for sample_name in _files:
             _path: str = os.path.join(self.samples_files_dir, sample_name)

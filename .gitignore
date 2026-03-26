@@ -4,3 +4,5 @@ icon.svg
 /bu.py
 /test.py
 /__pycache__
+/assets/*.svg
+/assets/*.png

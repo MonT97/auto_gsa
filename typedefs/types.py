@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+from .enums import *
 
 import numpy as np
 import pandas as pd
 
+type PlotData = tuple[PlotInput, PlotInput, SamplePoints, AnalysisMethod]
 type SamplePoints = list[tuple[float, float]]
 type PlotInput = pd.Series|np.ndarray
 
@@ -46,6 +48,7 @@ class StatsInterpretation():
             )
         return _frame
 
+#change into pass around object, no not the best case!
 @dataclass
 class SaveObject():
     '''
@@ -54,7 +57,9 @@ class SaveObject():
     prefix: str = ''
     resutls_path: str = ''
     results_folder_name: str = ''
-    color: str = ''
-
+    color: str = '#1f7bb4' #!config
+    interval = tuple()
+    
     def to_dict(self) -> dict:
         return self.__dict__
+    

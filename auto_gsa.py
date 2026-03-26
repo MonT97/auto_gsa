@@ -9,14 +9,16 @@ if system() != "Windows":
 
 
 class App(ctk.CTk):
-
+    '''
+    The application.
+    '''
     def __init__(self, title:str="AutoGSA", size:tuple[int,int]=(800,550)) -> None:
         super().__init__()
 
         self.title(title)
         self.geometry(f"{size[0]}x{size[1]}")
         self.resizable(False, False)
-        self.iconbitmap("icon.ico")
+        self.iconbitmap("assets/icon.ico")
         self.wm_protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.main_panal: MainPanal = MainPanal(self)
@@ -104,7 +106,7 @@ class MainPanal(ctk.CTkFrame):
         Tell the save object about the graph color.
         '''
         _color: str = self.analysis_panal.get_graph_color()
-        self.file_panal.set_saveobj_color(_color)
+        self.file_panal.update_saveobj_color(_color)
         
     def on_close(self) -> None:
         '''

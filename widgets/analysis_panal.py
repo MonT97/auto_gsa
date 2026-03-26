@@ -1,12 +1,12 @@
 from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from collections.abc import Callable
 from helpers import Analyzer, Plotter
-from matplotlib.axes import Axes
 from models import Sample
 
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from collections.abc import Callable
+from matplotlib.axes import Axes
+
 import matplotlib.pyplot as plt
-from tktooltip import ToolTip
 import customtkinter as ctk
 import tkinter as tk
 
@@ -132,7 +132,7 @@ class GraphPanal(ctk.CTkFrame):
         Redraws the graph usin the new parameters.
         '''
         self.draw_graphs(**graph_params)
-        self.graph_params = graph_params
+        self._set_graph_params(**graph_params)
 
     def draw_graphs(self,
                     analyzer: Analyzer, sample_name: str,
