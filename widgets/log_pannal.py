@@ -17,6 +17,7 @@ class LoggingLabel(ctk.CTkFrame):
         self.configure(corner_radius=0)
 
         self.cnfg_path: str = ''
+        self.cnfg_folder_name: str = 'auto_gsa'
         self.log_file_path: str = ''
         self.log_file_name: str = 'log.txt'
 
@@ -33,9 +34,8 @@ class LoggingLabel(ctk.CTkFrame):
 
     def _setup_log_file(self) -> None:
     
-        _cnfg_folder_name: str = 'auto_gsa'
         _cnfg_dir: str = os.environ.get('LOCALAPPDATA') #type: ignore
-        self.cnfg_path = os.path.join(_cnfg_dir, _cnfg_folder_name)
+        self.cnfg_path = os.path.join(_cnfg_dir, self.cnfg_folder_name)
 
         if not os.path.exists(self.cnfg_path):
             os.mkdir(self.cnfg_path)
@@ -46,7 +46,7 @@ class LoggingLabel(ctk.CTkFrame):
         '''
         _text: str = text
         _mode: str = 'a'
-        _header: str = f'created in: {dt.datetime.now().ctime()}\n--------------<>-------------\nAuto_GSA configuration\n--------------<>-------------\n\n\n'
+        _header: str = f'created in: {dt.datetime.now().ctime()}\n--------------<>-------------\nAuto_GSA configuration\n--------------<>-------------\n'
         
         self.log_file_path = os.path.join(self.cnfg_path, self.log_file_name)
 
@@ -76,8 +76,14 @@ class LoggingLabel(ctk.CTkFrame):
         # This fills the app with the this widget
         self.winfo_toplevel().event_generate("<<LoggingPanal-zoom>>")
 
+    def on_open(self) -> None:
+        '''
+        Runs on application launch.
+        '''
+        self._log_to_file(f'\nsession started [{dt.datetime.now().ctime()}].\n')
+
     def on_close(self) -> None:
         '''
-        Run on application closure.
+        Runs on application closure.
         '''
-        self._log_to_file('session terminated.\n--------------<>-------------\n')
+        self._log_to_file(f'\nsession terminated [{dt.datetime.now().ctime()}].\n--------------<>-------------\n')

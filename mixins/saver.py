@@ -1,29 +1,37 @@
 import os
 
+from .defaults import Defaults
+
+from typedefs import GraphType, SaveObject
 from helpers import Analyzer, Plotter
-from typedefs import GraphType
-from popups import SaveAll
 from models import Sample
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-class CanSave():
+class CanSave(Defaults):
     '''
     A mixin wrapping the saving functionality.
     - save_resutlts.
     '''
     def cs_save_results(self, sample: Sample,
-                     results_dir: str, result_folder_name: str, raw_dir: str,
-                     prfx: str = 'result_', clr: str = '#1f7bb4', rounding: int = 3) -> None:
+                        raw_dir: str, save_obj: SaveObject, rounding: int = 3) -> None:
         '''
         Saves the results graphs and spreadsheets to desk.
-        - results_dir: the directory to contain the processed result files.
         - raw_dir: the dirctory that contains the raw result files, [svg] graphs and [csv] spreadsheets.
-        - result_folder_name: the name of the results files containing folder.
-        - prfx: a prefex to append to the resulting spreadsheets name.
         - rounding: rounding the values in the output sheet.
+        - The fallowing are within a SaveObject:
+            - results_dir: the directory to contain the processed result files.
+            - result_folder_name: the name of the results files containing folder.
+            - prfx: a prefix to append to the resulting spreadsheets name.
+            _ clr: the color of the graphs/plots.
         '''
+
+        clr = save_obj.color
+        prfx = save_obj.prefix
+        results_dir = save_obj.results_path
+        result_folder_name = save_obj.results_folder_name
+
         _result_file_name: str = prfx+sample.get_name().lower()
         _results_dir: str = os.path.join(results_dir, result_folder_name)
         _raw_results_dir: str = os.path.join(_results_dir, raw_dir) #!rawThing

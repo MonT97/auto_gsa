@@ -1,5 +1,7 @@
 from widgets import FilePanal, AnalysisPanal, LoggingLabel
 from platform import system
+from typedefs import SaveObject
+from mixins import Defaults
 
 import customtkinter as ctk
 
@@ -8,7 +10,7 @@ if system() != "Windows":
     print("Running in non-Windows OS, some eyecandy won't be visible!")
 
 
-class App(ctk.CTk):
+class App(ctk.CTk, Defaults):
     '''
     The application.
     '''
@@ -23,6 +25,14 @@ class App(ctk.CTk):
 
         self.main_panal: MainPanal = MainPanal(self)
         self.main_panal.pack(expand=1, fill='both')
+        
+        self.on_open()
+
+    def on_open(self) -> None:
+        '''
+        Triggered on application launch.
+        '''
+        self.main_panal.on_open()
 
     # TODO[LTS]: see if you can hide/handle the stuff chucked into the stdo, it seems fine now!!
     def on_closing(self) -> None:
@@ -47,7 +57,7 @@ class MainPanal(ctk.CTkFrame):
         self.file_panal: FilePanal = FilePanal(self)
         self.analysis_panal: AnalysisPanal = AnalysisPanal(self)
         self.logging_label: LoggingLabel = LoggingLabel(self)
-        
+
         self._layout()
 
         # Inter-widget communication <<Source-Action>>:
@@ -55,7 +65,7 @@ class MainPanal(ctk.CTkFrame):
         self.winfo_toplevel().bind("<<FilePanal-log>>", lambda _: self.log())
         self.winfo_toplevel().bind("<<LoggingPanal-zoom>>", lambda _: self.expand_log("log"))
         self.winfo_toplevel().bind("<<Screens-save>>", lambda _: self.save())
-        self.winfo_toplevel().bind("<<AnalysisPanal-color>>", lambda _: self.set_color())
+        self.winfo_toplevel().bind("<<AnalysisPanal-color>>", lambda _: self.update_color())
 
     def _layout(self) -> None:
         '''
@@ -101,19 +111,24 @@ class MainPanal(ctk.CTkFrame):
         '''
         self.file_panal.save_all()
 
-    def set_color(self) -> None:
+    def update_color(self) -> None:
         '''
         Tell the save object about the graph color.
         '''
         _color: str = self.analysis_panal.get_graph_color()
-        self.file_panal.update_saveobj_color(_color)
+        self.file_panal.update_save_obj_color(_color)
         
     def on_close(self) -> None:
         '''
-        Triggerd on application closure.
+        Call delegated to master.
         '''
         self.logging_label.on_close()
 
+    def on_open(self) -> None:
+        '''
+        Call delegated to master.
+        '''
+        self.logging_label.on_open()
 
 if __name__ == '__main__':
     app = App()

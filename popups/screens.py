@@ -3,8 +3,9 @@ Pop-up screens.
 '''
 import customtkinter as ctk
 
+from .pickers import BasePicker, IntervalPicker, GraphColorPicker
 from typedefs import SaveObject
-from .pickers import *
+from mixins import Defaults
 
 
 class BaseScreen(ctk.CTkToplevel):
@@ -46,21 +47,23 @@ class BaseScreen(ctk.CTkToplevel):
 
 
 #TODO: a way to remember what we did before, a running singlton of sorts; LTS.
-class SaveAll(BaseScreen):
+class ExportScreen(BaseScreen, Defaults):
     '''
     The save all confirmation dialougue widget.
     '''
     def __init__(self, master) -> None:
         super().__init__(master, title='export', approve_label='export')
         self.master = master
-        self.approve_btn.configure(command= self.set_params)
+        self.approve_btn.configure(command=self.on_approve)
 
-        self.params: SaveObject = SaveObject()
+        self.params: SaveObject = self.df_get_default(SaveObject())
         self.default_color: str = self.params.color #TODO: universaize!
 
-        self.prfx_pckr: PrefixPicker = PrefixPicker(self.main_frame)
-        self.folder_name_pckr: FolderNamePicker = FolderNamePicker(self.main_frame)
-        self.results_path_pckr: ResultsPathPicker = ResultsPathPicker(self.main_frame)
+        self.prfx_pckr: BasePicker = BasePicker(self.main_frame, 'Prefix', self.params.prefix)
+        self.folder_name_pckr: BasePicker = BasePicker(
+                    self.main_frame, 'Folder name', self.params.results_folder_name)
+        self.results_path_pckr: BasePicker = BasePicker(
+                    self.main_frame, 'Path', self.params.results_path)
         self.graph_clr_pckr: GraphColorPicker = GraphColorPicker(self.main_frame)
         #TODO: should know about the n of samples
         self.sample_pckr: IntervalPicker = IntervalPicker(self.main_frame) 
@@ -71,28 +74,22 @@ class SaveAll(BaseScreen):
         self.folder_name_pckr.pack(expand=True, fill='x', padx=2, pady=5)
         self.graph_clr_pckr.pack(expand=True, fill='x', padx=2, pady=5)
 
-    def change_default_path(self, path: str) -> None:
-        '''
-        Changes the default path to save into.
-        '''
-        self.results_path_pckr.change_default_value(path)
-
     def set_color(self, color: str) -> None:
         #? Can it be standardized.
         '''
         Sets the color.
         '''
-        self.color = color
+        self.graph_clr_pckr.color = color
 
-    def set_params(self) -> None:
+    def on_approve(self) -> None:
         '''
         Sets the parameters.
         '''
         self.params.prefix = self.prfx_pckr.get_value()
-        self.params.resutls_path = self.results_path_pckr.get_value()
+        self.params.results_path = self.results_path_pckr.get_value()
         self.params.results_folder_name = self.folder_name_pckr.get_value()
         self.params.interval  = self.sample_pckr.get_value()
-        self.params.color = self.color if self.graph_clr_pckr.get_value() else self.default_color
+        self.params.color = self.graph_clr_pckr.color if self.graph_clr_pckr.get_value() else self.default_color
         # As the toplevel() from a ctk.TopLevel isn't the same, so, master is needed!
         self.master.winfo_toplevel().event_generate("<<Screens-save>>")
     

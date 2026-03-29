@@ -55,11 +55,10 @@ class SaveObject():
     Under development.
     '''
     prefix: str = ''
-    resutls_path: str = ''
+    results_path: str = ''
     results_folder_name: str = ''
-    color: str = '#1f7bb4' #!config
+    color: str = '' #!config
     interval = tuple()
     
     def to_dict(self) -> dict:
         return self.__dict__
-    

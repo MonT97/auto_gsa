@@ -1,17 +1,18 @@
 import os
 
-from typedefs import GraphType, FileFormat, SaveObject
 from collections.abc import Callable
 from tkinter import ttk, Event
 from tktooltip import ToolTip
 from PIL import Image
-from mixins import CanSave
+
+from typedefs import GraphType, FileFormat, SaveObject
+from mixins import CanSave, Defaults
+from popups import ExportScreen
 from models import Sample
-from popups import SaveAll
 
 import customtkinter as ctk
 
-class FilePanal(ctk.CTkFrame, CanSave):
+class FilePanal(ctk.CTkFrame, CanSave, Defaults):
     '''
     CTkFrame:
     The class handeling:
@@ -30,7 +31,8 @@ class FilePanal(ctk.CTkFrame, CanSave):
         self.raw_results_folder_name: str = "raw_files" #!cnfig
         self.data: tuple[str,...] = ('',)
 
-        self.saveobj_color: str = '#1f7bb4' #!config
+        self.save_obj: SaveObject = self.df_get_default(SaveObject())
+        self.save_obj_color: str = self.save_obj.color
 
         self.supported_formats: list[str] = [_format.value for _format in FileFormat]
 
@@ -69,7 +71,7 @@ class FilePanal(ctk.CTkFrame, CanSave):
             image=self.export_btn_icon,
             compound='right',
             state=ctk.DISABLED, 
-            command=lambda: self._launch_save_screen())
+            command=lambda: self._launch_export_screen())
         ToolTip(self.export_btn,
                 msg='a more elaborate saving function',
                 fg='#ffffff', bg='#000000')
@@ -77,7 +79,7 @@ class FilePanal(ctk.CTkFrame, CanSave):
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save results",
             state=ctk.DISABLED,
-            command=lambda: self._save_results(self.sample))
+            command=lambda: self._save_results(self.sample, self.save_obj))
         ToolTip(self.save_btn,
                 msg='save the results of the currently selected sample',
                 fg='#ffffff', bg='#000000')
@@ -150,30 +152,29 @@ class FilePanal(ctk.CTkFrame, CanSave):
         return self.log_massage
     
     #? Check the args handiling, it needs to be further trimmed down.
-    def _save_results(self,
-                      sample: Sample, prfx: str = 'result_',
-                      color: str = '', results_path: str = '',
-                      results_folder_name: str = 'analysis_results') -> None:
-        
-        self.cs_save_results(sample, results_path, results_folder_name,
-                             self.raw_results_folder_name, prfx, color)
+    def _save_results(self, sample: Sample, save_obj: SaveObject) -> None:
+
+        self.cs_save_results(sample, self.raw_results_folder_name, save_obj)
 
         self._set_log_massage(f'[{sample.get_name().lower()}] saved...')
 
-    def _launch_save_screen(self) -> None:
+    def _launch_export_screen(self) -> None:
         '''
         Launchs the save all dialouge.
         '''
         self._reset_focus()
-        self.save_popup: SaveAll = SaveAll(self)
-        self.save_popup.set_color(self.saveobj_color)
-        self.save_popup.change_default_path(self.samples_files_dir)
+        self.export_popup: ExportScreen = ExportScreen(self)
+        self.export_popup.set_color(self.save_obj_color)
 
-    def update_saveobj_color(self, color: str) -> None:
+    def _update_save_obj(self, save_obj: SaveObject) -> None:
+        
+        self.save_obj  = save_obj
+
+    def update_save_obj_color(self, color: str) -> None:
         '''
         Triggered by an outside signal.
         '''
-        self.saveobj_color = color
+        self.save_obj.color = color
 
     def save_all(self) -> None:
         '''
@@ -181,17 +182,19 @@ class FilePanal(ctk.CTkFrame, CanSave):
         '''
         self._set_log_massage('saving all samples...')
 
-        _params: SaveObject = self.save_popup.get_params()
-        _prfx: str = _params.prefix #!config
-        _results_path: str = _params.resutls_path #!config
+        _params: SaveObject = self.export_popup.get_params()
+        self._update_save_obj(_params)
+
+        _results_path: str = _params.results_path #!config
         _results_folder_name: str = _params.results_folder_name #!config
-        _color: str = _params.color #!config, Here I am; bool and color retrival!.
         _index, _interval = _params.interval #!cofig
-        
+
         _files: list[str] = os.listdir(self.samples_files_dir)
 
         def _prep_files_list(index: int, list_: list[str], interval: list[int]) -> list[str]:
-
+            '''
+            Partition/slice the list of files depending on the index provided, the index is a mode selection of sorts.
+            '''
             list_ = [_file for _file in list_ if _file.split(".")[-1] in self.supported_formats]
             
             match index:
@@ -209,7 +212,7 @@ class FilePanal(ctk.CTkFrame, CanSave):
         for sample_name in _files:
             _path: str = os.path.join(self.samples_files_dir, sample_name)
             _sample = Sample(_path)
-            self._save_results(_sample, _prfx, _color, _results_path, _results_folder_name)
+            self._save_results(_sample, _params)
         
         self._set_log_massage(f'all samples saved in [{_results_path}\\{_results_folder_name}]')
 
