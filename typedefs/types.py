@@ -11,9 +11,9 @@ type PlotInput = pd.Series|np.ndarray
 
 @dataclass
 class SampleStats():
-    '''
+    """
     An object holding the calculated sample statistics.
-    '''
+    """
     mean: float = 0.0
     std: float = 0.0
     kurtosis: float = 0.0
@@ -31,9 +31,9 @@ class SampleStats():
     
 @dataclass
 class StatsInterpretation():
-    '''
+    """
     An object holding the interpretation of the calculated sample stats.
-    '''
+    """
     sorting: str = ''
     kurtosis: str = ''
     skewness: str = ''
@@ -48,17 +48,25 @@ class StatsInterpretation():
             )
         return _frame
 
+
+@dataclass
+class DefaultObj():
+    """
+    A base class, intendent to use as a base class for all [DefaultObj]s.
+    """
+    def to_dict(self) -> dict:
+        return self.__dict__
+
+
 #change into pass around object, no not the best case!
 @dataclass
-class SaveObject():
-    '''
+class SaveObject(DefaultObj):
+    """
     Under development.
-    '''
+    """
     prefix: str = ''
     results_path: str = ''
     results_folder_name: str = ''
     color: str = '' #!config
-    interval = tuple()
-    
-    def to_dict(self) -> dict:
-        return self.__dict__
+    raw_files: bool = False
+    interval: tuple = ()

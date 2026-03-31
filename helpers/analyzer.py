@@ -8,9 +8,9 @@ import pandas as pd
 import numpy as np
 
 class Analyzer():
-    '''
+    """
     The class that wrangles the data, provides the stats it's interpretation, then prepares it for plotting. 
-    '''
+    """
     stats_list: list[dict[str,float]] = []
     def __init__(self, sample_data: pd.DataFrame) -> None:
         
@@ -21,20 +21,20 @@ class Analyzer():
 
     def _get_input(self,
                    sample_data: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, PchipInterpolator]:
-        '''
+        """
         Prepares the data [phi, cum.wt%] for stats calculation via interpolation using Scipy's PchipInterpolator, an implementation of Hermite plynomial interpolation.
         - -> (phi, cum.wt%)
-        '''
+        """
         _phi: pd.Series = sample_data['phi']
         _cum_wht: pd.Series = sample_data['cum.wht%']
 
         def _inverse(
                 interpolation_fn: PchipInterpolator,
                 wt_prcnts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-            '''
+            """
             Interpolation function inversion, get phi(x) at wt_prcnts(y).
             - -> tuple[phis, wt_prcnts]
-            '''
+            """
             _rounding_digits: int = 3
             _phis_inversed: list[float] = []
             _valid_wt_prcnts: list[float] = []
@@ -59,11 +59,11 @@ class Analyzer():
     def _calculate_stats(self,
             min_y: float, interp_f: PchipInterpolator
             ) -> tuple[SamplePoints, SampleStats]:
-        '''
+        """
         Calculates stats: [mean, std, skewness, kurtosis], based on Folk&Ward 1957 graphical method if possible, otherwise, the Method of Moments is used.
         - min_y [cum.wht%].min()
         - interp_f [the interpolation function]
-        '''
+        """
         _wt_prcnts: list[float] = [5.0, 16.0, 25.0, 50.0, 75.0, 84.0, 95.0]
         
         _points: SamplePoints = [
@@ -111,12 +111,12 @@ class Analyzer():
         return (_points,_stats)
 
     def _interperate(self, stats: SampleStats) -> StatsInterpretation:
-        '''
+        """
         Interperate the sample stats according to [see the litrature]
         - std ------> sorting.
         - skewness -> the dominent tail, coarse/fine.
         - kurtosis ---> gives an idea about the distribution.
-        '''
+        """
         def _sorting(std: float) -> str:
 
             _sorting: str = ''
@@ -182,29 +182,29 @@ class Analyzer():
         return _interpretation
 
     def get_stats(self) -> SampleStats:
-        '''
+        """
         Returns the stats.
-        '''
+        """
         return self.stats
 
     def get_method(self) -> AnalysisMethod:
-        '''
+        """
         Retruns the analysis method used.
         - -> str
-        '''
+        """
         return self.method
 
     def get_interpretation(self) -> StatsInterpretation:
-        '''
+        """
         Returns the interpretation of the stats.
-        '''
+        """
         return self.interpretation
 
     def get_plot_data(self, graph_type: GraphType) -> PlotData:
-        '''
+        """
         Returns the plot ready data.
         - -> [x, y], points, analysis_method]
-        '''
+        """
         match graph_type:
             case GraphType.HIST:
                 _x: PlotInput = self.sample_data['phi']
@@ -217,11 +217,11 @@ class Analyzer():
 
 
 class Plotter():
-    '''
+    """
     The class that handles the plotting of the data
     - clr ------> face color, hexadecimal.
     - line_clr -> kde color, hexadecimal.
-    '''
+    """
     def __init__(self, x: PlotInput, y: PlotInput,
                  points: SamplePoints, ax: Axes, graph_type: GraphType,
                  analysis_method: AnalysisMethod, clr: str = '#1f7bb4',
@@ -242,9 +242,9 @@ class Plotter():
                 self._plot_cum(ax, x, y, points, clr)
     
     def _plot_histo(self, ax: Axes, x: PlotInput, y: PlotInput, color: str, kde_color: str) -> None:
-        '''
+        """
         Plots the Histogram.
-        '''
+        """
         _cat_x: list[str] = [str(i) for i in x] #? psedu categorical conversion
 
         ax.hist(x, weights=y, bins=len(x)-1,
@@ -263,9 +263,9 @@ class Plotter():
 
     def _plot_cum(self, ax: Axes, x: PlotInput, y: PlotInput,
                   points: SamplePoints, color: str) -> None:
-        '''
+        """
         Plots the cumulative curve.
-        '''
+        """
 
         if self._method == AnalysisMethod.GRAPHICAL:
             for _point in points:

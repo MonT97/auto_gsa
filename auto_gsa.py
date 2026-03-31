@@ -1,7 +1,5 @@
 from widgets import FilePanal, AnalysisPanal, LoggingLabel
 from platform import system
-from typedefs import SaveObject
-from mixins import Defaults
 
 import customtkinter as ctk
 
@@ -10,10 +8,10 @@ if system() != "Windows":
     print("Running in non-Windows OS, some eyecandy won't be visible!")
 
 
-class App(ctk.CTk, Defaults):
-    '''
+class App(ctk.CTk):
+    """
     The application.
-    '''
+    """
     def __init__(self, title:str="AutoGSA", size:tuple[int,int]=(800,550)) -> None:
         super().__init__()
 
@@ -22,23 +20,23 @@ class App(ctk.CTk, Defaults):
         self.resizable(False, False)
         self.iconbitmap("assets/icon.ico")
         self.wm_protocol("WM_DELETE_WINDOW", self.on_closing)
-
+        
         self.main_panal: MainPanal = MainPanal(self)
         self.main_panal.pack(expand=1, fill='both')
         
         self.on_open()
 
     def on_open(self) -> None:
-        '''
+        """
         Triggered on application launch.
-        '''
+        """
         self.main_panal.on_open()
 
     # TODO[LTS]: see if you can hide/handle the stuff chucked into the stdo, it seems fine now!!
     def on_closing(self) -> None:
-        '''
+        """
         Triggered on application closure.
-        '''
+        """
         self.quit()
         self.main_panal.on_close()
         self.destroy()
@@ -51,9 +49,9 @@ class App(ctk.CTk, Defaults):
 class MainPanal(ctk.CTkFrame):
     def __init__(self, master: ctk.CTk):
         super().__init__(master)
-        '''
+        """
         The main panal in the app.
-        '''
+        """
         self.file_panal: FilePanal = FilePanal(self)
         self.analysis_panal: AnalysisPanal = AnalysisPanal(self)
         self.logging_label: LoggingLabel = LoggingLabel(self)
@@ -68,9 +66,9 @@ class MainPanal(ctk.CTkFrame):
         self.winfo_toplevel().bind("<<AnalysisPanal-color>>", lambda _: self.update_color())
 
     def _layout(self) -> None:
-        '''
+        """
         The original layout.
-        '''
+        """
         self.zoom: bool = False
 
         self.file_panal.place(anchor='nw', relx=0, rely=0, relwidt=.24, relheight=.95)
@@ -106,28 +104,28 @@ class MainPanal(ctk.CTkFrame):
                 self.zoom = True
     
     def save(self) -> None:
-        '''
+        """
         Triggers the saving function.
-        '''
+        """
         self.file_panal.save_all()
 
     def update_color(self) -> None:
-        '''
+        """
         Tell the save object about the graph color.
-        '''
+        """
         _color: str = self.analysis_panal.get_graph_color()
         self.file_panal.update_save_obj_color(_color)
         
     def on_close(self) -> None:
-        '''
+        """
         Call delegated to master.
-        '''
+        """
         self.logging_label.on_close()
 
     def on_open(self) -> None:
-        '''
+        """
         Call delegated to master.
-        '''
+        """
         self.logging_label.on_open()
 
 if __name__ == '__main__':

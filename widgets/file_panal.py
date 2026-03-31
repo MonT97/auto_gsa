@@ -2,25 +2,24 @@ import os
 
 from collections.abc import Callable
 from tkinter import ttk, Event
-from tktooltip import ToolTip
 from PIL import Image
 
 from typedefs import GraphType, FileFormat, SaveObject
-from mixins import CanSave, Defaults
+from mixins import CanSave, Defaults, HasToolTip
 from popups import ExportScreen
 from models import Sample
 
 import customtkinter as ctk
 
-class FilePanal(ctk.CTkFrame, CanSave, Defaults):
-    '''
+class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
+    """
     CTkFrame:
     The class handeling:
         - Entering the samples path [entry].
         - Picking a sample [file_viewer].
         - Analyzing the sample [analyze_btn].
         - Saving the resutls [save_btn].
-    '''
+    """
     def __init__(self, master):
         super().__init__(master)
         #!config = add to a perminent config file!.
@@ -29,9 +28,11 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults):
         self.master = master
         self.samples_files_dir: str = "" #!cnfig
         self.raw_results_folder_name: str = "raw_files" #!cnfig
+        #type due to the strange return of the treeview selection method
         self.data: tuple[str,...] = ('',)
+        self.number_of_samples: int = 0
 
-        self.save_obj: SaveObject = self.df_get_default(SaveObject())
+        self.save_obj: SaveObject = self.df_get(SaveObject)
         self.save_obj_color: str = self.save_obj.color
 
         self.supported_formats: list[str] = [_format.value for _format in FileFormat]
@@ -48,9 +49,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults):
             image=self.import_btn_icon,
             compound='right',
             command=lambda: self._import_files())
-        ToolTip(self.file_import_btn,
-                msg='import files from path above',
-                fg='#ffffff', bg='#000000')
+        self.t_tip(self.file_import_btn, 'import files form the path above')
 
         self.samples_file_viewer: FileViewer = FileViewer(self)
         self.samples_file_viewer.bind(
@@ -71,18 +70,15 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults):
             image=self.export_btn_icon,
             compound='right',
             state=ctk.DISABLED, 
-            command=lambda: self._launch_export_screen())
-        ToolTip(self.export_btn,
-                msg='a more elaborate saving function',
-                fg='#ffffff', bg='#000000')
+            command=lambda: self._on_export_btn_pressed())
+        self.export_btn.bind('<Control-Button-1>', lambda _: self._on_export_btn_pressed(True))
+        self.t_tip(self.export_btn, 'a more elaborate saving function\n - [press+Ctrl]: use the global default')
         
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
-            text="save results",
+            text="save",
             state=ctk.DISABLED,
             command=lambda: self._save_results(self.sample, self.save_obj))
-        ToolTip(self.save_btn,
-                msg='save the results of the currently selected sample',
-                fg='#ffffff', bg='#000000')
+        self.t_tip(self.save_btn, 'save the results of the currently selected sample')
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
@@ -100,13 +96,13 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults):
         self.samples_files_dir = self.entry.get()
         
         if not os.path.exists(self.samples_files_dir):
-            self._set_log_massage(f'path [{self.samples_files_dir}] is invalid or doesn\'t exist.', error=True)
+            self._set_log_message(f'path [{self.samples_files_dir}] is invalid or doesn\'t exist.', error=True)
             
-        self.samples_file_viewer.display_files(self.samples_files_dir)
+        self.number_of_samples: int = self.samples_file_viewer.display_files(self.samples_files_dir)
         self.export_btn.configure(state=ctk.NORMAL)
 
         self._reset_focus()
-        self._set_log_massage(f'files imported from [{self.samples_files_dir}].')
+        self._set_log_message(f'files imported from [{self.samples_files_dir}].')
 
     def _set_data(self, event: Event) -> None:
         
@@ -126,29 +122,29 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults):
 
         self._set_analysis_data(_sample, graph_type)
         self.winfo_toplevel().event_generate("<<FilePanal-analyze>>")
-        self._set_log_massage(f'[{_sample.get_name().lower()}] analyzed.')
+        self._set_log_message(f'[{_sample.get_name().lower()}] analyzed.')
 
         self.samples_file_viewer.focus_set() #! why broken??
         self.save_btn.configure(state=ctk.NORMAL)
     
     def _set_analysis_data(self, sample: Sample, graph_type: GraphType|None) -> None:
-        '''
+        """
         Setting for an outside signal trigger.
-        '''
+        """
         self.sample = sample
         self.graph_type = graph_type
 
-    def _set_log_massage(self, massage: str, error: bool = False) -> None:
-        '''
+    def _set_log_message(self, massage: str, error: bool = False) -> None:
+        """
         Setting for an outside signal trigger.
-        '''
+        """
         self.log_massage: str = massage if not error else '<!> Error: '+ massage
         self.winfo_toplevel().event_generate("<<FilePanal-log>>")
 
     def get_log_massage(self) -> str:
-        '''
+        """
         Triggered by an outside signal.
-        '''
+        """
         return self.log_massage
     
     #? Check the args handiling, it needs to be further trimmed down.
@@ -156,31 +152,32 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults):
 
         self.cs_save_results(sample, self.raw_results_folder_name, save_obj)
 
-        self._set_log_massage(f'[{sample.get_name().lower()}] saved...')
+        self._set_log_message(f'[{sample.get_name().lower()}] saved...')
 
-    def _launch_export_screen(self) -> None:
-        '''
+    def _on_export_btn_pressed(self, use_global_defaults: bool = False) -> None:
+        """
         Launchs the save all dialouge.
-        '''
-        self._reset_focus()
-        self.export_popup: ExportScreen = ExportScreen(self)
+        """
+        # self._reset_focus()
+        self.export_popup: ExportScreen = ExportScreen(self, use_global_defaults)
         self.export_popup.set_color(self.save_obj_color)
+        self.export_popup.set_limit(self.number_of_samples)
 
     def _update_save_obj(self, save_obj: SaveObject) -> None:
         
         self.save_obj  = save_obj
 
     def update_save_obj_color(self, color: str) -> None:
-        '''
+        """
         Triggered by an outside signal.
-        '''
+        """
         self.save_obj.color = color
 
     def save_all(self) -> None:
-        '''
+        """
         Triggered by an outside signal.
-        '''
-        self._set_log_massage('saving all samples...')
+        """
+        self._set_log_message('saving all samples...')
 
         _params: SaveObject = self.export_popup.get_params()
         self._update_save_obj(_params)
@@ -192,9 +189,9 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults):
         _files: list[str] = os.listdir(self.samples_files_dir)
 
         def _prep_files_list(index: int, list_: list[str], interval: list[int]) -> list[str]:
-            '''
+            """
             Partition/slice the list of files depending on the index provided, the index is a mode selection of sorts.
-            '''
+            """
             list_ = [_file for _file in list_ if _file.split(".")[-1] in self.supported_formats]
             
             match index:
@@ -214,22 +211,22 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults):
             _sample = Sample(_path)
             self._save_results(_sample, _params)
         
-        self._set_log_massage(f'all samples saved in [{_results_path}\\{_results_folder_name}]')
+        self._set_log_message(f'all samples saved in [{_results_path}\\{_results_folder_name}]')
 
     def get_analysis_data(self) -> tuple[Sample, GraphType|None]:
-        '''
+        """
         Triggered by an outside signal.
-        '''
+        """
         return (self.sample, self.graph_type)
 
 
 class FileViewer(ttk.Treeview):
-    '''
+    """
     ttk.Treeview:
     The class that views and gives the ability to select samples.
     - display_files(dir: str) writes in the samples id and file_name.
     - get_data(selection_id: str) -> [id: int, sample_file_name: str].
-    '''
+    """
     def __init__(self, master: FilePanal) -> None :
         super().__init__(master)
 
@@ -267,21 +264,26 @@ class FileViewer(ttk.Treeview):
         self.heading("no", text="NO", anchor="center")
         self.heading("file_name", text="File Name", anchor="w")
 
-    def display_files(self, _dir: str) -> None:
-        
+    def display_files(self, path: str) -> int:
+        """
+        Populates the TreeView format validated samples form the given [path].
+        """
         if self.get_children():
             [self.delete(i) for i in self.get_children()]
 
         #TODO: add format support read from a config maybe?!
         _supported: Callable = lambda file_: file_.split(".")[-1] in self.formats
-        _supported_files: list[str] = [file_ for file_ in os.listdir(_dir) if _supported(file_)]
+        _supported_files: list[str] = [file_ for file_ in os.listdir(path) if _supported(file_)]
         _padding: int = len(str(len(_supported_files)))+1
 
         try:
             for _index, file_ in enumerate(_supported_files):
                 self.insert("", "end", values=[f'{_index+1:0{_padding}}', file_])
         except FileNotFoundError as e:
-            self.master._set_log_massage(f'No sample files found; {e}', error=True)
+            self.master._set_log_message(f'No sample files found; {e}', error=True)
+        
+        # -> the number of samples for those who should now, currently [master]
+        return len(_supported_files)
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
         

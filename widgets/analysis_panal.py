@@ -1,23 +1,23 @@
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.axes import Axes
+
 from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod
 from shared_widgets import ColorPicker
 from helpers import Analyzer, Plotter
-from mixins import Defaults
+from mixins import HasToolTip
 from models import Sample
-
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.axes import Axes
 
 import matplotlib.pyplot as plt
 import customtkinter as ctk
 import tkinter as tk
 
 class AnalysisPanal(ctk.CTkFrame):
-    '''
+    """
     CTkFrame:
     The class that handels viewing and analyzing the data.
         - display the sample graphs [gaph_panal: ctk.CTkLabel].
         - display the sample data and the analysis result [data_panal: AnalysisBook]
-    '''
+    """
     def __init__(self, master: ctk.CTkFrame) -> None:
         super().__init__(master)
 
@@ -45,32 +45,32 @@ class AnalysisPanal(ctk.CTkFrame):
             self.analyzer: Analyzer = Analyzer(sample.get_data())
 
     def draw_graphs(self, sample: Sample, graph_type: GraphType|None) -> None:
-        '''
+        """
         Triggered by an outside signal.
-        '''
+        """
         self._create_analyzer(sample)
         #? is this the best place for this? NO, actually it might
         self.graph_panal.draw_graphs(self.analyzer, sample.get_name(), graph_type)      
 
     def write(self, sample: Sample, graph_type: GraphType|None) -> None:
-        '''
+        """
         Triggered by an outside signal.
-        '''
+        """
         self._create_analyzer(sample)
         self.data_panal.write(self.analyzer, sample, graph_type)
     
     def get_graph_color(self) -> str:
-        '''
+        """
         Triggered by an outside signal.
-        '''
+        """
         return self.graph_panal.get_graph_params()['graph_color']
 
 
 class GraphPanal(ctk.CTkFrame):
-    '''
+    """
     CTkFrame:
     Views the resulting graphs.
-    '''
+    """
     #TODO add the ability to change the graph color, maybe only during saves as this is a preview!?
     def __init__(self, master: AnalysisPanal) -> None:
         super().__init__(master)
@@ -91,10 +91,10 @@ class GraphPanal(ctk.CTkFrame):
     def _generate_graph(self, 
                        plot_data: PlotData, sample_name: str, graph_type: GraphType,
                        color: str) -> tk.Canvas:
-        '''
+        """
         Generates the graph/plot as a layout ready widget
         - -> ctk.CTkCanvas
-        '''
+        """
         _fig, _ax = plt.subplots()
         _fig.set_layout_engine('constrained')
         _canvas = FigureCanvasTkAgg(_fig, self.graph_frame) 
@@ -112,9 +112,9 @@ class GraphPanal(ctk.CTkFrame):
 
     def _set_graph_params(self, analyzer: Analyzer, sample_name: str,
                           graph_type: GraphType|None, graph_color: str = '#1f7bb4') -> None:
-        '''
+        """
         Saves the current params used to produce the graph as a praph_params dict.
-        '''
+        """
         self.graph_params: dict = {}
 
         self.graph_params['analyzer'] = analyzer
@@ -123,25 +123,25 @@ class GraphPanal(ctk.CTkFrame):
         self.graph_params['graph_color'] = graph_color
 
     def get_graph_params(self) -> dict:
-        '''
+        """
         Returns the graph_params.
-        '''
+        """
         return self.graph_params
 
     def update_graphs(self, graph_params: dict) -> None:
-        '''
+        """
         Redraws the graph usin the new parameters.
-        '''
+        """
         self.draw_graphs(**graph_params)
         self._set_graph_params(**graph_params)
 
     def draw_graphs(self,
                     analyzer: Analyzer, sample_name: str,
                     graph_type: GraphType|None, graph_color:str = '#1f7bb4') -> None:
-        '''
+        """
         Layout the graphs:
         - graph_type = None -> layout all the graphs in enums.GraphType.
-        '''
+        """
         #? resetting the layout!
         for i in self.graph_frame.grid_slaves():
             i.grid_forget()
@@ -159,10 +159,10 @@ class GraphPanal(ctk.CTkFrame):
 
 
 class DataPanal(ctk.CTkFrame):
-    '''
+    """
     CTkFrame:
     Views the data and resulting stats
-    '''
+    """
     def __init__(self, master: AnalysisPanal) -> None:
         super().__init__(master)
 
@@ -206,9 +206,9 @@ class DataPanal(ctk.CTkFrame):
 
 #TODO make it a table, TreeView, parent with file picker??, maybe not, as we don't need to select here!
 class DataNote(ctk.CTkTextbox):
-    '''
+    """
     CTkTextbox
-    '''
+    """
     def __init__(self, master: DataPanal, font: ctk.CTkFont) -> None:
         super().__init__(master)
         self.configure(state=ctk.DISABLED, font=font, tabs=150)  
@@ -222,9 +222,9 @@ class DataNote(ctk.CTkTextbox):
 
 
 class StatsNote(ctk.CTkTextbox):
-    '''
+    """
     CTkTextbox
-    '''
+    """
     def __init__(self, master: DataPanal, font: ctk.CTkFont) -> None:
         super().__init__(master)
         self.configure(state=ctk.DISABLED, font=font, tabs=95)    
@@ -243,11 +243,11 @@ class StatsNote(ctk.CTkTextbox):
                 self.configure(state=ctk.DISABLED)  
 
 
-class CustomizationBar(ctk.CTkFrame):
-    '''
+class CustomizationBar(ctk.CTkFrame, HasToolTip):
+    """
     CkFrame:
         Gives the ability to change the graph preview visuals.
-    '''
+    """
     def __init__(self, master:GraphPanal,
                  width: float, height:float, anim_speed: float =.01) -> None:
         super().__init__(master)
@@ -276,7 +276,7 @@ class CustomizationBar(ctk.CTkFrame):
         self.move_btn: ctk.CTkButton = ctk.CTkButton(self, corner_radius=0,
                 height=100, text=f'\\ {self.move_btn_txt} /', state=ctk.DISABLED,
                 command=lambda: self.animate())
-        
+
         _clr_pikr.grid(column=0, row=0, sticky='nsew')
         self.move_btn.grid(column=0, row=1, sticky='nsew')
 
@@ -284,15 +284,15 @@ class CustomizationBar(ctk.CTkFrame):
                 relx=.5, rely=self.crnt_y_pos, relheight=self.height, relwidth=self.width)
 
     def _update_graphs(self, graph_params: dict) -> None:
-        '''
+        """
         Delegates the graph update process to master: GraphPanal
-        '''
+        """
         self.master.update_graphs(graph_params)
 
     def animate(self) -> None:
-        '''
+        """
         Animates self into place
-        '''
+        """
         def _move():
             self.place(anchor='s',
                 relx=.5, rely=self.crnt_y_pos, relheight=self.height, relwidth=self.width)
@@ -314,20 +314,21 @@ class CustomizationBar(ctk.CTkFrame):
             self.in_start_pos = not self.in_start_pos
     
     def on_preview_press(self , color: str) -> None:
-        '''
+        """
         Triggerd by a preview button press From the clr_pikr: ColorPicker.
-        '''
+        """
         graph_params: dict = self.master.get_graph_params()
         graph_params['graph_color'] = color
         self._update_graphs(graph_params)
         self.winfo_toplevel().event_generate("<<AnalysisPanal-color>>")
 
     def enable(self) -> None:
-        '''
+        """
         Make interactable.
-        '''
+        """
         if self.move_btn.cget('state') == ctk.DISABLED:
             self.move_btn.configure(state=ctk.NORMAL)
+            self.t_tip(self.move_btn, 'click to edit the graphs, color, etc,...')
 
         #! add the analysis and the data results into the GUI - DONE👌
         #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!

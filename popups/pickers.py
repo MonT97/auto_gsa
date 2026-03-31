@@ -1,15 +1,16 @@
-'''
+"""
 Save inputs manipulation.
-'''
+"""
 from collections.abc import Callable
 
 from shared_widgets import ColorPicker
+from mixins import HasToolTip
 
 import customtkinter as ctk
 
 #TODO: find a better way to handle defaults.
-class BasePicker(ctk.CTkFrame):
-    '''
+class BasePicker(ctk.CTkFrame, HasToolTip):
+    """
     The base picker class:
     - widgets:
         - check_box: ctk.CheckBox -> for en/disabling the entry field.
@@ -17,15 +18,17 @@ class BasePicker(ctk.CTkFrame):
     - Prams:
         - label_txt: the check_box's label.
         - default_value: the default value
-    '''
-    def __init__(self, master, label_txt: str, default_value: str) -> None:
+    """
+    def __init__(self, master, label_txt: str, default_value: str, tooltip_msg: str = '') -> None:
         super().__init__(master)
         self.val = default_value
         
         self.check_box: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
                     text=label_txt, checkbox_height=20, checkbox_width=20,
                     width= 150, command=lambda: self._activation())
-        
+        if tooltip_msg:
+            self.t_tip(self.check_box, tooltip_msg)
+
         self.entry: ctk.CTkEntry = ctk.CTkEntry(self, placeholder_text=default_value)
         self.entry.configure(state=ctk.DISABLED, border_color='#565b5e')
 
@@ -33,9 +36,9 @@ class BasePicker(ctk.CTkFrame):
         self.entry.pack(side='left', fill='x', expand=True)
     
     def _activation(self) -> None:
-        '''
+        """
         Enables/Disables the widget.
-        '''
+        """
         _enabled: bool = bool(self.check_box.get())
         
         if _enabled:
@@ -47,41 +50,65 @@ class BasePicker(ctk.CTkFrame):
             self.entry.configure(state=ctk.DISABLED, border_color='#565b5e')
     
     def get_value(self) -> str:
-        '''
+        """
         Returns the value.
-        '''
+        """
         _value = self.entry.get()
         return _value if _value else self.val
 
 
-class IntervalPicker(ctk.CTkFrame):
-    '''
+class IntervalPicker(ctk.CTkFrame, HasToolTip):
+    """
     Picking the interval, which files to save.
-    '''
+    """
     def __init__(self, master) -> None:
         super().__init__(master)
 
-        class IntPckr(ctk.CTkFrame):
+        class IntPckr(ctk.CTkFrame, HasToolTip):
 
             def __init__(self, master):
                 super().__init__(master)
 
                 _padding: float = .2
+                self.u_lim: int = 0 # set from master
                 self.configure(height=28)
-                
-                self.to: ctk.CTkLabel = ctk.CTkLabel(self, text='to')
-                self.u_limit: ctk.CTkEntry = ctk.CTkEntry(self,
-                        width=28, placeholder_text='00')
-                self.l_limit: ctk.CTkEntry = ctk.CTkEntry(self,
-                        width=28, placeholder_text='00')
 
-                self.u_limit.place(anchor='w', relx=0+_padding, rely=.5)
-                self.to.place(anchor='n', relx=.5, rely=.5)
-                self.l_limit.place(anchor='e', relx=1-_padding, rely=.5)
+                self.u_var: ctk.StringVar = ctk.StringVar(self)
+                self.l_var: ctk.StringVar = ctk.StringVar(self)
+
+                self.to: ctk.CTkLabel = ctk.CTkLabel(self, text='to')
+           
+                self.u_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
+                        width=40, textvariable=self.u_var)
+                self.t_tip(self.u_limit_entry, 'The start of the interval, enclusive.')
+                self.u_limit_entry.bind("<FocusOut>",
+                    lambda _: self._validate_input(self.u_var, 'u'))
+
+                self.l_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
+                        width=40, textvariable=self.l_var)
+                self.t_tip(self.l_limit_entry, 'The end of the interval, enclusive.')
+                self.l_limit_entry.bind("<FocusOut>",
+                    lambda _: self._validate_input(self.l_var, 'l'))
+
+                self.u_limit_entry.place(anchor='w', relx=0+_padding, rely=.5)
+                self.to.place(anchor='n', relx=.5, rely=0)
+                self.l_limit_entry.place(anchor='e', relx=1-_padding, rely=.5)
+
+            def _validate_input(self, var: ctk.StringVar, limit: str) -> None:
+                
+                _val: str = var.get()
+
+                if _val.isnumeric():
+                    var.set(f'{max(int(_val), 0)}') if limit == 'u' else var.set(f'{min(int(_val), self.u_lim)}')
+                    return
+
+                var.set('') if limit == 'u' else var.set('')
 
             def get_var(self) -> str:
 
-                return self.u_limit.get()+self.l_limit.get()
+                _u_lim: int = int(self.u_var.get())
+                _l_lim: int = int(self.l_var.get())+1
+                return f'{_u_lim}+{_l_lim}'
 
 
         class ListPckr(ctk.CTkFrame):
@@ -132,16 +159,20 @@ class IntervalPicker(ctk.CTkFrame):
                 self.set_getter(self.list_pckr)
                 self.index = 2
     
+    def set_upper_limit(self, val: int) -> None:
+
+        self.interval_pckr.u_lim = val
+
     def set_getter(self, widget) -> None:
-        '''
+        """
         Sets the getter function based on child widget picked.
-        '''
+        """
         self.getter_function = widget.get_var
 
     def get_value(self) -> tuple[int,list[int|None]]:
-        '''
+        """
         Returns the parameter
-        '''
+        """
         _output = []
 
         if self.index != 0:
@@ -151,9 +182,9 @@ class IntervalPicker(ctk.CTkFrame):
     
 
 class GraphColorPicker(ctk.CTkFrame):
-    '''
+    """
     Picking the paths to house the results within.
-    '''
+    """
     def __init__(self, master) -> None:
         super().__init__(master)
 
@@ -178,13 +209,33 @@ class GraphColorPicker(ctk.CTkFrame):
             self.color_pckr.pack(side='top', padx=2, pady=2)
 
     def on_preview_press(self, color: str) -> None:
-        '''
+        """
         Triggerd by a preview button press From the clr_pikr: ColorPicker.
-        '''
+        """
         self.color = color
 
     def get_value(self) -> str:
-        '''
+        """
         Returns the color.
-        '''
+        """
         return self.color
+    
+
+class SaveRawsPicker(ctk.CTkFrame, HasToolTip):
+    """
+    Picking whether to save the raw file or not.
+    """
+    def __init__(self, master, tooltip_msg: str = '') -> None:
+        super().__init__(master)
+        self.check_box: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
+            text='Save raw files', checkbox_height=20, checkbox_width=20)
+        if tooltip_msg:
+            self.t_tip(self.check_box, tooltip_msg)
+        self.check_box.pack(side='left')
+        self.check_box.toggle()
+
+    def get_value(self) -> bool:
+        """
+        Returns the color.
+        """
+        return bool(self.check_box.get())

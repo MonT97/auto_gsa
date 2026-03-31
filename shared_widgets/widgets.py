@@ -3,11 +3,11 @@ from collections.abc import Callable
 import customtkinter as ctk
 
 class ColorPicker(ctk.CTkFrame):
-    '''
+    """
     CTkFrame:
         An (RGB) color picker.
     Note: all masters should have a on_preview_press(color) function.
-    '''
+    """
     def __init__(self, master: ctk.CTkFrame) -> None:
         super().__init__(master)
 
@@ -39,9 +39,9 @@ class ColorPicker(ctk.CTkFrame):
         _b_slider.grid(column=1, row=2, rowspan=1, padx=5)
 
     def _set_color(self, rgb: tuple[ctk.IntVar,ctk.IntVar,ctk.IntVar]) -> None:
-        '''
+        """
         Sets the color.
-        '''
+        """
         clr: tuple[int,int,int] = tuple(i.get() for i in rgb)#type: ignore
         crnt_hvr_clr: list[str] = self.preview.cget('hover_color')
         
@@ -59,21 +59,21 @@ class ColorPicker(ctk.CTkFrame):
             self.preview.configure(border_color='red', text='set')
 
     def _update_color(self, master: ctk.CTkFrame, color: str) -> None:
-        '''
+        """
         Update the graph with the new color, delegated to master.
-        '''
+        """
         master.on_preview_press(color) #type: ignore
         self.preview.configure(border_color='green', text='set!')
 
 
 class ColorSlider(ctk.CTkSlider):
-    '''
+    """
     CTkSlider:
         For picking the color bandwise.
         - clr_band [str]:what band of the (R,G,B) band the slider represents.
         - variable [ctk.IntVar]:value to be adjusted through the slider.
         - command [Callable]:the behaviour to be linked with.
-    '''
+    """
     def __init__(self,
                  master: ColorPicker, clr_band: str, variable: ctk.IntVar,
                  command: Callable) -> None:

@@ -5,11 +5,11 @@ from collections.abc import Callable
 import pandas as pd
 
 class Sample():
-    '''
+    """
     The class resembling the sample:
         - name: str.
         - data: pd.DataFrame.
-    '''
+    """
     samples_list: list = []
     def __init__(self, path: str = "") -> None:
         
@@ -24,11 +24,11 @@ class Sample():
         return True if (self._name == other._name) and (self._data.equals(other._data)) else False
 
     def _create_data(self, path: str) -> tuple[str, pd.DataFrame]:
-        '''
+        """
         Creates the data, returns:
             - name [str]: the sample name.
             - data [pd.DataFrame]: the data itself.
-        '''
+        """
         _name: str = ''
         _format: str = ''
         _data = pd.DataFrame()
@@ -52,15 +52,15 @@ class Sample():
         return (f'{_name}.{_format}', _data)
     
     def get_name(self, full: bool = False) -> str:
-        '''
+        """
         full: returns [file_name.format] if true.
-        '''
+        """
         _short_name: str = self._name.split(".")[0].capitalize()
 
         return _short_name if not full else self._name      
     
     def get_data(self) -> pd.DataFrame:
-        '''
+        """
         Returns the sample data.
-        '''
+        """
         return self._data
