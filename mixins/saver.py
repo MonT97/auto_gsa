@@ -1,15 +1,15 @@
 import os
 
 from .defaults import Defaults
+from .plotter import CanPlot
 
 from typedefs import GraphType, SaveObject
-from helpers import Analyzer, Plotter
-from models import Sample
+from models import Sample, Analyzer
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-class CanSave(Defaults):
+class CanSave(Defaults, CanPlot):
     """
     A mixin wrapping the saving functionality.
     - save_resutlts.
@@ -58,8 +58,10 @@ class CanSave(Defaults):
                             merge_cells=False, startrow=_method.shape[0]+_stats.shape[0]+3,
                             sheet_name='stats')
         
-        if not os.path.exists(_raw_results_dir) and _save_raws: 
+        if not os.path.exists(_raw_results_dir):
             os.mkdir(_raw_results_dir)
+            
+        if _save_raws:
             _sample_data.to_csv(f'{_raw_file_path}.csv', index=False)
 
         for _type in GraphType:
@@ -71,7 +73,7 @@ class CanSave(Defaults):
             _fig, _ax = plt.subplots()
             _fig.set_layout_engine('constrained')
             _x, _y, _points, _method = _ana.get_plot_data(_type)
-            Plotter(_x, _y, _points, _ax, _type, _method, _clr)
+            self.cp_plot(_x, _y, _points, _ax, _type, _method, _clr)
             _ax.set_title(f'{sample.get_name()}\n{_title}')
             _fig.savefig(_graph_file_path+'.png', dpi=300, format='png')
           

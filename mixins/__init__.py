@@ -2,6 +2,7 @@
 Functionality wrapping mixin classes.
 """
 
-from .saver import CanSave
-from .defaults import Defaults
 from .tooltip import HasToolTip
+from .defaults import Defaults
+from .plotter import CanPlot
+from .saver import CanSave

@@ -3,9 +3,8 @@ from matplotlib.axes import Axes
 
 from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod
 from shared_widgets import ColorPicker
-from helpers import Analyzer, Plotter
-from mixins import HasToolTip
-from models import Sample
+from mixins import HasToolTip, CanPlot
+from models import Sample, Analyzer
 
 import matplotlib.pyplot as plt
 import customtkinter as ctk
@@ -66,7 +65,7 @@ class AnalysisPanal(ctk.CTkFrame):
         return self.graph_panal.get_graph_params()['graph_color']
 
 
-class GraphPanal(ctk.CTkFrame):
+class GraphPanal(ctk.CTkFrame, CanPlot):
     """
     CTkFrame:
     Views the resulting graphs.
@@ -103,7 +102,7 @@ class GraphPanal(ctk.CTkFrame):
         _title: str = f"{_graph_name}\n{sample_name}"
 
         self.x, self.y, self.points, _analysis_method = plot_data
-        Plotter(self.x, self.y, self.points, _ax, graph_type, _analysis_method, color)
+        self.cp_plot(self.x, self.y, self.points, _ax, graph_type, _analysis_method, color)
                      
         _ax.set_title(_title)
         plt.close()
@@ -328,7 +327,7 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip):
         """
         if self.move_btn.cget('state') == ctk.DISABLED:
             self.move_btn.configure(state=ctk.NORMAL)
-            self.t_tip(self.move_btn, 'click to edit the graphs, color, etc,...')
+            self.htt_tip(self.move_btn, 'click to edit the graphs, color, etc,...')
 
         #! add the analysis and the data results into the GUI - DONE👌
         #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!

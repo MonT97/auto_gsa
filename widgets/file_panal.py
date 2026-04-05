@@ -49,7 +49,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             image=self.import_btn_icon,
             compound='right',
             command=lambda: self._import_files())
-        self.t_tip(self.file_import_btn, 'import files form the path above')
+        self.htt_tip(self.file_import_btn, 'import files form the path above')
 
         self.samples_file_viewer: FileViewer = FileViewer(self)
         self.samples_file_viewer.bind(
@@ -62,6 +62,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             text="analyze",
             state=ctk.DISABLED,
             command=lambda: self._analyze(self.data))
+        self.htt_tip(self.analyze_btn, 'Analayze and preview the sample selected above.')
         
         self.export_btn_icon: ctk.CTkImage = ctk.CTkImage(
             Image.open('assets/upload.png'), size=(11,11))
@@ -72,13 +73,13 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             state=ctk.DISABLED, 
             command=lambda: self._on_export_btn_pressed())
         self.export_btn.bind('<Control-Button-1>', lambda _: self._on_export_btn_pressed(True))
-        self.t_tip(self.export_btn, 'a more elaborate saving function\n - [press+Ctrl]: use the global default')
+        self.htt_tip(self.export_btn, 'a more elaborate saving function\n - [press+Ctrl]: use the global default')
         
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save",
             state=ctk.DISABLED,
-            command=lambda: self._save_results(self.sample, self.save_obj))
-        self.t_tip(self.save_btn, 'save the results of the currently selected sample')
+            command=lambda: self._on_save_btn_pressed(self.sample, self.save_obj))
+        self.htt_tip(self.save_btn, 'save the results of the currently selected sample')
 
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
@@ -143,13 +144,15 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
 
     def get_log_massage(self) -> str:
         """
-        Triggered by an outside signal.
+        Returns the logged massage, triggered by an outside signal.
         """
         return self.log_massage
     
     #? Check the args handiling, it needs to be further trimmed down.
-    def _save_results(self, sample: Sample, save_obj: SaveObject) -> None:
-
+    def _on_save_btn_pressed(self, sample: Sample, save_obj: SaveObject) -> None:
+        """
+        Saves a single sample.
+        """
         self.cs_save_results(sample, self.raw_results_folder_name, save_obj)
 
         self._set_log_message(f'[{sample.get_name().lower()}] saved...')
@@ -209,9 +212,17 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         for sample_name in _files:
             _path: str = os.path.join(self.samples_files_dir, sample_name)
             _sample = Sample(_path)
-            self._save_results(_sample, _params)
+            self.cs_save_results(_sample, self.raw_results_folder_name, _params)
         
         self._set_log_message(f'all samples saved in [{_results_path}\\{_results_folder_name}]')
+        self.winfo_toplevel().event_generate("<<FilePanal-exported>>")
+
+    def on_exported(self) -> None:
+        """
+        Triggered by an outside signal.
+        """
+        _path: str = os.path.join(self.export_popup.get_params().results_path, self.export_popup.get_params().results_folder_name)
+        self.export_popup.set_results_path(_path)
 
     def get_analysis_data(self) -> tuple[Sample, GraphType|None]:
         """

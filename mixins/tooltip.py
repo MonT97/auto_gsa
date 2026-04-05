@@ -1,7 +1,8 @@
+from customtkinter import CTkBaseClass
 from tktooltip import ToolTip
 
 class HasToolTip():
-    def t_tip(self, widget, msg: str, font_size: int = 12, font_name: str = 'Arial') -> None:
+    def htt_tip(self, widget: CTkBaseClass, msg: str, font_size: int = 12, font_name: str = 'Arial') -> None:
         '''
         Adds a tooltip for the given [widget] using the provided [msg].
         '''

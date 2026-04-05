@@ -5,4 +5,4 @@ icon.svg
 /test.py
 /__pycache__
 /assets/*.svg
-/assets/*.png
+/self_assets/
