@@ -29,7 +29,7 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         self.toggle: ctk.CTkSwitch = ctk.CTkSwitch(self,
                     text=label_txt, width= 150, command=lambda: self._activation())
         if tooltip_msg:
-            self._htt_tip(self.toggle, tooltip_msg)
+            self.htt_tip(self.toggle, tooltip_msg)
 
         self.entry: ctk.CTkEntry = ctk.CTkEntry(self, placeholder_text=default_value)
         self.entry.configure(state=ctk.DISABLED, border_color='#565b5e')
@@ -82,13 +82,13 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
            
                 self.u_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
                         width=40, textvariable=self.u_var)
-                self._htt_tip(self.u_limit_entry, 'The start of the interval, enclusive.')
+                self.htt_tip(self.u_limit_entry, 'The start of the interval, enclusive.')
                 self.u_limit_entry.bind("<FocusOut>",
                     lambda _: self._validate_input(self.u_var, 'u'))
 
                 self.l_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
                         width=40, textvariable=self.l_var)
-                self._htt_tip(self.l_limit_entry, 'The end of the interval, enclusive.')
+                self.htt_tip(self.l_limit_entry, 'The end of the interval, enclusive.')
                 self.l_limit_entry.bind("<FocusOut>",
                     lambda _: self._validate_input(self.l_var, 'l'))
 
@@ -121,7 +121,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
                 self.list_entry: ctk.CTkEntry = ctk.CTkEntry(self,
                             placeholder_text='1, 2, 3, ...')
-                self._htt_tip(self.list_entry, 'List of sample numbers.\n- [1,2,6]: chooses samples 1, 2 and 6.')
+                self.htt_tip(self.list_entry, 'List of sample numbers.\n- [1,2,6]: chooses samples 1, 2 and 6.')
 
                 self.list_entry.pack()
             
@@ -136,7 +136,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
         self.label: ctk.CTkLabel = ctk.CTkLabel(self,
                     anchor='w', text='Selection method:')
-        self._htt_tip(self.label, 'The method used to scelect samples to export.')
+        self.htt_tip(self.label, 'The method used to scelect samples to export.')
 
         self.drop_down: ctk.CTkComboBox = ctk.CTkComboBox(self,
                     values=_options, variable=self.pick_var,
@@ -240,7 +240,7 @@ class SaveRawsPicker(ctk.CTkFrame, HasToolTip):
         self.toggle: ctk.CTkSwitch = ctk.CTkSwitch(self, text='Save raw files')
         
         if tooltip_msg:
-            self._htt_tip(self.toggle, tooltip_msg)
+            self.htt_tip(self.toggle, tooltip_msg)
         
         self.toggle.pack(side='left')
         self.toggle.toggle()

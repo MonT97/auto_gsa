@@ -25,7 +25,7 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip):
         self.text_box: ctk.CTkTextbox = ctk.CTkTextbox(self,
                     state=ctk.DISABLED, corner_radius=0, activate_scrollbars=False)
         self.label.bind('<Double-Button-1>', lambda _: self._open_file())
-        self._htt_tip(self.label, 'double click to expand')
+        self.htt_tip(self.label, 'double click to expand')
 
         self.label.pack(side='left', padx=5)
         self.text_box.pack(side='left', fill='both', expand=1)
