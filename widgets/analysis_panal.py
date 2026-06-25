@@ -102,6 +102,7 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
         _title: str = f"{_graph_name}\n{sample_name}"
 
         self.x, self.y, self.points, _analysis_method = plot_data
+        
         self.cp_plot(self.x, self.y, self.points, _ax, graph_type, _analysis_method, color)
                      
         _ax.set_title(_title)
@@ -129,7 +130,7 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
 
     def update_graphs(self, graph_params: dict) -> None:
         """
-        Redraws the graph usin the new parameters.
+        Redraws the graph using the newly provided parameters.
         """
         self.draw_graphs(**graph_params)
         self._set_graph_params(**graph_params)

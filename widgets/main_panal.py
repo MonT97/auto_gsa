@@ -16,7 +16,7 @@ class MainPanal(ctk.CTkFrame):
 
         self._layout()
 
-        # Inter-widget communication, signature <<Source-Action>>:
+        # Inter-widget communication, signature <<Signal Source-Action to make>>:
         self.winfo_toplevel().bind("<<FilePanal-log>>", lambda _: self.log())
         self.winfo_toplevel().bind("<<FilePanal-analyze>>", lambda _: self.analyze())
         self.winfo_toplevel().bind("<<FilePanal-exported>>", lambda _:self.exported())

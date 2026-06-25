@@ -14,14 +14,14 @@ class App(ctk.CTk):
     def __init__(self, title:str="AutoGSA", size:tuple[int,int]=(800,550)) -> None:
         super().__init__()
         #This is a hard coded value; trail&error driven.
-        self.pos: tuple[int,int] = (
+        position: tuple[int,int] = (
             self.winfo_screenwidth()//6,
             self.winfo_screenheight()//6)
         
         self.title(title)
         self.resizable(False, False)
         self.iconbitmap("assets/icon.ico")
-        self.geometry(f"{size[0]}x{size[1]}+{self.pos[0]}+{self.pos[1]}")
+        self.geometry(f"{size[0]}x{size[1]}+{position[0]}+{position[1]}")
         self.wm_protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.main_panal: MainPanal = MainPanal(self)
@@ -35,7 +35,7 @@ class App(ctk.CTk):
         """
         self.main_panal.on_open()
 
-    # TODO[LTS]: see if you can hide/handle the stuff chucked into the stdo, it seems fine now!!
+    # TODO[LTS]: see if you can hide/handle the stuff chucked into the stdo console, it seems fine now!!
     def on_closing(self) -> None:
         """
         Triggered on application closure.

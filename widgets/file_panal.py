@@ -4,13 +4,16 @@ from collections.abc import Callable
 from tkinter import ttk, Event
 from PIL import Image
 
-from typedefs import GraphType, FileFormat, SaveObject
-from mixins import CanSave, Defaults, HasToolTip
+from mixins import CanSave, Defaults, HasToolTip, Validator
+from typedefs import GraphType, SaveObject
 from popups import ExportScreen
 from models import Sample
 
 import customtkinter as ctk
 
+# convension to keep:
+# file -> file_name.extension
+# sample -> Sample(file_path)
 class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
     """
     CTkFrame:
@@ -26,16 +29,15 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.configure(corner_radius=0)
 
         self.master = master
-        self.samples_files_dir: str = "" #!cnfig
+        self.files_dir: str = "" #!cnfig
         self.raw_results_folder_name: str = "raw_files" #!cnfig
+
         #type due to the strange return of the treeview selection method
         self.data: tuple[str,...] = ('',)
-        self.number_of_samples: int = 0
+        self.number_of_valid_files: int = 0
 
         self.save_obj: SaveObject = self.df_get(SaveObject)
         self.save_obj_color: str = self.save_obj.color
-
-        self.supported_formats: list[str] = [_format.value for _format in FileFormat]
 
         self.entry = ctk.CTkEntry(self, placeholder_text="Samples folder path...")
         self.entry.bind("<KeyPress-Return>", lambda _: self._import_files())
@@ -49,20 +51,20 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             image=self.import_btn_icon,
             compound='right',
             command=lambda: self._import_files())
-        self.htt_tip(self.file_import_btn, 'import files form the path above')
+        self.htt_tip(self.file_import_btn, 'import files form the path entered above')
 
-        self.samples_file_viewer: FileViewer = FileViewer(self)
-        self.samples_file_viewer.bind(
+        self.file_viewer: FileViewer = FileViewer(self)
+        self.file_viewer.bind(
             "<<TreeviewSelect>>", 
             lambda event: self._set_data(event))
-        self.samples_file_viewer.bind("<KeyPress-Return>",
+        self.file_viewer.bind("<KeyPress-Return>",
             lambda _: self._analyze(self.data))
         
         self.analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="analyze",
             state=ctk.DISABLED,
             command=lambda: self._analyze(self.data))
-        self.htt_tip(self.analyze_btn, 'Analayze and preview the sample selected above.')
+        self.htt_tip(self.analyze_btn, 'Analayze and preview the sample file selected above')
         
         self.export_btn_icon: ctk.CTkImage = ctk.CTkImage(
             Image.open('assets/upload.png'), size=(11,11))
@@ -73,17 +75,18 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             state=ctk.DISABLED, 
             command=lambda: self._on_export_btn_pressed())
         self.export_btn.bind('<Control-Button-1>', lambda _: self._on_export_btn_pressed(True))
-        self.htt_tip(self.export_btn, 'a more elaborate saving function\n - [press+Ctrl]: use the global default')
+        self.htt_tip(self.export_btn, 'a more elaborate saving function\n - [press+Ctrl]: use global defaults')
         
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save",
             state=ctk.DISABLED,
             command=lambda: self._on_save_btn_pressed(self.sample, self.save_obj))
-        self.htt_tip(self.save_btn, 'save the results of the currently selected sample')
+        self.htt_tip(self.save_btn, 'save the anlaysis results of the currently selected sample')
 
+        # layout:
         self.entry.pack(side="top", fill="x", padx=5, pady=5)
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
-        self.samples_file_viewer.pack(side="top", expand=1, fill="both", pady=5, padx=5)
+        self.file_viewer.pack(side="top", expand=1, fill="both", pady=5, padx=5)
         self.export_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
         self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=5)
@@ -94,21 +97,23 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
 
     def _import_files(self) -> None:
         
-        self.samples_files_dir = self.entry.get()
+        self.files_dir = self.entry.get()
         
-        if not os.path.exists(self.samples_files_dir):
-            self._set_log_message(f'path [{self.samples_files_dir}] is invalid or doesn\'t exist.', error=True)
-            
-        self.number_of_samples: int = self.samples_file_viewer.display_files(self.samples_files_dir)
+        if not os.path.exists(self.files_dir):
+            self._set_log_message(f'path [{self.files_dir}] is invalid or doesn\'t exist.', error=True)
+        
+        self.valid_files: list[str] = self.file_viewer.display_files(self.files_dir)
+        self.number_of_valid_files = len(self.valid_files)
         self.export_btn.configure(state=ctk.NORMAL)
 
         self._reset_focus()
-        self._set_log_message(f'files imported from [{self.samples_files_dir}].')
+        self._set_log_message(
+            f'[{self.number_of_valid_files}] files imported from [{self.files_dir}].')
 
     def _set_data(self, event: Event) -> None:
         
         self.analyze_btn.configure(state=ctk.NORMAL)
-        self.data = self.samples_file_viewer.selection()
+        self.data = self.file_viewer.selection()
         
         if event.state:
             for _type in GraphType:
@@ -116,18 +121,19 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
 
     def _analyze(self, table_selection: tuple, graph_type: GraphType|None = None) -> None:
 
-        _sample_file_name: str = self.samples_file_viewer.get_data(table_selection)[-1]#type: ignore
-        _sample_file_path: str = os.path.join(self.samples_files_dir, _sample_file_name)
+        _file_name: str = self.file_viewer.get_data(table_selection)[-1]#type: ignore
+        _file_path: str = os.path.join(self.files_dir, _file_name)
 
-        _sample: Sample = Sample(_sample_file_path)
+        _sample: Sample = Sample(_file_path)
 
         self._set_analysis_data(_sample, graph_type)
         self.winfo_toplevel().event_generate("<<FilePanal-analyze>>")
         self._set_log_message(f'[{_sample.get_name().lower()}] analyzed.')
 
-        self.samples_file_viewer.focus_set() #! why broken??
+        self.file_viewer.focus_set() #! why broken??
         self.save_btn.configure(state=ctk.NORMAL)
     
+    #! here, Continue the sample/file cleanup!!
     def _set_analysis_data(self, sample: Sample, graph_type: GraphType|None) -> None:
         """
         Setting for an outside signal trigger.
@@ -164,7 +170,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         # self._reset_focus()
         self.export_popup: ExportScreen = ExportScreen(self, use_global_defaults)
         self.export_popup.set_color(self.save_obj_color)
-        self.export_popup.set_limit(self.number_of_samples)
+        self.export_popup.set_limit(self.number_of_valid_files)
 
     def _update_save_obj(self, save_obj: SaveObject) -> None:
         
@@ -189,14 +195,14 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         _results_folder_name: str = _params.results_folder_name #!config
         _index, _interval = _params.interval #!cofig
 
-        _files: list[str] = os.listdir(self.samples_files_dir)
+        _files: list[str] = self.valid_files
 
         def _prep_files_list(index: int, list_: list[str], interval: list[int]) -> list[str]:
             """
             Partition/slice the list of files depending on the index provided, the index is a mode selection of sorts.
             """
-            list_ = [_file for _file in list_ if _file.split(".")[-1] in self.supported_formats]
-            
+            #TODO: centeralize!, moved into a Vlidator mixin
+
             match index:
                 case 0:
                     list_ = list_
@@ -210,11 +216,12 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         _files = _prep_files_list(_index, _files, _interval)
 
         for sample_name in _files:
-            _path: str = os.path.join(self.samples_files_dir, sample_name)
+            _path: str = os.path.join(self.files_dir, sample_name)
             _sample = Sample(_path)
             self.cs_save_results(_sample, self.raw_results_folder_name, _params)
         
-        self._set_log_message(f'all samples saved in [{_results_path}\\{_results_folder_name}]')
+        _export_path: str = os.path.join(_results_path, _results_folder_name)
+        self._set_log_message(f'all samples saved to [{_export_path}]')
         self.winfo_toplevel().event_generate("<<FilePanal-exported>>")
 
     def on_exported(self) -> None:
@@ -231,7 +238,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         return (self.sample, self.graph_type)
 
 
-class FileViewer(ttk.Treeview):
+class FileViewer(ttk.Treeview, Validator):
     """
     ttk.Treeview:
     The class that views and gives the ability to select samples.
@@ -242,7 +249,6 @@ class FileViewer(ttk.Treeview):
         super().__init__(master)
 
         self.master: FilePanal = master
-        self.formats: list[str] = master.supported_formats
 
         _row_style = ttk.Style()
         _row_style.theme_use('default')
@@ -275,26 +281,30 @@ class FileViewer(ttk.Treeview):
         self.heading("no", text="NO", anchor="center")
         self.heading("file_name", text="File Name", anchor="w")
 
-    def display_files(self, path: str) -> int:
+    def display_files(self, path: str) -> list[str]:
         """
-        Populates the TreeView format validated samples form the given [path].
+        Populates the TreeView with validated samples form the given [path].
+        \n\t-> valid sample files.
         """
         if self.get_children():
             [self.delete(i) for i in self.get_children()]
 
-        #TODO: add format support read from a config maybe?!
-        _supported: Callable = lambda file_: file_.split(".")[-1] in self.formats
-        _supported_files: list[str] = [file_ for file_ in os.listdir(path) if _supported(file_)]
-        _padding: int = len(str(len(_supported_files)))+1
+        def validate_files(path: str) -> list[str]:
+
+            _valid_files: list[str] = [file_ for file_ in os.listdir(path) if self.val_samples(path, file_)]
+            
+            return _valid_files
+
+        _valid_files: list[str] = validate_files(path)
+        _padding: int = len(f'{len(_valid_files)}')
 
         try:
-            for _index, file_ in enumerate(_supported_files):
+            for _index, file_ in enumerate(_valid_files):
                 self.insert("", "end", values=[f'{_index+1:0{_padding}}', file_])
         except FileNotFoundError as e:
             self.master._set_log_message(f'No sample files found; {e}', error=True)
         
-        # -> the number of samples for those who should now, currently [master]
-        return len(_supported_files)
+        return _valid_files
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
         

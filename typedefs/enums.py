@@ -26,5 +26,18 @@ class AnalysisMethod(Enum):
     - GRAPHICAL ----> Folk&Ward graphical method.
     - MOMENTS ------> the statistical moments based method.
     """
+    TWOPOINTS = 'Two Points'
     GRAPHICAL = 'Graphical'
     MOMENTS = 'Method of Moments'
+
+
+class SkewnessSchema(Enum):
+    """
+    An Enum representing the verbal interpertation schema.
+    - ANASEDI -------> Analytical Sedimentology book.
+    - FOLKWARD57 ----> Folk & Ward 1957 article.
+    - OBSERVATIONAL -> A more intuitive version of the one found in the analytical sedimentology book, basically, it's it but inverted.
+    """
+    ANASEDI = 0
+    FOLKWARD57 = 1
+    OBSERVATION = 3

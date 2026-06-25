@@ -90,7 +90,7 @@ class Defaults():
 
     def df_get(self, obj: Type[T]) -> T:
         """
-        Retrieves the default version of the provided [obj] and creates it if doesn't exist.
+        Retrieves the default version of the provided [obj], creates it if doesn't exist.
         - obj: is the class itself [obj], not an instanse [obj()].
         """
         if not obj.__name__ in list(self._objs.keys()):

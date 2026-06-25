@@ -18,26 +18,24 @@ class CanPlot():
             - clr ------> face color, hexadecimal.
             - line_clr -> kde color, hexadecimal.
         """
-        _method: AnalysisMethod = analysis_method
-    
         def _plot_histo(ax: Axes, x: PlotInput,
                         y: PlotInput, color: str, kde_color: str) -> None:
             """
             Plots the Histogram.
             """
-            _cat_x: list[str] = [str(i) for i in x] #? psedu categorical conversion
+            _interval_x: float = x.diff().mode()[0] #type: ignore
+            _edges: np.ndarray = np.concatenate([x[:1]-_interval_x, x])
 
-            ax.hist(x, weights=y, bins=len(x)-1,
-                    color=color, density=True, label='histogram', **{'edgecolor': 'k'}) # type: ignore
+            ax.set_title('A')
+            ax.stairs(values=y, edges=_edges, fill=True, color=color, **{'linewidth': 1.5, 'edgecolor': 'k'})
 
-            _ax_t: Axes = ax.twinx()#type: ignore
-            _kde = stats.gaussian_kde(x, weights=y)
-            _x_range = np.linspace(min(x), max(x), 50)
-            _ax_t.plot(_x_range, _kde(_x_range), label='kde', color=kde_color)
-            
-            ax.set_xticks(x)
-            ax.set_xticklabels(_cat_x)
-            
+            #plot spedu vertical lines:
+            for x,y in zip(x[:-1],y[:-1]):
+                ax.plot((x,x), (0,y), '-k' )#type: ignore
+
+            ax.set_xticks(_edges)
+            ax.set_xticklabels(_edges)
+
             ax.set_xlabel("phi (\u00D8)")
             ax.set_ylabel("weight %")
 
@@ -64,9 +62,9 @@ class CanPlot():
             case GraphType.HIST:
                 _plot_histo(ax, x, y, clr, kde_clr)
 
-            case GraphType.CUM:   
-                
-                _padding: float = .35
-                ax.set_xlim(x.min()-_padding, x.max()+_padding)
-                ax.set_ylim(0-_padding*10, 100+_padding*10)
-                _plot_cum(ax, x, y, points, clr, _method)
+            case GraphType.CUM:       
+                if analysis_method != AnalysisMethod.TWOPOINTS:
+                    _padding: float = .35
+                    ax.set_xlim(x.min()-_padding/5, x.max()+_padding/5)
+                    ax.set_ylim(0-_padding*10, 100+_padding*10)
+                    _plot_cum(ax, x, y, points, clr, analysis_method)
