@@ -202,7 +202,6 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             Partition/slice the list of files depending on the index provided, the index is a mode selection of sorts.
             """
             #TODO: centeralize!, moved into a Vlidator mixin
-
             match index:
                 case 0:
                     list_ = list_

@@ -57,13 +57,7 @@ class CanSave(Defaults, CanPlot):
             _interp.to_excel(writer, index=False,
                             merge_cells=False, startrow=_method.shape[0]+_stats.shape[0]+3,
                             sheet_name='stats')
-        
-        if not os.path.exists(_raw_results_dir):
-            os.mkdir(_raw_results_dir)
             
-        if _save_raws:
-            _sample_data.to_csv(f'{_raw_file_path}.csv', index=False)
-
         for _type in GraphType:
             _graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
             _title: str = _graph_names[_type]
@@ -75,9 +69,15 @@ class CanSave(Defaults, CanPlot):
             _x, _y, _points, _method = _ana.get_plot_data(_type)
             self.cp_plot(_x, _y, _points, _ax, _type, _method, _clr)
             _ax.set_title(f'{sample.get_name()}\n{_title}')
+            #TODO add resolution to save object
             _fig.savefig(_graph_file_path+'.png', dpi=300, format='png')
           
             if _save_raws:
+                if not os.path.exists(_raw_results_dir):
+                    os.mkdir(_raw_results_dir)
+
+                _sample_data.to_csv(f'{_raw_file_path}.csv', index=False)
+                
                 _raw_graph_file_path: str = os.path.join(_raw_results_dir, _graph_file_name)
                 _fig.savefig(_raw_graph_file_path+'.svg', dpi=300, format='svg')
           

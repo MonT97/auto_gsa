@@ -6,6 +6,7 @@ from collections.abc import Callable
 from shared_widgets import ColorPicker
 from mixins import HasToolTip
 
+import re
 import customtkinter as ctk
 
 #TODO: find a better way to handle defaults.
@@ -97,21 +98,25 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 self.l_limit_entry.place(anchor='e', relx=1-_padding, rely=.5)
 
             def _validate_input(self, var: ctk.StringVar, limit: str) -> None:
-                
+                """
+                Input validation.
+                """
                 _val: str = var.get()
 
-                if _val.isnumeric():
+                _val_is_valid: Callable = lambda x: bool(re.match('^-[0-9]+$|^[0-9]+$', x))
+                
+                if _val_is_valid(_val):
                     var.set(f'{max(int(_val), 0)}') if limit == 'u' else var.set(f'{min(int(_val), self.u_lim)}')
                     return
 
-                var.set('') if limit == 'u' else var.set('')
+                var.set('')
 
             def get_var(self) -> str:
 
                 _u_lim: int = int(self.u_var.get())
                 _l_lim: int = int(self.l_var.get())+1 #for the exclusivity of python list indexing
 
-                return f'{_u_lim}+{_l_lim}'
+                return f'{_u_lim},{_l_lim}'
 
 
         class ListPckr(ctk.CTkFrame, HasToolTip):
@@ -119,15 +124,32 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
             def __init__(self, master) -> None:
                 super().__init__(master)
 
+                self.u_lim: int = 0 # set from master
+                self.variable: ctk.StringVar = ctk.StringVar(self)
+                
                 self.list_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                            placeholder_text='1, 2, 3, ...')
-                self.htt_tip(self.list_entry, 'List of sample numbers.\n- [1,2,6]: chooses samples 1, 2 and 6.')
+                            textvariable=self.variable)
+                self.htt_tip(self.list_entry, 'List of sample numbers, for example:\n- [1,2,6]: chooses samples 1, 2 and 6.\n- use only [,]as a delimiter.')
+                self.list_entry.bind("<FocusOut>", lambda _: self._validate_input(self.variable))
 
                 self.list_entry.pack()
             
+            def _validate_input(self, value: ctk.StringVar) -> None:
+                """
+                Input validation.
+                """
+                _value: str = value.get()
+
+                _numbers: list[str] = re.findall(r'[0-9]+', _value)
+
+                _cap_number: Callable = lambda x: f'{min(int(x), self.u_lim)}'
+                _str_numbers: str = ','.join([_cap_number(i) for i in _numbers])
+
+                value.set(_str_numbers)
+
             def get_var(self) -> str:
 
-                return self.list_entry.get()
+                return self.variable.get()
 
         _options: list[str] = ['all', 'interval', 'list']
 
@@ -173,6 +195,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         Tells the widget how many samples there is.
         """
         self.interval_pckr.u_lim = val
+        self.list_pckr.u_lim = val
 
     def set_getter(self, widget) -> None:
         """
@@ -185,10 +208,10 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         Returns the parameter
         """
         _output = []
-
+        
         if self.index != 0:
-            _output: list[int|None] = [int(i)-1 for i in self.getter_function() if i.isnumeric()]
-
+            _output: list[int|None] = [int(i)-1 for i in self.getter_function().split(',')]
+        
         return  (self.index, _output)
     
 
