@@ -30,8 +30,8 @@ class MainPanal(ctk.CTkFrame):
         """
         self.zoom: bool = False
 
-        self.file_panal.place(anchor='nw', relx=0, rely=0, relwidt=.24, relheight=.95)
-        self.analysis_panal.place(anchor='ne', relx=1, rely=0, relwidt=.76, relheight=.95)
+        self.file_panal.place(anchor='nw', relx=0, rely=0, relwidth=.24, relheight=.95)
+        self.analysis_panal.place(anchor='ne', relx=1, rely=0, relwidth=.76, relheight=.95)
         self.logging_label.place(anchor='sw', relx=0, rely=1, relwidth=1, relheight=.05)
 
     def log(self) -> None:

@@ -2,7 +2,6 @@ from matplotlib.axes import Axes
 
 from typedefs import PlotInput, SamplePoints, AnalysisMethod, GraphType
 
-from scipy import stats
 import numpy as np
 
 class CanPlot():
@@ -26,10 +25,12 @@ class CanPlot():
             _interval_x: float = x.diff().mode()[0] #type: ignore
             _edges: np.ndarray = np.concatenate([x[:1]-_interval_x, x])
 
-            ax.set_title('A')
-            ax.stairs(values=y, edges=_edges, fill=True, color=color, **{'linewidth': 1.5, 'edgecolor': 'k'})
+            ax.stairs(values=y, edges=_edges, fill=True,
+                      color=color, zorder=2,
+                      **{'linewidth': 1.5, 'edgecolor': 'k'})
+            ax.grid(True, axis='y', zorder=1)
 
-            #plot spedu vertical lines:
+            #plot vertical lines to make pseudo bins!:
             for x,y in zip(x[:-1],y[:-1]):
                 ax.plot((x,x), (0,y), '-k' )#type: ignore
 

@@ -47,11 +47,11 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         if _enabled:
             self.entry.configure(state=ctk.NORMAL, border_color='#7a848d')
             self.entry.configure(placeholder_text='')
-            self.entry.focus_set()
+            self.after(1, self.entry.focus_set)
         else:
             self.entry.configure(placeholder_text=self.val)
             self.entry.configure(state=ctk.DISABLED, border_color='#565b5e')
-    
+            
     def get_value(self) -> str:
         """
         Returns the value.

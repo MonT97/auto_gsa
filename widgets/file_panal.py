@@ -6,10 +6,12 @@ from PIL import Image
 
 from mixins import CanSave, Defaults, HasToolTip, Validator
 from typedefs import GraphType, SaveObject
-from popups import ExportScreen
+from popups import ExportScreen, ImportScreen
 from models import Sample
+from utils import utils
 
 import customtkinter as ctk
+import pywinstyles
 
 # convension to keep:
 # file -> file_name.extension
@@ -34,23 +36,31 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
 
         #type due to the strange return of the treeview selection method
         self.data: tuple[str,...] = ('',)
+        self.valid_files: list[str] = []
         self.number_of_valid_files: int = 0
 
         self.save_obj: SaveObject = self.df_get(SaveObject)
         self.save_obj_color: str = self.save_obj.color
 
-        self.entry = ctk.CTkEntry(self, placeholder_text="Samples folder path...")
-        self.entry.bind("<KeyPress-Return>", lambda _: self._import_files())
+        self.import_icon: ctk.CTkImage = ctk.CTkImage(
+            Image.open('assets/import.png'), size=(11,11))
+        
+        self.entry_frame: ctk.CTkFrame = ctk.CTkFrame(self, height=30)
+
+        self.entry = ctk.CTkEntry(self.entry_frame, placeholder_text="sample files folder path...")
+        self.entry.bind("<KeyPress-Return>", lambda _: self._direct_import(self.entry.get()))
         self.entry.bind("<Enter>", lambda _: self.entry.focus_set())
         self.entry.bind("<KeyPress-Escape>", lambda _: self._reset_focus())
-
-        self.import_btn_icon: ctk.CTkImage = ctk.CTkImage(
-            Image.open('assets/import.png'), size=(11,11))
+        self.entry_import_btn: ctk.CTkButton = ctk.CTkButton(self.entry_frame,
+            image=self.import_icon, text='',
+            command=lambda: self._direct_import(self.entry.get()))
+        utils.bg_transparent([self.entry, self.entry_import_btn])
+    
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import",
-            image=self.import_btn_icon,
+            image=self.import_icon,
             compound='right',
-            command=lambda: self._import_files())
+            command=lambda: self._screen_import())
         self.htt_tip(self.file_import_btn, 'import files form the path entered above')
 
         self.file_viewer: FileViewer = FileViewer(self)
@@ -84,7 +94,10 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.htt_tip(self.save_btn, 'save the anlaysis results of the currently selected sample')
 
         # layout:
-        self.entry.pack(side="top", fill="x", padx=5, pady=5)
+        self.entry.place(anchor='nw', relx=0, rely=0, relwidth=1, relheight=1)
+        self.entry_import_btn.place(anchor='ne', relx=.99, rely=.05, relwidth=.15, relheight=.9)
+        self.entry_frame.pack(side="top", fill="x", padx=5, pady=5)
+
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
         self.file_viewer.pack(side="top", expand=1, fill="both", pady=5, padx=5)
         self.export_btn.pack(side="bottom", fill="x", padx=5, pady=5)
@@ -95,15 +108,45 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
 
         self.master.focus_set()
 
-    def _import_files(self) -> None:
+    def set_valid_files(self, path:str, files: list[str]|None = None) -> None:
+        """
+        Set all of:
+        - self.valid_files.
+        - self.number_of_valid_files.
+        """
+        self.files_dir = path
+        _from_screen: bool = bool(files)
+        _source = files if _from_screen else path
         
-        self.files_dir = self.entry.get()
-        
-        if not os.path.exists(self.files_dir):
-            self._set_log_message(f'path [{self.files_dir}] is invalid or doesn\'t exist.', error=True)
-        
-        self.valid_files: list[str] = self.file_viewer.display_files(self.files_dir)
+        self.valid_files = self.file_viewer.display_files(_source) 
         self.number_of_valid_files = len(self.valid_files)
+        
+        if _from_screen:
+            self.entry.delete(0,len(self.entry.get())+1)
+            self.entry.insert(0,self.files_dir)
+            self._on_imported()
+        
+    def _screen_import(self) -> None:
+        """
+        From the import pop-up screen.
+        """
+        ImportScreen(self, self.set_valid_files, self.files_dir)
+
+    def _direct_import(self, path: str) -> None:
+        """
+        From [self.entry].
+        """
+        if not os.path.exists(path):
+            self._set_log_message(f'path [{path}] is invalid or doesn\'t exist.', error=True)
+            return
+        
+        self.set_valid_files(path)
+        self._on_imported()
+
+    def _on_imported(self) -> None:
+        """
+        Sub-routine for importing files is Done.
+        """
         self.export_btn.configure(state=ctk.NORMAL)
 
         self._reset_focus()
@@ -280,30 +323,43 @@ class FileViewer(ttk.Treeview, Validator):
         self.heading("no", text="NO", anchor="center")
         self.heading("file_name", text="File Name", anchor="w")
 
-    def display_files(self, path: str) -> list[str]:
+    def display_files(self, source: str|list[str]) -> list[str]:
         """
-        Populates the TreeView with validated samples form the given [path].
+        Populates the TreeView with validated samples form the given [source].
+        - source: can be [files] or 'path'.
         \n\t-> valid sample files.
         """
+        _valid_files: list[str] = []
+
         if self.get_children():
             [self.delete(i) for i in self.get_children()]
+        
+        def validate_files(source: str) -> list[str]:
 
-        def validate_files(path: str) -> list[str]:
-
-            _valid_files: list[str] = [file_ for file_ in os.listdir(path) if self.val_samples(path, file_)]
+            _valid_files: list[str] = [file_ for file_ in os.listdir(source) if self.val_samples(source, file_)]
             
             return _valid_files
+        
+        if isinstance(source, list):
+            
+            self.display(source)
+            return source
 
-        _valid_files: list[str] = validate_files(path)
+        _valid_files = validate_files(source)
+        self.display(_valid_files)
+    
+        return _valid_files
+    
+    def display(self, _valid_files: list[str]) -> None:
+        
         _padding: int = len(f'{len(_valid_files)}')
-
+        
         try:
             for _index, file_ in enumerate(_valid_files):
                 self.insert("", "end", values=[f'{_index+1:0{_padding}}', file_])
         except FileNotFoundError as e:
             self.master._set_log_message(f'No sample files found; {e}', error=True)
         
-        return _valid_files
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
         

@@ -43,7 +43,7 @@ class Defaults():
             _data.results_path = 'd:/documents/auto gsa data'
             _data.results_folder_name = 'analysis_results'
             _data.color = '#1f7bb4'
-            _data.raw_files = False
+            _data.save_raw_files = False
             _data.interval = (0,0)
 
         return cast(T, _data)

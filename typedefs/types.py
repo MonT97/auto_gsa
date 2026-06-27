@@ -68,5 +68,5 @@ class SaveObject(DefaultObj):
     results_path: str = ''
     results_folder_name: str = ''
     color: str = '' #!config
-    raw_files: bool = False
+    save_raw_files: bool = False
     interval: tuple = ()

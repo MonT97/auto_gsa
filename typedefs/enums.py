@@ -23,7 +23,8 @@ class FileFormat(Enum):
 class AnalysisMethod(Enum):
     """
     An Enum representing the analysis method type:
-    - GRAPHICAL ----> Folk&Ward graphical method.
+    - TWOPOINTS ----> A special case where the sample only has less than three data points.
+    - GRAPHICAL ----> graphical method using Folk&Ward, 1957 equations.
     - MOMENTS ------> the statistical moments based method.
     """
     TWOPOINTS = 'Two Points'
@@ -36,7 +37,7 @@ class SkewnessSchema(Enum):
     An Enum representing the verbal interpertation schema.
     - ANASEDI -------> Analytical Sedimentology book.
     - FOLKWARD57 ----> Folk & Ward 1957 article.
-    - OBSERVATIONAL -> A more intuitive version of the one found in the analytical sedimentology book, basically, it's it but inverted.
+    - OBSERVATIONAL -> A more intuitive version ANASEDI, basically, it's the same, but inverted.
     """
     ANASEDI = 0
     FOLKWARD57 = 1

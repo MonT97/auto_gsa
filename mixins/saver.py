@@ -30,7 +30,7 @@ class CanSave(Defaults, CanPlot):
         _prfx = save_obj.prefix
         _results_path = save_obj.results_path
         _result_folder_name = save_obj.results_folder_name
-        _save_raws = save_obj.raw_files
+        _save_raws = save_obj.save_raw_files
 
         _result_file_name: str = _prfx+sample.get_name().lower()
         _results_dir: str = os.path.join(_results_path, _result_folder_name)
@@ -65,7 +65,7 @@ class CanSave(Defaults, CanPlot):
             _graph_file_path: str = os.path.join(_results_dir, _graph_file_name)
               
             _fig, _ax = plt.subplots()
-            _fig.set_layout_engine('constrained')
+            # _fig.set_layout_engine('constrained')
             _x, _y, _points, _method = _ana.get_plot_data(_type)
             self.cp_plot(_x, _y, _points, _ax, _type, _method, _clr)
             _ax.set_title(f'{sample.get_name()}\n{_title}')
