@@ -1,6 +1,5 @@
 import os
 
-from collections.abc import Callable
 from tkinter import ttk, Event
 from PIL import Image
 
@@ -11,7 +10,6 @@ from models import Sample
 from utils import utils
 
 import customtkinter as ctk
-import pywinstyles
 
 # convension to keep:
 # file -> file_name.extension
@@ -44,7 +42,9 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
 
         self.import_icon: ctk.CTkImage = ctk.CTkImage(
             Image.open('assets/import.png'), size=(11,11))
-        
+
+        self.entry_font = ctk.CTkFont('Arial', 16)
+
         self.entry_frame: ctk.CTkFrame = ctk.CTkFrame(self, height=30)
 
         self.entry = ctk.CTkEntry(self.entry_frame, placeholder_text="sample files folder path...")
@@ -54,14 +54,17 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.entry_import_btn: ctk.CTkButton = ctk.CTkButton(self.entry_frame,
             image=self.import_icon, text='',
             command=lambda: self._direct_import(self.entry.get()))
+        self.htt_tip(self.entry, 'path to import from')
+        self.htt_tip(self.entry_import_btn, 'direct import')
         utils.bg_transparent([self.entry, self.entry_import_btn])
     
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import",
             image=self.import_icon,
             compound='right',
+            font=self.entry_font,
             command=lambda: self._screen_import())
-        self.htt_tip(self.file_import_btn, 'import files form the path entered above')
+        self.htt_tip(self.file_import_btn, 'open import screen')
 
         self.file_viewer: FileViewer = FileViewer(self)
         self.file_viewer.bind(
@@ -73,6 +76,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="analyze",
             state=ctk.DISABLED,
+            font=self.entry_font,
             command=lambda: self._analyze(self.data))
         self.htt_tip(self.analyze_btn, 'Analayze and preview the sample file selected above')
         
@@ -82,13 +86,15 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             text="export",
             image=self.export_btn_icon,
             compound='right',
+            font=self.entry_font,
             state=ctk.DISABLED, 
             command=lambda: self._on_export_btn_pressed())
         self.export_btn.bind('<Control-Button-1>', lambda _: self._on_export_btn_pressed(True))
-        self.htt_tip(self.export_btn, 'a more elaborate saving function\n - [press+Ctrl]: use global defaults')
+        self.htt_tip(self.export_btn, 'open export screen')
         
         self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save",
+            font=self.entry_font,
             state=ctk.DISABLED,
             command=lambda: self._on_save_btn_pressed(self.sample, self.save_obj))
         self.htt_tip(self.save_btn, 'save the anlaysis results of the currently selected sample')
