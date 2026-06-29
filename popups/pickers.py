@@ -42,7 +42,7 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         """
         Enables/Disables the widget.
         """
-        _enabled: bool = bool(self.toggle.get())
+        _enabled = bool(self.toggle.get())
         
         if _enabled:
             self.entry.configure(state=ctk.NORMAL, border_color='#7a848d')

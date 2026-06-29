@@ -10,7 +10,6 @@ class Validator():
     def val_samples(self, samples_dir: str, sample_file_name: str) -> bool:
         """
         Validates the sample file format and the sample data within.
-        - calculations necessitates more that two datapoints, maybe not!s.
         """
         _valid_sample: bool = False
 

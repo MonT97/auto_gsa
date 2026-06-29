@@ -102,13 +102,13 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         # layout:
         self.entry.place(anchor='nw', relx=0, rely=0, relwidth=1, relheight=1)
         self.entry_import_btn.place(anchor='ne', relx=.99, rely=.05, relwidth=.15, relheight=.9)
-        self.entry_frame.pack(side="top", fill="x", padx=5, pady=5)
+        self.entry_frame.pack(side="top", fill="x", padx=5, pady=(5,0))
 
-        self.file_import_btn.pack(side="top", fill="x", padx=5, pady=5)
-        self.file_viewer.pack(side="top", expand=1, fill="both", pady=5, padx=5)
-        self.export_btn.pack(side="bottom", fill="x", padx=5, pady=5)
-        self.save_btn.pack(side="bottom", fill="x", padx=5, pady=5)
-        self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=5)
+        self.file_import_btn.pack(side="top", fill="x", padx=5, pady=(5,5))
+        self.file_viewer.pack(side="top", expand=1, fill="both", padx=5, pady=(5,5))
+        self.export_btn.pack(side="bottom", fill="x", padx=5, pady=(5,5))
+        self.save_btn.pack(side="bottom", fill="x", padx=5, pady=(5,0))
+        self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=(5,0))
 
     def _reset_focus(self) -> None:
 
@@ -121,7 +121,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         - self.number_of_valid_files.
         """
         self.files_dir = path
-        _from_screen: bool = bool(files)
+        _from_screen = bool(files)
         _source = files if _from_screen else path
         
         self.valid_files = self.file_viewer.display_files(_source) 
@@ -298,6 +298,7 @@ class FileViewer(ttk.Treeview, Validator):
 
         self.master: FilePanal = master
 
+        # Styling:
         _row_style = ttk.Style()
         _row_style.theme_use('default')
         _row_style.configure('Treeview',
@@ -308,7 +309,7 @@ class FileViewer(ttk.Treeview, Validator):
             rowheight=25, font=('Arial', 12),
             fieldbackground='#2b2b2b')
         _row_style.map('Treeview')
-        
+
         _header_style = ttk.Style()
         _header_style.configure('Treeview.Heading', 
             relief='flat',

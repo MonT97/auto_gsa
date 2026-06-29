@@ -5,8 +5,10 @@ from .base_screen import BaseScreen
 from typedefs import FileFormat
 from utils import utils
 
+import time
 import os
 import re
+import tkinter.ttk as ttk
 import customtkinter as ctk
 
 #! Think it over!
@@ -25,10 +27,13 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.path: str = path
         self.prev_paths: list[str] = []
         self.next_paths: list[str] = []
+        
         self.files_dict: dict = {}
-        self.dir_list: list[str] = []
         self.filters: list[str] = []
         self.selected_files: list[str] = []
+        
+        #TODO(LTS): see about the cache!
+        # self.cache: dict[str, ctk.CTkScrollableFrame] = {}
 
         self.entry_frame=  ctk.CTkFrame(self.main_frame)
         self.filters_frame = ctk.CTkFrame(self.main_frame)
@@ -112,16 +117,16 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.entry_frame.pack(side='top', fill='x')
         self.filters_frame.pack(side='top', fill='x', pady=5)
 
-        if path:
-            _end: int = len(self.path)
-            self._update_entry_and_import(_end)
+        if self.path:
+            self._update_entry_and_import()
 
     def _import_files(self, filter_: list[str] = []) -> None:
         """
         Displays directories and valid files found in [self.path].
         - filter_: format based filtering, uses format from FileFormat enum.
         """
-        if self.path != self.entry.get():
+        _new_entry = bool(self.path != self.entry.get())
+        if _new_entry:
             self.path = self.entry.get()
 
             self.prev_paths.clear()
@@ -171,21 +176,23 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         if _dirs:
             self.dirs_frame.pack(side='top', expand=True, fill='x')
 
+        a = time.time()
         for file_ in _files:
             _frame = ctk.CTkFrame(self.files_frame, height=25)
-            _file_btn = ctk.CTkCheckBox(_frame, state=ctk.NORMAL, checkbox_height=20,
-                    text='', checkbox_width=20, border_width=2)
+            _file_btn = ctk.CTkCheckBox(_frame, state=ctk.NORMAL,
+                    text='', width=20, border_width=2)
             _label = ctk.CTkLabel(_frame, text=file_)
-            _file_btn.configure(
-                    command=lambda b=(_file_btn, _label): self._select_file(b))
-            utils.bg_transparent(_file_btn)
+            _file_btn.configure(command=lambda b=(_file_btn, _label): self._select_file(b))
+            
+            utils.bg_transparent([_file_btn, _label])
 
             self.files_dict[file_] = (_file_btn, _label)
 
-            _label.place(anchor='s', relx=.5, rely=1, relheight=1)
-            _file_btn.place(anchor='w', relx=.008, rely=.47, relheight=1)
+            _file_btn.pack(side='left', pady=2, padx=(2,0))
+            _label.pack(side='right', expand=True, fill='x')
 
             _frame.pack(side='top', fill='x', pady=2)
+        print(f'time: {time.time() - a}')
         
         # Layout:
         self.show_btn.configure(command=lambda: self._on_show_btn())
@@ -200,18 +207,16 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         """
         Change directory to [dir_]
         """
-        _end: int = len(self.path)
         self.prev_paths.append(self.path)
         self.path = os.path.join(self.path, dir_)
         
-        self._update_entry_and_import(_end)
+        self._update_entry_and_import()
         self._update_nav_btns()
 
     def _navigate(self, flag: str) -> None:
         """
         Navigate up or down the file system.
         """
-        _end: int = len(self.path)
         
         if flag == 'up':
             self.next_paths.append(self.path)
@@ -223,41 +228,37 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             self.prev_paths.append(self.path)
             self.path = self.next_paths.pop(-1)
 
-        self._update_entry_and_import(_end)
+        self._update_entry_and_import()
         self._update_nav_btns()
     
-    def _update_entry_and_import(self, end: int) -> None:
+    def _update_entry_and_import(self) -> None:
         """
         Updates [self.entry] text to the new path.
-        - end: The length of [self.path] before the modification which necessitated the update.
         """
-        self.entry.delete(0,end)
+        self.entry.delete(0, ctk.END)
         self.entry.insert(0, self.path)
         self._import_files()
 
     def _update_nav_btns(self) -> None:
         """
-        Handles the state of the two navigation buttons, [self.bck] and [self.frd].
+        Handles the state of the navigation buttons, [self.up], [self.bck] and [self.frd].
         """
         _at_drive_root: Callable = lambda x: bool(re.match(r'^\W+$', os.path.splitdrive(x)[-1]))
         
         if _at_drive_root(self.path):
             self.up.configure(state=ctk.DISABLED)
         else:
-            if self.up.cget('state') == ctk.DISABLED:
-                self.up.configure(state=ctk.NORMAL)
+            self.up.configure(state=ctk.NORMAL)
             
         if not self.prev_paths:
             self.bck.configure(state=ctk.DISABLED)
         else:
-            if self.bck.cget('state') == ctk.DISABLED:
-                self.bck.configure(state=ctk.NORMAL)
+            self.bck.configure(state=ctk.NORMAL)
         
         if not self.next_paths:
             self.frd.configure(state=ctk.DISABLED)
         else:
-            if self.frd.cget('state') == ctk.DISABLED:
-                self.frd.configure(state=ctk.NORMAL)
+            self.frd.configure(state=ctk.NORMAL)
 
     def _toggle_filters(self, _flag: bool) -> None:
         """
@@ -274,24 +275,26 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         """
         Select/deselect all files.
         """
-        _flag: bool = bool(self.select_all.get())
+        _select_all = bool(self.select_all.get())
         
         self.select_between.deselect()
 
         for _, data in self.files_dict.items():
             btn = data[0]
-            if _flag:
+            if _select_all:
                 if not btn.get():
                     btn.toggle()
-                self.select_all.configure(text='clear all')
-                self.select_between.configure(state=ctk.DISABLED)
-                self._toggle_filters(_flag)
+                    _text = 'clear all'
+                    _state = ctk.DISABLED
             else:
                 if btn.get():
                     btn.toggle()
-                self.select_all.configure(text='all')
-                self.select_between.configure(state=ctk.NORMAL)
-                self._toggle_filters(_flag)
+                    _text = 'all'
+                    _state = ctk.NORMAL
+
+        self.select_all.configure(text=_text)
+        self.select_between.configure(state=_state)
+        self._toggle_filters(_select_all)
 
     def _filter(self, state: bool, filter_: str) -> None:
         """
@@ -311,10 +314,10 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         Self documenting name, triggered when a file is checked.
         """
         _btn, _label = data
-        _state: bool = bool(_btn.get())
+        _state = bool(_btn.get())
         _file_name: str = _label.cget('text')
         _key_list: list [str] = list(self.files_dict.keys())
-        _can_tween: bool = bool(self.selected_files) and (bool(self.select_between.get()))
+        _can_tween = bool(self.selected_files) and (bool(self.select_between.get()))
         
         if _state:
             self.selected_files.append(_file_name)
