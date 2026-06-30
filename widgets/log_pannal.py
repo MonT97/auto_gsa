@@ -3,8 +3,8 @@ import os
 from mixins import HasToolTip
 
 import customtkinter as ctk
-import tkinter as tk 
 import datetime as dt
+import tkinter as tk 
 
 class LoggingLabel(ctk.CTkFrame, HasToolTip):
     """

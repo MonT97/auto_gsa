@@ -1,9 +1,10 @@
 from widgets import MainPanal
-from platform import system
 
 import customtkinter as ctk
 
-if system() != "Windows":
+import os
+
+if os.name != 'nt':
     print("Running in non-Windows OS, some eyecandy won't be visible!")
 
 
@@ -49,7 +50,6 @@ class App(ctk.CTk):
         Run the application.
         """
         self.mainloop()
-
 
 if __name__ == '__main__':
     app = App()

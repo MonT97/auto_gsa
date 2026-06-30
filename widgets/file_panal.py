@@ -4,8 +4,8 @@ from tkinter import ttk, Event
 from PIL import Image
 
 from mixins import CanSave, Defaults, HasToolTip, Validator
-from typedefs import GraphType, SaveObject
 from popups import ExportScreen, ImportScreen
+from typedefs import GraphType, SaveObject
 from models import Sample
 from utils import utils
 

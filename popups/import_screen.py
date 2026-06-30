@@ -9,13 +9,19 @@ import os
 import re
 import customtkinter as ctk
 
-type cache_element = tuple[str, ctk.CTkCheckBox, ctk.CTkLabel, ctk.CTkFrame]
+type cache_element = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel]
 
 #! Think it over!
 class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
     """
     Import dialouge screem widget.
     """
+
+    # Windows consts:
+    FILE_ATTRIBUTE_HIDDEN = 2
+    FILE_ATTRIBUTE_SYSTEM = 4
+    # TODO: threshold to sittings?!
+
     def __init__(self, master, master_setter: Callable, path: str = '') -> None:
         super().__init__(master, title='import screen', approve_label='import', size=(430,530))
 
@@ -35,15 +41,16 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.selected_files: list[str] = []
         
         # Cache:
+        self.cache_threshod: int = 25 # in list size
         self.cache: dict[str, list[cache_element]] = {}
 
+        self.entry_font = ctk.CTkFont('Arial', 16)
         self.entry_frame=  ctk.CTkFrame(self.main_frame)
         self.filters_frame = ctk.CTkFrame(self.main_frame)
         self.files_frame = ctk.CTkScrollableFrame(self.main_frame)
         self.dirs_frame = ctk.CTkFrame(self.files_frame)
 
         # Entry frame:
-        self.entry_font = ctk.CTkFont('Arial', 16)
         self.entry: ctk.CTkEntry = ctk.CTkEntry(self.entry_frame,
                 height=30, placeholder_text='sample files folder path...',
                 font=self.entry_font)
@@ -51,23 +58,25 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.entry.bind("<KeyPress-Return>", lambda _: self._import_files())
         self.htt_tip(self.entry, 'Press Enter/Return to list files to import.')
 
-        self.nav_btns = ctk.CTkFont('Arial', 16, 'bold')
+        self.nav_btns_font = ctk.CTkFont('Arial', 16, 'bold')
         self.up = ctk.CTkButton(self.entry_frame, text='^', width=20,
-                font=self.nav_btns,
+                font=self.nav_btns_font,
                 command=lambda: self._navigate('up'), state=ctk.DISABLED)
         self.htt_tip(self.up, 'up')
 
         self.bck = ctk.CTkButton(self.entry_frame, text='<', width=20,
-                font=self.nav_btns,
+                font=self.nav_btns_font,
                 command=lambda: self._navigate('bck'), state=ctk.DISABLED)
         self.htt_tip(self.bck, 'back')
 
         self.frd = ctk.CTkButton(self.entry_frame, text='>', width=20,
-                font=self.nav_btns,
+                font=self.nav_btns_font,
                 command=lambda: self._navigate('frd'), state=ctk.DISABLED)
         self.htt_tip(self.frd, 'forward')
+        self.masg_label = ctk.CTkLabel(self.main_frame, height=60,
+                font=self.entry_font, corner_radius=5, fg_color='#e53935')
 
-        utils.bg_transparent([self.entry_frame, self.bck, self.frd, self.up])
+        utils.bg_transparent([self.entry_frame, self.bck, self.frd, self.up, self.masg_label])
 
         self.up.pack(side='left', fill='y', padx=2, pady=2)
         self.frd.pack(side='right', fill='y', pady=2, padx=2)
@@ -122,26 +131,38 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         if self.path:
             self._update_entry_and_import()
 
-    def _import_files(self, filter_: list[str] = []) -> None:
+    def _import_files(self) -> None:
         """
         Displays directories and valid files found in [self.path].
         - filter_: format based filtering, uses format from FileFormat enum.
         """
+        
         _cache_elements: list[cache_element] = []
         _new_entry = bool(self.path != self.entry.get())
+        filter_ = [format_.value for format_ in FileFormat] if not self.filters else self.filters
+
+        def _invalid_path() -> bool:
+            """
+            Validates [self.path] and handles relevant widgets.
+            """
+            _flag = False
+            _msg = f'path [{self.path}]\n is invalid or doesn\'t exist,\nenter a new path.'
+            if not os.path.exists(self.path):
+                self.masg_label.configure(text=_msg)
+                self.masg_label.pack(side='top', fill='x', padx=2)
+                self.entry.select_range(0, ctk.END)
+                _flag = True 
+            elif self.masg_label.winfo_ismapped():
+                self.masg_label.pack_forget()
+            return _flag
 
         if _new_entry:
             self.path = self.entry.get()
 
             self.prev_paths.clear()
             self.next_paths.clear()
-        
-        #TODO: error handeling, pop up, or the typical log maybe?!
-        if not os.path.exists(self.path):
-            print("PATH ERROR!")
-            return
-        
-        filter_ = [format_.value for format_ in FileFormat] if not filter_ else filter_
+
+        if _invalid_path(): return
 
         self.select_all.deselect()
         self.select_between.deselect()
@@ -158,9 +179,14 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
                 i.pack_forget()
             self.files_dict.clear()
 
-        # Find dirs and valid files:
-        _children: list[str] = os.listdir(self.path)
+        # Handle hidden files:
+        _attribs = lambda x: os.stat(os.path.join(self.path, x)).st_file_attributes
+        _hidden = lambda x: _attribs(x) & (self.FILE_ATTRIBUTE_HIDDEN | self.FILE_ATTRIBUTE_SYSTEM) 
+        if os.name != 'nt':
+            _hidden = lambda x: x.startswith('.')
+        _children: list[str] = [i for i in os.listdir(self.path) if not _hidden(i)]
 
+        # Find dirs and valid files:
         _get_dir_path: Callable = lambda x: os.path.isdir(os.path.join(self.path, x))
         _dirs: list[str] = [i for i in _children if _get_dir_path(i)]
         
@@ -169,7 +195,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
 
         # Cache flags.
         _in_cache: bool = self.path in self.cache
-        _should_cache: bool = (len(_files) >= 30) and (self.path not in self.cache)
+        _should_cache: bool = not _in_cache and (len(_files) >= self.cache_threshod)
 
         # Fill-in dirs and valid files:
         for _dir in _dirs:
@@ -185,11 +211,11 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         if _dirs:
             self.dirs_frame.pack(side='top', expand=True, fill='x')
 
-        def prepare_and_layout(cache_element: cache_element) -> None:
+        def _prepare_and_pack(cache_element: cache_element) -> None:
             """
             Houses shared functionality in both cases, cached and non cached.
             """
-            file_, btn, label, frame = cache_element
+            file_, frame, btn, label = cache_element
             utils.bg_transparent([btn, label])
 
             self.files_dict[file_] = (btn, label)
@@ -203,9 +229,9 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             _elements_list = [ele for ele in self.cache[self.path] if ele[0] in _files]
             
             for element in _elements_list:
-                _,btn,_,_ = element
+                btn = element[2]
                 btn.deselect()
-                prepare_and_layout(element)
+                _prepare_and_pack(element)
 
         else: 
             for file_ in _files:
@@ -215,15 +241,15 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
                 _label = ctk.CTkLabel(_frame, text=file_)
                 _file_btn.configure(command=lambda b=(_file_btn, _label): self._select_file(b))
                 
-                _data = (file_, _file_btn, _label, _frame)
+                _data = (file_, _frame, _file_btn, _label)
 
-                prepare_and_layout(_data)
+                _prepare_and_pack(_data)
 
                 if _should_cache:
                     _cache_elements.append(_data)
 
             if _should_cache:
-                self.cache[self.path] = _cache_elements
+                self.cache[self.path] = _cache_elements                
 
         # Layout:
         self.show_btn.configure(command=lambda: self._on_show_btn())
@@ -236,7 +262,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
 
     def _go_to_dir(self, dir_: str) -> None:
         """
-        Change directory to [dir_]
+        Change directory to [dir_].
         """
         self.prev_paths.append(self.path)
         self.path = os.path.join(self.path, dir_)
@@ -244,15 +270,14 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self._update_entry_and_import()
         self._update_nav_btns()
 
-    def _navigate(self, flag: str) -> None:
+    def _navigate(self, nave_btn_str: str) -> None:
         """
-        Navigate up or down the file system.
-        """
-        
-        if flag == 'up':
+        Navigate up, forward or back the file system.
+        """ 
+        if nave_btn_str == 'up':
             self.next_paths.append(self.path)
             self.path = os.path.split(self.path)[0]
-        elif flag == 'bck':
+        elif nave_btn_str == 'bck':
             self.next_paths.append(self.path)
             self.path = self.prev_paths.pop(-1)
         else:
@@ -261,15 +286,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
 
         if self.select_all.cget('text') == 'clear all':
             self.select_all.toggle()
-        
-        #? ponder these ones:
-        if self.csv.get():
-            self.csv.deselect()
-            self.filters.remove(self.csv.cget('text'))
-        if self.excel.get():
-            self.excel.deselect()
-            self.filters.remove(self.excel.cget('text'))
-
+    
         self._update_entry_and_import()
         self._update_nav_btns()
     
@@ -342,14 +359,12 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         """
         Filters the files using the given [filter].
         """
-        # self.selected_files.clear()
-
         if state and (filter_ not in self.filters):
             self.filters.append(filter_)
         else:
             self.filters.remove(filter_)
 
-        self._import_files(self.filters)
+        self._import_files()
 
     def _select_file(self, data: tuple[ctk.CTkCheckBox, ctk.CTkLabel]) -> None:
         """
