@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from PIL import Image
 
 from mixins import Defaults, HasToolTip, Validator
 from .base_screen import BaseScreen
@@ -9,19 +10,26 @@ import os
 import re
 import customtkinter as ctk
 
-type cache_element = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel]
+type cache_element = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel, ctk.CTkLabel]
+
+# Windows consts:
+FILE_ATTRIBUTE_HIDDEN = 2
+FILE_ATTRIBUTE_SYSTEM = 4
+
+# Icons:
+FILE_ICON = Image.open('assets/file_b.png')
+FOLDER_ICON = Image.open('assets/folder.png')
+
+# Fonts:
+ENTRY_FONT = ('Arial', 16)
+NAV_BTN_FONT = ('Arial', 16, 'bold')
+FILTERS_FONT = ('Arial', 14, 'bold')
 
 #! Think it over!
 class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
     """
     Import dialouge screem widget.
     """
-
-    # Windows consts:
-    FILE_ATTRIBUTE_HIDDEN = 2
-    FILE_ATTRIBUTE_SYSTEM = 4
-    # TODO: threshold to sittings?!
-
     def __init__(self, master, master_setter: Callable, path: str = '') -> None:
         super().__init__(master, title='import screen', approve_label='import', size=(430,530))
 
@@ -41,10 +49,16 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.selected_files: list[str] = []
         
         # Cache:
+        # TODO: Cache threshold to sittings?!
         self.cache_threshod: int = 25 # in list size
         self.cache: dict[str, list[cache_element]] = {}
 
-        self.entry_font = ctk.CTkFont('Arial', 16)
+        # Fonts:
+        self.entry_font = ctk.CTkFont(*ENTRY_FONT)
+        self.nav_btns_font = ctk.CTkFont(*NAV_BTN_FONT)
+        self.filters_font = ctk.CTkFont(*FILTERS_FONT)
+
+        # Frames:
         self.entry_frame=  ctk.CTkFrame(self.main_frame)
         self.filters_frame = ctk.CTkFrame(self.main_frame)
         self.files_frame = ctk.CTkScrollableFrame(self.main_frame)
@@ -58,7 +72,6 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.entry.bind("<KeyPress-Return>", lambda _: self._import_files())
         self.htt_tip(self.entry, 'Press Enter/Return to list files to import.')
 
-        self.nav_btns_font = ctk.CTkFont('Arial', 16, 'bold')
         self.up = ctk.CTkButton(self.entry_frame, text='^', width=20,
                 font=self.nav_btns_font,
                 command=lambda: self._navigate('up'), state=ctk.DISABLED)
@@ -73,34 +86,35 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
                 font=self.nav_btns_font,
                 command=lambda: self._navigate('frd'), state=ctk.DISABLED)
         self.htt_tip(self.frd, 'forward')
-        self.masg_label = ctk.CTkLabel(self.main_frame, height=60,
-                font=self.entry_font, corner_radius=5, fg_color='#e53935')
 
-        utils.bg_transparent([self.entry_frame, self.bck, self.frd, self.up, self.masg_label])
+        self.error_label = ctk.CTkLabel(self.main_frame,
+                font=self.entry_font, corner_radius=5,
+                wraplength=380, fg_color='#e53935')
+
+        utils.bg_transparent([self.entry_frame, self.bck, self.frd, self.up, self.error_label])
 
         self.up.pack(side='left', fill='y', padx=2, pady=2)
-        self.frd.pack(side='right', fill='y', pady=2, padx=2)
-        self.bck.pack(side='right', fill='y', pady=2, padx=2)
+        self.frd.pack(side='right', fill='y', pady=2, padx=(0,2))
+        self.bck.pack(side='right', fill='y', pady=2, padx=(2,0))
         self.entry.pack(side='left', expand=True, fill='x', pady=2)
 
         self.show_btn: ctk.CTkButton = ctk.CTkButton(self.button_frame,
                 text='show folder', width=150, state=ctk.DISABLED,
                 command=lambda: self._on_show_btn())
-        self.htt_tip(self.show_btn, 'open the results folder')
+        self.htt_tip(self.show_btn, 'open current folder')
 
         # Filters frame:
-        self.filters_font = ctk.CTkFont('Arial', 14, 'bold')
         self.select_all = ctk.CTkCheckBox(self.filters_frame,
                 state=ctk.NORMAL, text='all', checkbox_height=18, checkbox_width=18,
                 border_width=2, font=self.filters_font,
                 command=lambda: self._on_select_all())
-        self.htt_tip(self.select_all, 'select all files')
+        self.htt_tip(self.select_all, 'de/select all files')
         
         self.select_between = ctk.CTkCheckBox(self.filters_frame,
                 state=ctk.NORMAL, text='between', checkbox_height=18, checkbox_width=18,
                 border_width=2, font=self.filters_font,
                 command= lambda: self._toggle_filters(bool(self.select_between.get())))
-        self.htt_tip(self.select_between, 'select every thing between two selections inclusively.')
+        self.htt_tip(self.select_between, 'select every thing between two selections inclusively')
 
         self.csv = ctk.CTkCheckBox(self.filters_frame,
                 state=ctk.NORMAL, text='csv', checkbox_height=18, checkbox_width=18,
@@ -116,14 +130,19 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         
         utils.bg_transparent([self.select_all, self.csv, self.excel])
 
+        # Element for files_frame:
+        self.dir_img = ctk.CTkImage(FOLDER_ICON, size=(20,20))
+        self.file_img = ctk.CTkImage(FILE_ICON, size=(20,20))
+
         self.csv.pack(side='left', expand=True, fill='x', padx=2)
         self.excel.pack(side='left', expand=True, fill='x', padx=2)
         self.select_all.pack(side='left', expand=True, fill='x', padx=2)
         self.select_between.pack(side='left', expand=True, fill='x', padx=2)
 
-        self.approve_btn.configure(font=self.entry_font)
+        self.approve_btn.configure(font=self.entry_font, state=ctk.DISABLED,
+                command= lambda: self._on_approve(master_setter))
         self.cancel_btn.configure(font=self.entry_font)
-        self.approve_btn.configure(command= lambda: self._on_approve(master_setter))
+        self.show_btn.configure(command=lambda: self._on_show_btn())
 
         self.entry_frame.pack(side='top', fill='x')
         self.filters_frame.pack(side='top', fill='x', pady=5)
@@ -147,14 +166,52 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             """
             _flag = False
             _msg = f'path [{self.path}]\n is invalid or doesn\'t exist,\nenter a new path.'
+            if re.match(r'^[a-z]$', self.path):
+                self.path+=r':/'
+                self._update_entry_and_import()
             if not os.path.exists(self.path):
-                self.masg_label.configure(text=_msg)
-                self.masg_label.pack(side='top', fill='x', padx=2)
+                self.error_label.configure(text=_msg)
+                self.error_label.pack(side='top', fill='x', padx=5)
                 self.entry.select_range(0, ctk.END)
-                _flag = True 
-            elif self.masg_label.winfo_ismapped():
-                self.masg_label.pack_forget()
+                _flag = True
+            elif self.error_label.winfo_ismapped():
+                self.error_label.pack_forget()
             return _flag
+
+        def _clear_frames() -> None:
+            """
+            Clears the [self.dirs_frame] and [self.files_frame].
+            """
+            if self.dirs_frame.pack_slaves():
+                for i in self.dirs_frame.pack_slaves():
+                    i.pack_forget()
+
+            if self.files_frame.pack_slaves():
+                for i in self.files_frame.pack_slaves():
+                    i.pack_forget()
+                self.files_dict.clear()
+
+            self.dirs_frame.pack_forget()
+            self.files_frame.pack_forget()
+
+        def _prepare_and_pack(cache_element: cache_element, last_to_pack: bool) -> None:
+            """
+            Houses shared functionality in both cases, cached and non cached.
+            - cache_element: tuple housing needed data, file_name, frame, button, label, img.
+            - last_to_pack: for layout aesthetic purposes.
+            """
+            file_, frame, btn, label, img = cache_element
+            utils.bg_transparent([btn, label])
+
+            self.files_dict[file_] = (btn, label)
+
+            _pady=(5,0) if not last_to_pack else (5,5)
+
+            img.pack(side='left', padx=(7,5), pady=(0,1))
+            label.pack(side='left', expand=True, fill='x')
+            btn.pack(side='left')
+
+            frame.pack(side='top', fill='x', pady=_pady)
 
         if _new_entry:
             self.path = self.entry.get()
@@ -162,26 +219,18 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             self.prev_paths.clear()
             self.next_paths.clear()
 
-        if _invalid_path(): return
-
+        # Clean selection:
         self.select_all.deselect()
         self.select_between.deselect()
-
         self.selected_files.clear()
 
-        # Clean frames:
-        if self.dirs_frame.pack_slaves():
-            for i in self.dirs_frame.pack_slaves():
-                i.pack_forget()
+        _clear_frames()
 
-        if self.files_frame.pack_slaves():
-            for i in self.files_frame.pack_slaves():
-                i.pack_forget()
-            self.files_dict.clear()
+        if _invalid_path(): return
 
         # Handle hidden files:
         _attribs = lambda x: os.stat(os.path.join(self.path, x)).st_file_attributes
-        _hidden = lambda x: _attribs(x) & (self.FILE_ATTRIBUTE_HIDDEN | self.FILE_ATTRIBUTE_SYSTEM) 
+        _hidden = lambda x: _attribs(x) & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM) 
         if os.name != 'nt':
             _hidden = lambda x: x.startswith('.')
         _children: list[str] = [i for i in os.listdir(self.path) if not _hidden(i)]
@@ -198,32 +247,22 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         _should_cache: bool = not _in_cache and (len(_files) >= self.cache_threshod)
 
         # Fill-in dirs and valid files:
-        for _dir in _dirs:
+        for dir_ in _dirs:
             _frame = ctk.CTkFrame(self.dirs_frame, height=25)
-            _dir_btn = ctk.CTkButton(_frame, text=_dir)
+            _img = ctk.CTkLabel(_frame, text='', image=self.dir_img)
+            _dir_btn = ctk.CTkButton(_frame,text=dir_)
             _dir_btn.configure(command=lambda x=_dir_btn.cget('text'): self._go_to_dir(x))
+            self.htt_tip(_dir_btn, dir_)
 
-            _dir_btn.pack(side='top', expand=True, fill='x')
-            _frame.pack(fill='x', pady=2, padx=2)
+            _pady = (2,0) if dir_ != _dirs[-1] else (2,2)
+            _img.pack(side='left', padx=(5,5), pady=2)
+            _dir_btn.pack(side='left', expand=True, fill='x', padx=(0,2))
+            _frame.pack(fill='x', padx=2, pady=_pady)
 
             utils.bg_transparent(_dir_btn)
         
         if _dirs:
             self.dirs_frame.pack(side='top', expand=True, fill='x')
-
-        def _prepare_and_pack(cache_element: cache_element) -> None:
-            """
-            Houses shared functionality in both cases, cached and non cached.
-            """
-            file_, frame, btn, label = cache_element
-            utils.bg_transparent([btn, label])
-
-            self.files_dict[file_] = (btn, label)
-
-            btn.pack(side='left', pady=2, padx=(2,0))
-            label.pack(side='right', expand=True, fill='x')
-
-            frame.pack(side='top', fill='x', pady=2)
 
         if _in_cache:
             _elements_list = [ele for ele in self.cache[self.path] if ele[0] in _files]
@@ -231,7 +270,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             for element in _elements_list:
                 btn = element[2]
                 btn.deselect()
-                _prepare_and_pack(element)
+                _prepare_and_pack(element, (element == _elements_list[-1]))
 
         else: 
             for file_ in _files:
@@ -239,23 +278,26 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
                 _file_btn = ctk.CTkCheckBox(_frame, state=ctk.NORMAL,
                         text='', width=20, border_width=2)
                 _label = ctk.CTkLabel(_frame, text=file_)
+                _img = ctk.CTkLabel(_frame, text='', image=self.file_img)
                 _file_btn.configure(command=lambda b=(_file_btn, _label): self._select_file(b))
+                self.htt_tip(_label, file_)
                 
-                _data = (file_, _frame, _file_btn, _label)
+                _data = (file_, _frame, _file_btn, _label, _img)
 
-                _prepare_and_pack(_data)
+                _prepare_and_pack(_data, (file_ == _files[-1]))
 
                 if _should_cache:
                     _cache_elements.append(_data)
 
             if _should_cache:
-                self.cache[self.path] = _cache_elements                
+                self.cache[self.path] = _cache_elements
+            if _files:
+                self.approve_btn.configure(state=ctk.NORMAL)                
 
         # Layout:
-        self.show_btn.configure(command=lambda: self._on_show_btn())
         self.show_btn.configure(state=ctk.NORMAL)
-        self.show_btn.place(anchor='n', relx=.5, rely=0, relwidth=.20, relheight=1)
         
+        self.show_btn.place(anchor='n', relx=.5, rely=0, relwidth=.20, relheight=1)
         self.files_frame.pack(side='top', expand=True, fill='both', padx=5, pady=5)  
 
         self._update_nav_btns()      
@@ -293,6 +335,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
     def _update_entry_and_import(self) -> None:
         """
         Updates [self.entry] text to the new path.
+        - flag: if True runs _import_file() after updating.
         """
         self.entry.delete(0, ctk.END)
         self.entry.insert(0, self.path)

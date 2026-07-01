@@ -33,7 +33,7 @@ class BaseScreen(ctk.CTkToplevel, HasToolTip):
         self.cancel_btn.place(anchor='w', relx=0, rely=.5, relwidth=.2, relheight=1)
         self.approve_btn.place(anchor='e', relx=1, rely=.5, relwidth=.2, relheight=1)
         
-        self.main_frame.pack(side='top', expand=True, fill='both', padx=5, pady=5)
+        self.main_frame.pack(side='top', expand=True, fill='both', padx=5, pady=(5,0))
         self.button_frame.pack(side='bottom', fill='x', padx=5, pady=5)
 
         self.after(200, lambda: self.iconbitmap('assets/default.ico'))
