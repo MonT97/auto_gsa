@@ -1,63 +1,32 @@
 """
-Save inputs manipulation.
+ExportScreen inputs manipulation.
 """
 from collections.abc import Callable
 
 from shared_widgets import ColorPicker
+from .base_picker import BasePicker
 from mixins import HasToolTip
 
 import re
 import customtkinter as ctk
 
-#TODO: find a better way to handle defaults.
-class BasePicker(ctk.CTkFrame, HasToolTip):
-    """
-    The base picker class:
-    - widgets:
-        - check_box: ctk.CheckBox -> for en/disabling the entry field.
-        - entry: ctk.Entry -> for data entry.
-    """
-    def __init__(self, master, label_txt: str, default_value: str, tooltip_msg: str = '') -> None:
-        super().__init__(master)
-        """
-        - Prams:
-            - label_txt: the toggle's label.
-            - default_value: the default value, placeholder text.
-            - tooltip_msg: the text to be shown in the tool tip.
-        """
-        self.val = default_value
-        
-        self.toggle: ctk.CTkSwitch = ctk.CTkSwitch(self,
-                    text=label_txt, width= 150, command=lambda: self._activation())
-        if tooltip_msg:
-            self.htt_tip(self.toggle, tooltip_msg)
 
-        self.entry: ctk.CTkEntry = ctk.CTkEntry(self, placeholder_text=default_value)
-        self.entry.configure(state=ctk.DISABLED, border_color='#565b5e')
+class DpiPicker(BasePicker):
+    """
+    Picking the DPI, density per inch, i.e. resolution.
+    """
+    def __init__(self, master, *args) -> None:
+        super().__init__(master, *args)
 
-        self.toggle.pack(side='left', padx=2)
-        self.entry.pack(side='left', fill='x', expand=True, padx=2)
-    
-    def _activation(self) -> None:
+    def _validate(self) -> None:
         """
-        Enables/Disables the widget.
+        Limits and validates the dpi value.
         """
-        _enabled = bool(self.toggle.get())
-        
-        if _enabled:
-            self.entry.configure(state=ctk.NORMAL, border_color='#7a848d')
-            self.entry.configure(placeholder_text='')
-            self.after(1, self.entry.focus_set)
-        else:
-            self.entry.configure(placeholder_text=self.val)
-            self.entry.configure(state=ctk.DISABLED, border_color='#565b5e')
-            
-    def get_value(self) -> str:
-        """
-        Returns the value.
-        """
-        _value = self.entry.get()
-        return _value if _value else self.val
+        _min = 50
+        _max = 600
+        _dpi = re.findall(r'([0-9]+)', self.get_value())
+        _dpi = _min if not _dpi else max(min(int(_dpi[0]), _max), _min)
+        self._update_value(str(_dpi))
 
 
 class IntervalPicker(ctk.CTkFrame, HasToolTip):
@@ -111,7 +80,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
                 var.set('')
 
-            def get_var(self) -> str:
+            def _get_var(self) -> str:
 
                 _u_lim: int = int(self.u_var.get())
                 _l_lim: int = int(self.l_var.get())+1 #for the exclusivity of python list indexing
@@ -147,7 +116,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
                 value.set(_str_numbers)
 
-            def get_var(self) -> str:
+            def _get_var(self) -> str:
 
                 return self.variable.get()
 
@@ -182,13 +151,19 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
             case 'interval':
                 self.drop_down.pack(side='left', fill='x', padx=2, pady=2)
                 self.interval_pckr.pack(side='top', fill='x', padx=2, pady=2)
-                self.set_getter(self.interval_pckr)
+                self._set_getter(self.interval_pckr)
                 self.index = 1
             case 'list':
                 self.drop_down.pack(side='left', fill='x', padx=2, pady=2)
                 self.list_pckr.pack(side='left', fill='x', padx=2, pady=2, expand=True)
-                self.set_getter(self.list_pckr)
+                self._set_getter(self.list_pckr)
                 self.index = 2
+
+    def _set_getter(self, widget) -> None:
+        """
+        Sets the getter function based on child widget picked.
+        """
+        self.getter_function = widget._get_var
     
     def set_upper_limit(self, val: int) -> None:
         """
@@ -196,12 +171,6 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         """
         self.interval_pckr.u_lim = val
         self.list_pckr.u_lim = val
-
-    def set_getter(self, widget) -> None:
-        """
-        Sets the getter function based on child widget picked.
-        """
-        self.getter_function = widget.get_var
 
     def get_value(self) -> tuple[int,list[int|None]]:
         """
@@ -260,13 +229,14 @@ class SaveRawsPicker(ctk.CTkFrame, HasToolTip):
     """
     def __init__(self, master, tooltip_msg: str = '') -> None:
         super().__init__(master)
-        self.toggle: ctk.CTkSwitch = ctk.CTkSwitch(self, text='Save raw files')
-        
+        self.toggle: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
+                    text='Save raw files', border_width=2,
+                    checkbox_height=20, checkbox_width=20)
+
         if tooltip_msg:
             self.htt_tip(self.toggle, tooltip_msg)
         
-        self.toggle.pack(side='left')
-        self.toggle.toggle()
+        self.toggle.pack(side='left', padx=2)
 
     def get_value(self) -> bool:
         """

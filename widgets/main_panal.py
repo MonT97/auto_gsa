@@ -4,12 +4,20 @@ from .file_panal import FilePanal
 
 import customtkinter as ctk
 
+
 class MainPanal(ctk.CTkFrame):
     """
     The applicatoin's main panal.
     """
     def __init__(self, master: ctk.CTk):
         super().__init__(master)
+
+        #! Still not sure about this!
+        self.columnconfigure(0, weight=4, uniform='a')
+        self.columnconfigure(1, weight=13, uniform='a')
+        self.rowconfigure(0, weight=20, uniform='b')
+        self.rowconfigure(1, weight=1, uniform='b')
+
         self.file_panal: FilePanal = FilePanal(self)
         self.analysis_panal: AnalysisPanal = AnalysisPanal(self)
         self.logging_label: LoggingLabel = LoggingLabel(self)
@@ -30,9 +38,9 @@ class MainPanal(ctk.CTkFrame):
         """
         self.zoom: bool = False
 
-        self.file_panal.place(anchor='nw', relx=0, rely=0, relwidth=.24, relheight=.95)
-        self.analysis_panal.place(anchor='ne', relx=1, rely=0, relwidth=.76, relheight=.95)
-        self.logging_label.place(anchor='sw', relx=0, rely=1, relwidth=1, relheight=.05)
+        self.file_panal.grid(column=0, row=0, sticky='nsew')
+        self.analysis_panal.grid(column=1, row=0, sticky='nsew')
+        self.logging_label.grid(column=0, row=1, columnspan=2, sticky='nsew')
 
     def log(self) -> None:
         """

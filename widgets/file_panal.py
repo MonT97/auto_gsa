@@ -11,6 +11,18 @@ from utils import utils
 
 import customtkinter as ctk
 
+#Constants
+# colors:
+ACTIVE_ENTRY = '#ffffff' #! Base entry?!
+DEFAULT_ENTRY = '#565b5e'
+
+# fonts:
+ENTRY_FONT = ('Arial', 16)
+
+# icons:
+IMPORT_ICON = Image.open('assets/import.png')
+EXPORT_ICON = Image.open('assets/upload.png')
+
 # convension to keep:
 # file -> file_name.extension
 # sample -> Sample(file_path)
@@ -40,23 +52,21 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.save_obj: SaveObject = self.df_get(SaveObject)
         self.save_obj_color: str = self.save_obj.color
 
-        self.import_icon: ctk.CTkImage = ctk.CTkImage(
-            Image.open('assets/import.png'), size=(11,11))
+        # Entry related:
+        self.import_icon: ctk.CTkImage = ctk.CTkImage(IMPORT_ICON, size=(11,11))
 
-        self.entry_font = ctk.CTkFont('Arial', 16)
+        self.entry_font = ctk.CTkFont(*ENTRY_FONT)
 
         self.entry_frame: ctk.CTkFrame = ctk.CTkFrame(self, height=30)
 
-        self.entry = ctk.CTkEntry(self.entry_frame, placeholder_text="sample files folder path...")
+        self.entry = ctk.CTkEntry(self.entry_frame,
+            border_color=DEFAULT_ENTRY,
+            placeholder_text="sample files folder path...")
         self.entry.bind("<KeyPress-Return>", lambda _: self._direct_import(self.entry.get()))
-        self.entry.bind("<Enter>", lambda _: self.entry.focus_set())
+        self.entry.bind("<Enter>", lambda _: self._on_entry_active())
         self.entry.bind("<KeyPress-Escape>", lambda _: self._reset_focus())
-        self.entry_import_btn: ctk.CTkButton = ctk.CTkButton(self.entry_frame,
-            image=self.import_icon, text='',
-            command=lambda: self._direct_import(self.entry.get()))
-        self.htt_tip(self.entry, 'path to import from')
-        self.htt_tip(self.entry_import_btn, 'direct import')
-        utils.bg_transparent([self.entry, self.entry_import_btn])
+        self.htt_tip(self.entry, 'path to import from\npress [Enter/Return] to quick import')
+        utils.bg_transparent(self.entry)
     
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import",
@@ -66,6 +76,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             command=lambda: self._screen_import())
         self.htt_tip(self.file_import_btn, 'open import screen')
 
+        # Viewer:
         self.file_viewer: FileViewer = FileViewer(self)
         self.file_viewer.bind(
             "<<TreeviewSelect>>", 
@@ -73,6 +84,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.file_viewer.bind("<KeyPress-Return>",
             lambda _: self._analyze(self.data))
         
+        # Lower buttons:
         self.analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="analyze",
             state=ctk.DISABLED,
@@ -81,7 +93,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.htt_tip(self.analyze_btn, 'Analayze and preview the sample file selected above')
         
         self.export_btn_icon: ctk.CTkImage = ctk.CTkImage(
-            Image.open('assets/upload.png'), size=(11,11))
+            EXPORT_ICON, size=(11,11))
         self.export_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="export",
             image=self.export_btn_icon,
@@ -100,8 +112,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.htt_tip(self.save_btn, 'save the anlaysis results of the currently selected sample')
 
         # layout:
-        self.entry.place(anchor='nw', relx=0, rely=0, relwidth=1, relheight=1)
-        self.entry_import_btn.place(anchor='ne', relx=.99, rely=.05, relwidth=.15, relheight=.9)
+        self.entry.pack(side='top', fill='x')
         self.entry_frame.pack(side="top", fill="x", padx=5, pady=(5,0))
 
         self.file_import_btn.pack(side="top", fill="x", padx=5, pady=(5,5))
@@ -111,8 +122,19 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=(5,0))
 
     def _reset_focus(self) -> None:
-
+        """
+        Resets the focus to master.
+        """
+        self.entry.configure(border_color=DEFAULT_ENTRY)
         self.master.focus_set()
+
+    def _on_entry_active(self) -> None:
+        """
+        Behaviour when hovering over [self.entry].
+        """
+        self.entry.focus_set()
+        self.entry.configure(border_color=ACTIVE_ENTRY)
+        self.entry.select_to(ctk.END)
 
     def set_valid_files(self, path:str, files: list[str]|None = None) -> None:
         """
@@ -130,7 +152,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         if _from_screen:
             self.entry.delete(0,len(self.entry.get())+1)
             self.entry.insert(0,self.files_dir)
-            self._on_imported()
+        self._on_imported()
         
     def _screen_import(self) -> None:
         """
@@ -147,7 +169,6 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             return
         
         self.set_valid_files(path)
-        self._on_imported()
 
     def _on_imported(self) -> None:
         """

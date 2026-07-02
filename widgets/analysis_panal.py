@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import customtkinter as ctk
 import tkinter as tk
 
+
 class AnalysisPanal(ctk.CTkFrame):
     """
     CTkFrame:
@@ -34,7 +35,7 @@ class AnalysisPanal(ctk.CTkFrame):
 
         self.graph_panal.grid(
             column=0, columnspan=2, row=0, rowspan=1,
-            padx=5, pady=5,sticky='nsew')
+            padx=5, pady=(5,0),sticky='nsew')
         self.data_panal.grid(
             column=0, columnspan=2, row=1, rowspan=1,
             padx=5, pady=5, sticky='nsew')
@@ -171,7 +172,7 @@ class DataPanal(ctk.CTkFrame):
         self.data_note: DataNote = DataNote(self, self.note_font) 
         self.stats_note: StatsNote = StatsNote(self, self.note_font)
 
-        self.data_note.pack(side='left', fill='both', expand=1, padx=5, pady=5)
+        self.data_note.pack(side='left', fill='both', expand=1, padx=(5,0), pady=5)
         self.stats_note.pack(side='left', fill='both', expand=1, padx=5, pady=5)
 
     def write(self, analyzer: Analyzer, sample: Sample, _type: GraphType|None):

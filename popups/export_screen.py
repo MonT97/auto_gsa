@@ -1,10 +1,13 @@
-from .pickers import BasePicker, IntervalPicker, GraphColorPicker, SaveRawsPicker
+from .pickers import BasePicker, DpiPicker, IntervalPicker, GraphColorPicker, SaveRawsPicker
 from mixins import Defaults, HasToolTip
 from .base_screen import BaseScreen 
 from typedefs import SaveObject
 
 import os
+import re
 import customtkinter as ctk
+
+BTN_FRAME_FONT = ('Arial', 16)
 
 #TODO: a way to remember what we did before, a running singlton of sorts; LTS.
 class ExportScreen(BaseScreen, Defaults, HasToolTip):
@@ -17,6 +20,7 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip):
         self.use_global_defaults: bool = use_global_defaults
         self.approve_btn.configure(command=self._on_approve)
 
+        # Window Position:
         #This is a hard coded value; trail&error driven.
         self.pos: tuple[int,int] = (
             (self.master.winfo_screenwidth()+500)//4,
@@ -25,32 +29,37 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip):
         self.geometry(f'{self.size[0]}x{self.size[1]}+{self.pos[0]}+{self.pos[1]}')
 
         self.params: SaveObject = self.df_get(SaveObject) if not use_global_defaults else self.df_get_from_file(SaveObject)
-    
         self.default_color: str = self.params.color #TODO: universaize!
 
         self.show_btn: ctk.CTkButton = ctk.CTkButton(self.button_frame,
                     text='show folder', width=150, state=ctk.DISABLED,
                     command=lambda: self.on_show_btn())
 
-        self.prfx_pckr: BasePicker = BasePicker(self.main_frame, 'Prefix', self.params.prefix)
-        self.folder_name_pckr: BasePicker = BasePicker(
-                    self.main_frame, 'Folder name', self.params.results_folder_name)
-        self.results_path_pckr: BasePicker = BasePicker(
-                    self.main_frame, 'Path', self.params.results_path)
-        self.graph_clr_pckr: GraphColorPicker = GraphColorPicker(self.main_frame)  
-        self.sample_pckr: IntervalPicker = IntervalPicker(self.main_frame)
-        self.raws_pckr: SaveRawsPicker = SaveRawsPicker(self.main_frame,
-                    'Export raw/un-interpreted spreadsheets.')
+        # Pickers:
+        self.prfx_pckr = BasePicker(self.main_frame, 'Prefix', self.params.prefix)
+        self.folder_name_pckr = BasePicker(self.main_frame,
+                'Folder name', self.params.results_folder_name)
+        self.results_path_pckr = BasePicker(self.main_frame,
+                'Path', self.params.results_path)
+        self.dpi_picker = DpiPicker(self.main_frame,
+                'Dpi', str(self.params.dpi),
+                'The resolution of the graphs, higher is better')
+        self.graph_clr_pckr = GraphColorPicker(self.main_frame)  
+        self.sample_pckr = IntervalPicker(self.main_frame)
+        self.raws_pckr = SaveRawsPicker(self.main_frame,
+                'Export raw/un-interpreted spreadsheets.')
 
-        self.btn_frame_font = ctk.CTkFont('Arial', 16)
+        self.btn_frame_font = ctk.CTkFont(*BTN_FRAME_FONT)
         self.cancel_btn.configure(font=self.btn_frame_font)
         self.approve_btn.configure(font=self.btn_frame_font)
 
-        self.sample_pckr.pack(expand=True, fill='x', padx=2, pady=2)
-        self.raws_pckr.pack(expand=True, fill='x', padx=2, pady=2)
-        self.prfx_pckr.pack(expand=True, fill='x', padx=2, pady=2)
-        self.results_path_pckr.pack(expand=True, fill='x', padx=2, pady=2)
-        self.folder_name_pckr.pack(expand=True, fill='x', padx=2, pady=2)
+        # Layout:
+        self.sample_pckr.pack(fill='x', padx=2, pady=2)
+        self.raws_pckr.pack(fill='x', padx=2, pady=2)
+        self.prfx_pckr.pack(fill='x', padx=2, pady=2)
+        self.results_path_pckr.pack(fill='x', padx=2, pady=2)
+        self.folder_name_pckr.pack(fill='x', padx=2, pady=2)
+        self.dpi_picker.pack(fill='x', padx=2, pady=2)
         self.graph_clr_pckr.pack(expand=True, fill='x', padx=2, pady=2)
 
     def set_limit(self, val: int) -> None:
@@ -74,7 +83,9 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip):
         self.params.results_folder_name = self.folder_name_pckr.get_value()
         self.params.interval  = self.sample_pckr.get_value()
         self.params.color = self.graph_clr_pckr.color if self.graph_clr_pckr.get_value() else self.default_color
+        self.params.dpi = int(self.dpi_picker.get_value())
         self.params.save_raw_files = self.raws_pckr.get_value()
+        
         # As the toplevel() from a ctk.TopLevel isn't the same, so, master is needed!
         self.master.winfo_toplevel().event_generate("<<Screens-saved>>")
 

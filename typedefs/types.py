@@ -62,11 +62,19 @@ class DefaultObj():
 @dataclass
 class SaveObject(DefaultObj):
     """
-    Under development.
+    Data model for data needed for exporting/saving output.
+    - prefix: To append to the beginning of the file's name.
+    - results_path: To save the file within.
+    - results_folder_name: The dir name.
+    - color: The color of garph elements.
+    - dpi: The png resolution.
+    - save_raw_files: If True a non interperated spreadsheet would be exported as well.
+    - interval: To enclusively export files between which.
     """
     prefix: str = ''
     results_path: str = ''
     results_folder_name: str = ''
     color: str = '' #!config
+    dpi: int = 0
     save_raw_files: bool = False
     interval: tuple = ()

@@ -12,15 +12,20 @@ import customtkinter as ctk
 
 type cache_element = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel, ctk.CTkLabel]
 
-# Windows consts:
+# Constatns:
+# color:
+ACTIVE_ENTRY = '#ffffff'
+DEFAULT_ENTRY = '#565b5e'
+
+# windows consts:
 FILE_ATTRIBUTE_HIDDEN = 2
 FILE_ATTRIBUTE_SYSTEM = 4
 
-# Icons:
+# icons:
 FILE_ICON = Image.open('assets/file_b.png')
 FOLDER_ICON = Image.open('assets/folder.png')
 
-# Fonts:
+# fonts:
 ENTRY_FONT = ('Arial', 16)
 NAV_BTN_FONT = ('Arial', 16, 'bold')
 FILTERS_FONT = ('Arial', 14, 'bold')
@@ -31,7 +36,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
     Import dialouge screem widget.
     """
     def __init__(self, master, master_setter: Callable, path: str = '') -> None:
-        super().__init__(master, title='import screen', approve_label='import', size=(430,530))
+        super().__init__(master, title='import screen', approve_label='import', size=(420,530))
 
         self.pos: tuple[int,int] = (
             (self.master.winfo_screenwidth()+500)//4,
@@ -68,7 +73,8 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.entry: ctk.CTkEntry = ctk.CTkEntry(self.entry_frame,
                 height=30, placeholder_text='sample files folder path...',
                 font=self.entry_font)
-        self.entry.bind("<Enter>", lambda _: self.after(1,self.entry.focus_set))
+        self.entry.bind("<Enter>", lambda _: self._on_entry_active())
+        self.entry.bind("<FocusOut>", lambda _: self.entry.configure(border_color=DEFAULT_ENTRY))
         self.entry.bind("<KeyPress-Return>", lambda _: self._import_files())
         self.htt_tip(self.entry, 'Press Enter/Return to list files to import.')
 
@@ -150,6 +156,13 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         if self.path:
             self._update_entry_and_import()
 
+    def _on_entry_active(self) -> None:
+        """
+        Behaviour when hovering over [self.entry].
+        """
+        self.after(1, self.entry.focus_set)
+        self.entry.configure(border_color=ACTIVE_ENTRY)
+
     def _import_files(self) -> None:
         """
         Displays directories and valid files found in [self.path].
@@ -172,7 +185,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             if not os.path.exists(self.path):
                 self.error_label.configure(text=_msg)
                 self.error_label.pack(side='top', fill='x', padx=5)
-                self.entry.select_range(0, ctk.END)
+                self.entry.select_to(ctk.END)
                 _flag = True
             elif self.error_label.winfo_ismapped():
                 self.error_label.pack_forget()
@@ -297,7 +310,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         # Layout:
         self.show_btn.configure(state=ctk.NORMAL)
         
-        self.show_btn.place(anchor='n', relx=.5, rely=0, relwidth=.20, relheight=1)
+        self.show_btn.place(anchor='n', relx=.5, rely=0, relwidth=.22, relheight=1)
         self.files_frame.pack(side='top', expand=True, fill='both', padx=5, pady=5)  
 
         self._update_nav_btns()      
