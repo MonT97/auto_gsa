@@ -1,9 +1,9 @@
-import os
-
 from collections.abc import Callable
 
+import os
 import numpy as np
 import pandas as pd
+
 
 class Sample():
     """
@@ -11,18 +11,17 @@ class Sample():
         - name: str.
         - data: pd.DataFrame, a minimum of 3 points is necessary for calculations.
     """
-    samples_list: list = []
     def __init__(self, path: str = "") -> None:
-        
-        self._full_name, self._data = self._create_data(path)
+               
+        self.full_name, self.data = self._create_data(path)
         
     def __repr__(self) -> str:
 
-        return f"{__class__.__name__} ({self._full_name=}, {self._data=})"
+        return f"{__class__.__name__} ({self.full_name=}, {self.data=})"
     
     def __eq__(self, other) -> bool:
         
-        return True if (self._full_name == other._full_name) and (self._data.equals(other._data)) else False
+        return True if (self.full_name == other.full_name) and (self.data.equals(other.data)) else False
 
     def _create_data(self, path: str) -> tuple[str, pd.DataFrame]:
         """
@@ -51,20 +50,19 @@ class Sample():
 
             _data['wht%'] = ((_data['wht']/_data['wht'].sum())*100).round(2)
             _data['cum.wht%'] = _data['wht%'].cumsum().round(2)
-            Sample.samples_list.append(self)
-        
+
         return (_full_name, _data)
     
     def get_name(self, full: bool = False) -> str:
         """
         full: returns [file_name.format] if true.
         """
-        _short_name: str = self._full_name.split(".")[0].capitalize()
+        _short_name: str = self.full_name.split(".")[0].capitalize()
 
-        return _short_name if not full else self._full_name      
+        return _short_name if not full else self.full_name      
     
     def get_data(self) -> pd.DataFrame:
         """
         Returns the sample data.
         """
-        return self._data
+        return self.data

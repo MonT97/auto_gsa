@@ -6,7 +6,7 @@ from PIL import Image
 from mixins import CanSave, Defaults, HasToolTip, Validator
 from popups import ExportScreen, ImportScreen
 from typedefs import GraphType, SaveObject
-from models import Sample
+from models import Sample, Cache
 from utils import utils
 
 import customtkinter as ctk
@@ -51,6 +51,8 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
 
         self.save_obj: SaveObject = self.df_get(SaveObject)
         self.save_obj_color: str = self.save_obj.color
+
+        self.samples_cache: Cache = Cache()
 
         # Entry related:
         self.import_icon: ctk.CTkImage = ctk.CTkImage(IMPORT_ICON, size=(11,11))
@@ -193,8 +195,13 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
 
         _file_name: str = self.file_viewer.get_data(table_selection)[-1]#type: ignore
         _file_path: str = os.path.join(self.files_dir, _file_name)
+        _in_cache: bool = self.samples_cache.check(_file_path)
 
-        _sample: Sample = Sample(_file_path)
+        if _in_cache:
+            _sample = self.samples_cache.get(_file_path) #type: ignore
+        else:
+            _sample: Sample = Sample(_file_path)
+            self.samples_cache.add(_file_path, _sample)
 
         self._set_analysis_data(_sample, graph_type)
         self.winfo_toplevel().event_generate("<<FilePanal-analyze>>")

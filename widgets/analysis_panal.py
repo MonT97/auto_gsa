@@ -1,10 +1,11 @@
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.axes import Axes
+from typing import Callable
 
 from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod
 from shared_widgets import ColorPicker
 from mixins import HasToolTip, CanPlot
-from models import Sample, Analyzer
+from models import Sample, Analyzer, Cache
 
 import matplotlib.pyplot as plt
 import customtkinter as ctk
@@ -75,6 +76,8 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
     def __init__(self, master: AnalysisPanal) -> None:
         super().__init__(master)
 
+        self.graphs_cache: Cache = Cache()
+
         self.graph_color: str = '#1f7bb4'
         self.graphs: list[Axes] = []
         self.graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
@@ -143,17 +146,31 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
         Layout the graphs:
         - graph_type = None -> layout all the graphs in enums.GraphType.
         """
+        _in_cache: Callable = lambda _id: self.graphs_cache.check(_id)
+
         #? resetting the layout!
         for i in self.graph_frame.grid_slaves():
             i.grid_forget()
 
         if graph_type:
-            graph = self._generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type, graph_color)
-            graph.grid(column=0, row=0, columnspan=2, rowspan=1)
+            _id = sample_name+f'{graph_type}'
+            if _in_cache(_id):
+                graph = self.graphs_cache.get(_id)
+            else:
+                graph = self._generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type, graph_color)
+            if not _in_cache(_id):
+                self.graphs_cache.add(_id, graph)
+            graph.grid(column=0, row=0, columnspan=2, rowspan=1) #type: ignore
         else:
             for ind, _type in enumerate(GraphType):
-                graph = self._generate_graph(analyzer.get_plot_data(_type), sample_name, _type, graph_color)
-                graph.grid(column=ind, row=0, columnspan=1, rowspan=1)
+                _id = sample_name+f'{_type}'
+                if _in_cache(_id):
+                    graph = self.graphs_cache.get(_id)
+                else:
+                    graph = self._generate_graph(analyzer.get_plot_data(_type), sample_name, _type, graph_color)
+                if not _in_cache(_id):
+                    self.graphs_cache.add(_id, graph)
+                graph.grid(column=ind, row=0, columnspan=1, rowspan=1) #type: ignore
         
         self._set_graph_params(analyzer, sample_name, graph_type)
         self.cust_bar.enable()
