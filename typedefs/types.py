@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from .enums import *
 
 import numpy as np
@@ -7,7 +8,6 @@ import pandas as pd
 type PlotData = tuple[PlotInput, PlotInput, SamplePoints, AnalysisMethod]
 type SamplePoints = list[tuple[float, float]]
 type PlotInput = pd.Series|np.ndarray
-
 
 @dataclass
 class SampleStats():

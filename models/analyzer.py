@@ -11,13 +11,17 @@ class Analyzer():
     The class that wrangles the data, provides the stats it's interpretation, then prepares it for plotting.
     """
     #TODO: emplement Sample() like memory
-    stats_list: list[SampleStats] = []
-
-    def __init__(self, sample_data: pd.DataFrame) -> None:
-        
+    def __init__(self, sample_data: pd.DataFrame = pd.DataFrame()) -> None:
+        if sample_data.empty:
+            self.x = pd.Series()
+            self.y = pd.Series()
+            self.points: SamplePoints = []
+            self.sample_data = sample_data
+            self.stats: SampleStats = SampleStats()
+            return
         self.sample_data = sample_data # edge case discoverd when testing friedman 1958 
         self.x, self.y, interp_f = self._get_input(self.sample_data)
-        self.points, self.stats = self._calculate_stats(self.y, interp_f)
+        self.points, self.stats = self._calculate_stats(self.y.min(), interp_f, self.sample_data)
 
         #TODO: expose to user edit!
         _default_skewness_schema: SkewnessSchema = SkewnessSchema.OBSERVATION
@@ -29,15 +33,17 @@ class Analyzer():
         Prepares the data [phi, cum.wt%] for stats calculation via interpolation using Scipy's PchipInterpolator, an implementation of Hermite plynomial interpolation.
         - -> (interpolated_phi, interpolated_cum.wt%, interpolation_function)
         """
-        sample_data = sample_data.dropna()
+        #! For some reason, sample_05.csv produce a strange result!, the interpolation produces no results at all!!, investigate!
+        sample_data = sample_data.dropna().reset_index(drop=True)
         _phi: pd.Series = sample_data['phi']
         _cum_wht: pd.Series = sample_data['cum.wht%']
-
+        
         def _inverse(
                 interpolation_fn: PchipInterpolator,
-                wt_prcnts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+                wt_prcnts: np.ndarray, limit: int = 2) -> tuple[np.ndarray, np.ndarray]:
             """
             Interpolation function inversion, get phi(x) at wt_prcnts(y).
+            - limit: added as a fail safe, some datasets yields no results with 3 element list, limit = 3, in such case we use limit = 2
             - -> tuple[phis, wt_prcnts]
             """
             _rounding_digits: int = 4
@@ -45,12 +51,10 @@ class Analyzer():
             _valid_wt_prcnts: list[float] = []
 
             for _wt_prcnt in wt_prcnts:
-                _phi = interpolation_fn.solve(_wt_prcnt)
-                # an edge case discoverd when testing friedman 1958, it seems that the PCHIP interp. doesn't solve for the very first and last data points.
-                if len(_phi) < 3:
-                    continue
-                _phis_inversed.append(_phi[1])
-                _valid_wt_prcnts.append(_wt_prcnt)
+                _phi = interpolation_fn.solve(_wt_prcnt, extrapolate=False)
+                if _phi:
+                    _phis_inversed.append(_phi[0])
+                    _valid_wt_prcnts.append(_wt_prcnt)
                 
             _x: np.ndarray = np.round(_phis_inversed, _rounding_digits)
             _y: np.ndarray = np.round(_valid_wt_prcnts, _rounding_digits)
@@ -61,33 +65,35 @@ class Analyzer():
         _cap: float = _cum_wht.max()
         _min: float = _cum_wht.min()
         _step: int = int(_cap)*100
-        _lerp_y = np.linspace(_min, _cap, _step, endpoint=False)
 
-        _x, _y = _inverse(_interp_f, _lerp_y) 
+        _lerp_y = np.linspace(_min, _cap, _step)
+
+        _x, _y = _inverse(_interp_f, _lerp_y)
 
         return (_x, _y, _interp_f)
 
     def _calculate_stats(self,
-            y: np.ndarray, interp_f: PchipInterpolator
-            ) -> tuple[SamplePoints, SampleStats]:
+            y_min: float, interp_f: PchipInterpolator
+            , sample_data: pd.DataFrame) -> tuple[SamplePoints, SampleStats]:
         """
         Calculates stats: [mean, std, skewness, kurtosis], based on ,if possible, (Folk&Ward, 1957) graphical formulas, otherwise, the Method of Moments is used.
-        - y: [cum.wht%].min()
+        - y: [cum.wht%].min().
         - interp_f: [the interpolation function]
         """
         _points: SamplePoints = []
         _stats: SampleStats = SampleStats()
         _wt_prcnts: list[float] = [5.0, 16.0, 25.0, 50.0, 75.0, 84.0, 95.0]
+        _two_points: bool = sample_data['wht%'].dropna().shape[0] <= 2
 
-        #? 2 or less points sample produces empty [y] from _get_input():
-        if not y.size:
+        #? 2 or less points sample produces empty [y] from _get_input(), ignoring this sends the flow to the Moments method, leading in a round about way, to a two point linear interpolation; an option??
+        if _two_points:
             self.method = AnalysisMethod.TWOPOINTS
-            _stats.mean = self.sample_data['phi'].mean()
+            _stats.mean = sample_data['phi'].mean()
         
         else:
-            _create_point: Callable = lambda wt_prcnt: (wt_prcnt, interp_f.solve(wt_prcnt)[1])
-            _points = [_create_point(wt_prcnt) for wt_prcnt in _wt_prcnts if wt_prcnt > y.min()]
-
+            _create_point: Callable = lambda wt_prcnt: (wt_prcnt, interp_f.solve(wt_prcnt, extrapolate=False)[0])
+            
+            _points = [_create_point(wt_prcnt) for wt_prcnt in _wt_prcnts if wt_prcnt > y_min]
             _graphical_is_valid: bool = len(_points) == len(_wt_prcnts)
 
             if _graphical_is_valid:
@@ -111,12 +117,12 @@ class Analyzer():
                 #TODO: I assume a 100g sample, universalize!
                 _original_sample_wht: float = 100.0 # float is to allow for measurement error +- .1g
 
-                _phis = self.sample_data['phi']
+                _phis = sample_data['phi']
                 _get_midpoint: Callable = lambda x: (_phis[x]+_phis[x+1])/2
                 _d: np.ndarray = np.append([_get_midpoint(i) for i in range(len(_phis)-1)], _phis.max())
-                _f: np.ndarray = self.sample_data['wht%'].to_numpy()
+                _f: np.ndarray = sample_data['wht%'].to_numpy()
                 _pan_fraction: float = _original_sample_wht - _f.sum()
-
+                # print(f'{_d=}\n{_f}')
                 if _pan_fraction < 5.0:
                     _N = _f.sum() #? some say N=100, yet this is after analytical_sedimentology book
 
@@ -128,8 +134,6 @@ class Analyzer():
                 #TODO: the (> 5.0) case is handled in the [_points] creation, analysis should be done with a caviate in the report and spreadsheet.
                 # else:
                 #     print(f'Pan fraction [{_pan_fraction}] >5%, The analysis is unreliable, disregard this sample!.')
-        
-        Analyzer.stats_list.append(_stats)
         
         return (_points,_stats)
 

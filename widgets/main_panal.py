@@ -56,7 +56,8 @@ class MainPanal(ctk.CTkFrame):
         _sample, _graph_type = self.file_panal.get_analysis_data()
 
         self.analysis_panal.write(_sample, _graph_type)
-        self.analysis_panal.draw_graphs(_sample, _graph_type)    
+        #? This is a signal triggered function, so [_graph_type] can never bo None, hence the ignore flag
+        self.analysis_panal.draw_graphs(_sample, _graph_type) #type: ignore 
 
     def exported(self) -> None:
         """

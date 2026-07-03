@@ -2,15 +2,22 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.axes import Axes
 from typing import Callable
 
-from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod
+from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod, GraphParameters
 from shared_widgets import ColorPicker
-from mixins import HasToolTip, CanPlot
 from models import Sample, Analyzer, Cache
+from mixins import HasToolTip, CanPlot
 
 import matplotlib.pyplot as plt
 import customtkinter as ctk
 import tkinter as tk
 
+# Constants
+
+# fonts:
+DATA_NOTE_FONT = ('Arial', 14, 'bold')
+
+# colors:
+GRAPH_COLOR_DEFAULT = '#1f7bb4'
 
 class AnalysisPanal(ctk.CTkFrame):
     """
@@ -45,13 +52,13 @@ class AnalysisPanal(ctk.CTkFrame):
         if self.current_sample != sample:
             self.analyzer: Analyzer = Analyzer(sample.get_data())
 
-    def draw_graphs(self, sample: Sample, graph_type: GraphType|None) -> None:
+    def draw_graphs(self, sample: Sample, graph_type: GraphType) -> None:
         """
         Triggered by an outside signal.
         """
         self._create_analyzer(sample)
         #? is this the best place for this? NO, actually it might
-        self.graph_panal.draw_graphs(self.analyzer, sample.get_name(), graph_type)      
+        self.graph_panal.draw_graphs(self.analyzer, sample.get_name(), graph_type, GRAPH_COLOR_DEFAULT)      
 
     def write(self, sample: Sample, graph_type: GraphType|None) -> None:
         """
@@ -64,7 +71,7 @@ class AnalysisPanal(ctk.CTkFrame):
         """
         Triggered by an outside signal.
         """
-        return self.graph_panal.get_graph_params()['graph_color']
+        return self.graph_panal.get_graph_params().graph_color
 
 
 class GraphPanal(ctk.CTkFrame, CanPlot):
@@ -72,14 +79,14 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
     CTkFrame:
     Views the resulting graphs.
     """
-    #TODO add the ability to change the graph color, maybe only during saves as this is a preview!?
     def __init__(self, master: AnalysisPanal) -> None:
         super().__init__(master)
 
-        self.graphs_cache: Cache = Cache()
+        # Cache:
+        self.graphs_cache: Cache = Cache(100)
 
-        self.graph_color: str = '#1f7bb4'
         self.graphs: list[Axes] = []
+        self.graph_color: str = GRAPH_COLOR_DEFAULT
         self.graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
 
         self.graph_frame: ctk.CTkFrame = ctk.CTkFrame(self)
@@ -96,7 +103,7 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
                        color: str) -> tk.Canvas:
         """
         Generates the graph/plot as a layout ready widget
-        - -> ctk.CTkCanvas
+        - -> tk.Canvas
         """
         _fig, _ax = plt.subplots()
         _fig.set_layout_engine('constrained')
@@ -106,7 +113,6 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
         _title: str = f"{_graph_name}\n{sample_name}"
 
         self.x, self.y, self.points, _analysis_method = plot_data
-        
         self.cp_plot(self.x, self.y, self.points, _ax, graph_type, _analysis_method, color)
                      
         _ax.set_title(_title)
@@ -115,64 +121,67 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
         return _canvas.get_tk_widget()
 
     def _set_graph_params(self, analyzer: Analyzer, sample_name: str,
-                          graph_type: GraphType|None, graph_color: str = '#1f7bb4') -> None:
+                          graph_type: GraphType, graph_color: str) -> None:
         """
         Saves the current params used to produce the graph as a praph_params dict.
         """
-        self.graph_params: dict = {}
+        self.graph_params: GraphParameters = GraphParameters()
 
-        self.graph_params['analyzer'] = analyzer
-        self.graph_params['sample_name'] = sample_name
-        self.graph_params['graph_type'] = graph_type
-        self.graph_params['graph_color'] = graph_color
+        self.graph_params.analyzer = analyzer
+        self.graph_params.graph_type = graph_type
+        self.graph_params.sample_name = sample_name
+        self.graph_params.graph_color = graph_color
 
-    def get_graph_params(self) -> dict:
+    def get_graph_params(self) -> GraphParameters:
         """
         Returns the graph_params.
         """
         return self.graph_params
 
-    def update_graphs(self, graph_params: dict) -> None:
+    def update_graphs(self, graph_params: GraphParameters) -> None:
         """
         Redraws the graph using the newly provided parameters.
         """
-        self.draw_graphs(**graph_params)
-        self._set_graph_params(**graph_params)
+        _graph_params = graph_params.to_dict()
+        self.draw_graphs(**_graph_params)
+        self._set_graph_params(**_graph_params)
 
     def draw_graphs(self,
                     analyzer: Analyzer, sample_name: str,
-                    graph_type: GraphType|None, graph_color:str = '#1f7bb4') -> None:
+                    graph_type: GraphType, graph_color:str) -> None:
         """
         Layout the graphs:
         - graph_type = None -> layout all the graphs in enums.GraphType.
         """
-        _in_cache: Callable = lambda _id: self.graphs_cache.check(_id)
+        _color_id = str(int(graph_color[1:],16))
+        def get_canvas_obj(id_, type_) -> tk.Canvas:
+            """
+            Using the given [id_] and [type_], creates or retrives from cache then returns the tk.Canvas obj to plot.
+            """
+            _in_cache: Callable = lambda id_: self.graphs_cache.check(id_)
+            if _in_cache(id_):
+                _graph: tk.Canvas = self.graphs_cache.get(id_) #type: ignore
+            else:
+                _graph = self._generate_graph(analyzer.get_plot_data(type_), sample_name, type_, graph_color)
+                self.graphs_cache.add(id_, _graph)
+            
+            return _graph
 
-        #? resetting the layout!
+        # Resetting the layout:
         for i in self.graph_frame.grid_slaves():
             i.grid_forget()
 
         if graph_type:
-            _id = sample_name+f'{graph_type}'
-            if _in_cache(_id):
-                graph = self.graphs_cache.get(_id)
-            else:
-                graph = self._generate_graph(analyzer.get_plot_data(graph_type), sample_name, graph_type, graph_color)
-            if not _in_cache(_id):
-                self.graphs_cache.add(_id, graph)
+            _id = sample_name+f'{graph_type}'+_color_id
+            graph = get_canvas_obj(_id,graph_type) #type: ignore
             graph.grid(column=0, row=0, columnspan=2, rowspan=1) #type: ignore
         else:
             for ind, _type in enumerate(GraphType):
-                _id = sample_name+f'{_type}'
-                if _in_cache(_id):
-                    graph = self.graphs_cache.get(_id)
-                else:
-                    graph = self._generate_graph(analyzer.get_plot_data(_type), sample_name, _type, graph_color)
-                if not _in_cache(_id):
-                    self.graphs_cache.add(_id, graph)
+                _id = sample_name+f'{_type}'+_color_id
+                graph = get_canvas_obj(_id,_type) #type: ignore
                 graph.grid(column=ind, row=0, columnspan=1, rowspan=1) #type: ignore
         
-        self._set_graph_params(analyzer, sample_name, graph_type)
+        self._set_graph_params(analyzer, sample_name, graph_type, graph_color)
         self.cust_bar.enable()
 
 
@@ -184,7 +193,7 @@ class DataPanal(ctk.CTkFrame):
     def __init__(self, master: AnalysisPanal) -> None:
         super().__init__(master)
 
-        self.note_font: ctk.CTkFont = ctk.CTkFont('Arial', 14, 'bold')
+        self.note_font: ctk.CTkFont = ctk.CTkFont(*DATA_NOTE_FONT)
 
         self.data_note: DataNote = DataNote(self, self.note_font) 
         self.stats_note: StatsNote = StatsNote(self, self.note_font)
@@ -250,14 +259,14 @@ class StatsNote(ctk.CTkTextbox):
     def update_note(self, stats: str, interpretation: str, analysis_method: AnalysisMethod) -> None:
                 
                 self.configure(state=ctk.NORMAL)
-                self.delete("1.0", "end")
-                self.insert(self.index(tk.INSERT), "-Stats:\n")
-                self.insert(self.index(tk.INSERT), stats)
-                self.insert(self.index(tk.INSERT), "\n")
-                self.insert(self.index(tk.INSERT), "-Interpretation:\n")
-                self.insert(self.index(tk.INSERT), interpretation)
-                self.insert(self.index(tk.INSERT), "[Method Used]: ")
-                self.insert(self.index(tk.INSERT), analysis_method.value)
+                self.delete('1.0', ctk.END)
+                self.insert(ctk.INSERT, "-Stats:\n")
+                self.insert(ctk.INSERT, stats)
+                self.insert(ctk.INSERT, "\n")
+                self.insert(ctk.INSERT, "-Interpretation:\n")
+                self.insert(ctk.INSERT, interpretation)
+                self.insert(ctk.INSERT, "[Method Used]: ")
+                self.insert(ctk.INSERT, analysis_method.value)
                 self.configure(state=ctk.DISABLED)  
 
 
@@ -301,7 +310,7 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip):
         self.place(anchor='s',
                 relx=.5, rely=self.crnt_y_pos, relheight=self.height, relwidth=self.width)
 
-    def _update_graphs(self, graph_params: dict) -> None:
+    def _update_graphs(self, graph_params: GraphParameters) -> None:
         """
         Delegates the graph update process to master: GraphPanal
         """
@@ -335,8 +344,8 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip):
         """
         Triggerd by a preview button press From the clr_pikr: ColorPicker.
         """
-        graph_params: dict = self.master.get_graph_params()
-        graph_params['graph_color'] = color
+        graph_params: GraphParameters = self.master.get_graph_params()
+        graph_params.graph_color = color
         self._update_graphs(graph_params)
         self.winfo_toplevel().event_generate("<<AnalysisPanal-color>>")
 

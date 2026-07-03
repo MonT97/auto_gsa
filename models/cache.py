@@ -2,8 +2,12 @@ class Cache():
     """
     Caching functionality.
     """
-    def __init__(self) -> None:
+    def __init__(self, size: int = 1000) -> None:
+        """
+        - size: sets the size limit, in terms of number of entries
+        """
         self.data: dict = {}
+        self.size = size
 
     def check(self, id_: str) -> bool:
         """
@@ -11,7 +15,7 @@ class Cache():
         """
         return id_ in self.data
 
-    def size(self) -> int:
+    def _get_size(self) -> int:
         """
         The length of the cache.
         """
@@ -23,6 +27,11 @@ class Cache():
         """
         if _id not in self.data:
             self.data[_id] = widget
+        
+        # Limit size:
+        if self._get_size() > self.size:
+            _keys = [i for i in self.data.keys()][-self.size:]
+            self.data = self.data.fromkeys(_keys)
     
     def get(self, _id: str):        
         """
@@ -31,7 +40,7 @@ class Cache():
         """
         _output = False
         if _id not in self.data:
-            print(f"Item{_id} isn't cached!!")
+            print(f"Item{_id} isn't cached!!, call check!")
         else:
             _output = self.data[_id]
         return _output

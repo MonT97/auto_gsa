@@ -11,7 +11,7 @@ from utils import utils
 
 import customtkinter as ctk
 
-#Constants
+# Constants
 # colors:
 ACTIVE_ENTRY = '#ffffff' #! Base entry?!
 DEFAULT_ENTRY = '#565b5e'
@@ -52,7 +52,8 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.save_obj: SaveObject = self.df_get(SaveObject)
         self.save_obj_color: str = self.save_obj.color
 
-        self.samples_cache: Cache = Cache()
+        # Caching:
+        self.samples_cache: Cache = Cache(50)
 
         # Entry related:
         self.import_icon: ctk.CTkImage = ctk.CTkImage(IMPORT_ICON, size=(11,11))
