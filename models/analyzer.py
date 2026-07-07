@@ -122,7 +122,7 @@ class Analyzer():
                 _d: np.ndarray = np.append([_get_midpoint(i) for i in range(len(_phis)-1)], _phis.max())
                 _f: np.ndarray = sample_data['wht%'].to_numpy()
                 _pan_fraction: float = _original_sample_wht - _f.sum()
-                # print(f'{_d=}\n{_f}')
+                
                 if _pan_fraction < 5.0:
                     _N = _f.sum() #? some say N=100, yet this is after analytical_sedimentology book
 

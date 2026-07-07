@@ -138,31 +138,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.entry.focus_set()
         self.entry.configure(border_color=ACTIVE_ENTRY)
         self.entry.select_to(ctk.END)
-
-    def set_valid_files(self, path:str, files: list[str]|None = None) -> None:
-        """
-        Set all of:
-        - self.valid_files.
-        - self.number_of_valid_files.
-        """
-        self.files_dir = path
-        _from_screen = bool(files)
-        _source = files if _from_screen else path
         
-        self.valid_files = self.file_viewer.display_files(_source) 
-        self.number_of_valid_files = len(self.valid_files)
-        
-        if _from_screen:
-            self.entry.delete(0,len(self.entry.get())+1)
-            self.entry.insert(0,self.files_dir)
-        self._on_imported()
-        
-    def _screen_import(self) -> None:
-        """
-        From the import pop-up screen.
-        """
-        ImportScreen(self, self.set_valid_files, self.files_dir)
-
     def _direct_import(self, path: str) -> None:
         """
         From [self.entry].
@@ -172,6 +148,29 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             return
         
         self.set_valid_files(path)
+    
+    def _screen_import(self) -> None:
+        """
+        From the import pop-up screen.
+        """
+        ImportScreen(self, self.set_valid_files, self.files_dir)
+
+    def set_valid_files(self, path:str, files: list[str] = []) -> None:
+        """
+        Set all of:
+        - self.valid_files.
+        - self.number_of_valid_files.
+        """
+        self.files_dir = path
+        _from_screen = bool(files)
+        
+        self.valid_files = self.file_viewer.display_files(path, files, _from_screen) 
+        self.number_of_valid_files = len(self.valid_files)
+        
+        if _from_screen:
+            self.entry.delete(0, ctk.END)
+            self.entry.insert(0, self.files_dir)
+        self._on_imported()
 
     def _on_imported(self) -> None:
         """
@@ -359,7 +358,7 @@ class FileViewer(ttk.Treeview, Validator):
         self.heading("no", text="NO", anchor="center")
         self.heading("file_name", text="File Name", anchor="w")
 
-    def display_files(self, source: str|list[str]) -> list[str]:
+    def display_files(self, path: str, files: list[str], from_screen: bool) -> list[str]:
         """
         Populates the TreeView with validated samples form the given [source].
         - source: can be [files] or 'path'.
@@ -367,23 +366,29 @@ class FileViewer(ttk.Treeview, Validator):
         """
         _valid_files: list[str] = []
 
+        # clear:
         if self.get_children():
             [self.delete(i) for i in self.get_children()]
         
-        def validate_files(source: str) -> list[str]:
+        def validate_files() -> list[str]:
+            _file_list: list[str] = []
+            # not from_screen means we have a path and vise means we have a list!
+            if not from_screen:
+                _files = os.listdir(path)
+                _file_list = [
+                    file_ for file_ in _files if self.val_samples(path, file_)
+                    ]
+            # screent imports are already val_samples validated!
+            else:
+                for _file in files:
+                    _file_list +=  self.val_handle_aio(path, _file)
+                
+            return _file_list
 
-            _valid_files: list[str] = [file_ for file_ in os.listdir(source) if self.val_samples(source, file_)]
-            
-            return _valid_files
-        
-        if isinstance(source, list):
-            
-            self.display(source)
-            return source
+        _valid_files = validate_files()
 
-        _valid_files = validate_files(source)
         self.display(_valid_files)
-    
+        
         return _valid_files
     
     def display(self, _valid_files: list[str]) -> None:

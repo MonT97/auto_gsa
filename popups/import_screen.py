@@ -22,7 +22,7 @@ FILE_ATTRIBUTE_HIDDEN = 2
 FILE_ATTRIBUTE_SYSTEM = 4
 
 # icons:
-FILE_ICON = Image.open('assets/file_b.png')
+FILE_ICON = Image.open('assets/file.png')
 FOLDER_ICON = Image.open('assets/folder.png')
 
 # fonts:
@@ -32,10 +32,11 @@ FILTERS_FONT = ('Arial', 14, 'bold')
 
 #! Think it over!
 class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
-    """
-    Import dialouge screem widget.
-    """
     def __init__(self, master, master_setter: Callable, path: str = '') -> None:
+        """
+        Import dialouge screem widget.
+        - master_setter: function to call on approve.
+        """
         super().__init__(master, title='import screen', approve_label='import', size=(420,530))
 
         self.pos: tuple[int,int] = (
@@ -213,6 +214,8 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             - cache_element: tuple housing needed data, file_name, frame, button, label, img.
             - last_to_pack: for layout aesthetic purposes.
             """
+            self.files_frame._parent_canvas.yview_moveto(0.0) #scroll to the top.
+
             file_, frame, btn, label, img = cache_element
             utils.bg_transparent([btn, label])
 
@@ -256,7 +259,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         _files: list[str] = [_file for _file in _children if _validate(self.path, _file, filter_)]
 
         # Cache flags.
-        _in_cache: bool = self.path in self.cache
+        _in_cache: bool = self.path in self.cache and len(self.cache[self.path]) == len(os.listdir(self.path))
         _should_cache: bool = not _in_cache and (len(_files) >= self.cache_threshod)
 
         # Fill-in dirs and valid files:
@@ -288,8 +291,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         else: 
             for file_ in _files:
                 _frame = ctk.CTkFrame(self.files_frame, height=25)
-                _file_btn = ctk.CTkCheckBox(_frame, state=ctk.NORMAL,
-                        text='', width=20, border_width=2)
+                _file_btn = ctk.CTkCheckBox(_frame, text='', width=20, border_width=2)
                 _label = ctk.CTkLabel(_frame, text=file_)
                 _img = ctk.CTkLabel(_frame, text='', image=self.file_img)
                 _file_btn.configure(command=lambda b=(_file_btn, _label): self._select_file(b))
@@ -452,7 +454,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         """
         os.startfile(self.path)
 
-    def _on_approve(self, setter: Callable) -> None:
+    def _on_approve(self, setter: Callable[[str, list[str]],None]) -> None:
         """
         Calls the master prvided [setter] function.
         """
