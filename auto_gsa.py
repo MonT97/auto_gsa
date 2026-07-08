@@ -1,7 +1,6 @@
 from widgets import MainPanal
 
 import customtkinter as ctk
-
 import os
 
 if os.name != 'nt':

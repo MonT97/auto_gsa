@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from .enums import GraphType
 from models import Analyzer
 
@@ -6,7 +7,6 @@ from models import Analyzer
 class GraphParameters():
     """
     Object housing parameters needed for graph creation.
-    - analyzer: should be of Analyzer type, avoided for circular importing issue.
     - graph_type: from the enum [GraphType].
     """
     analyzer: Analyzer = Analyzer()

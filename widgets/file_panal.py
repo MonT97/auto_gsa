@@ -1,5 +1,3 @@
-import os
-
 from tkinter import ttk, Event
 from PIL import Image
 
@@ -7,13 +5,14 @@ from mixins import CanSave, Defaults, HasToolTip, Validator
 from popups import ExportScreen, ImportScreen
 from typedefs import GraphType, SaveObject
 from models import Sample, Cache
-from utils import utils
+from utils import utls
 
 import customtkinter as ctk
+import os
 
 # Constants
 # colors:
-ACTIVE_ENTRY = '#ffffff' #! Base entry?!
+ACTIVE_ENTRY = '#ffffff' #! Base entry class?!
 DEFAULT_ENTRY = '#565b5e'
 
 # fonts:
@@ -69,7 +68,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.entry.bind("<Enter>", lambda _: self._on_entry_active())
         self.entry.bind("<KeyPress-Escape>", lambda _: self._reset_focus())
         self.htt_tip(self.entry, 'path to import from\npress [Enter/Return] to quick import')
-        utils.bg_transparent(self.entry)
+        utls.bg_transparent(self.entry)
     
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import",
@@ -166,7 +165,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         
         self.valid_files = self.file_viewer.display_files(path, files, _from_screen) 
         self.number_of_valid_files = len(self.valid_files)
-        
+
         if _from_screen:
             self.entry.delete(0, ctk.END)
             self.entry.insert(0, self.files_dir)
@@ -207,8 +206,10 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         self.winfo_toplevel().event_generate("<<FilePanal-analyze>>")
         self._set_log_message(f'[{_sample.get_name().lower()}] analyzed.')
 
-        self.file_viewer.focus_set() #! why broken??
-        self.save_btn.configure(state=ctk.NORMAL)
+        self.after(5, self.file_viewer.focus_set)
+        if self.save_btn.cget('state') == ctk.DISABLED:
+            self.save_btn.configure(state=ctk.NORMAL)
+
     
     #! here, Continue the sample/file cleanup!!
     def _set_analysis_data(self, sample: Sample, graph_type: GraphType|None) -> None:

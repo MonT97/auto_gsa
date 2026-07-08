@@ -1,7 +1,7 @@
-from typedefs import GraphType, SkewnessSchema, SamplePoints, SampleStats, PlotInput, PlotData, StatsInterpretation, AnalysisMethod
-
 from scipy.interpolate import PchipInterpolator
 from collections.abc import Callable
+
+from typedefs import GraphType, SkewnessSchema, SamplePoints, SampleStats, PlotInput, PlotData, StatsInterpretation, AnalysisMethod
 
 import pandas as pd
 import numpy as np
@@ -33,7 +33,6 @@ class Analyzer():
         Prepares the data [phi, cum.wt%] for stats calculation via interpolation using Scipy's PchipInterpolator, an implementation of Hermite plynomial interpolation.
         - -> (interpolated_phi, interpolated_cum.wt%, interpolation_function)
         """
-        #! For some reason, sample_05.csv produce a strange result!, the interpolation produces no results at all!!, investigate!
         sample_data = sample_data.dropna().reset_index(drop=True)
         _phi: pd.Series = sample_data['phi']
         _cum_wht: pd.Series = sample_data['cum.wht%']

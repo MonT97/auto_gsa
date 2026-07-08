@@ -24,6 +24,7 @@ class MainPanal(ctk.CTkFrame):
 
         self._layout()
 
+        #TODO: expirement with custom singelton comm system! [LTS].
         # Inter-widget communication, signature <<Signal Source-Action to make>>:
         self.winfo_toplevel().bind("<<FilePanal-log>>", lambda _: self.log())
         self.winfo_toplevel().bind("<<FilePanal-analyze>>", lambda _: self.analyze())

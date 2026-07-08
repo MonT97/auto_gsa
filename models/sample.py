@@ -1,9 +1,12 @@
-from collections.abc import Callable
+from utils.utls import import_form_path
 
-import os
-import numpy as np
 import pandas as pd
+import numpy as np
+import re
+import os
 
+# df header:
+SAMPLE_HEADER: tuple = ('phi', 'wht', 'wht%', 'cum.wht%')
 
 class Sample():
     """
@@ -12,8 +15,11 @@ class Sample():
         - data: pd.DataFrame, a minimum of 3 points is necessary for calculations.
     """
     def __init__(self, path: str = "") -> None:
-               
-        self.full_name, self.data = self._create_data(path)
+        self.full_name: str = ''
+        self.data: pd.DataFrame = pd.DataFrame()
+
+        if path:
+            self.full_name, self.data = self._create_data(path)
         
     def __repr__(self) -> str:
 
@@ -22,35 +28,44 @@ class Sample():
     def __eq__(self, other) -> bool:
         
         return True if (self.full_name == other.full_name) and (self.data.equals(other.data)) else False
-
+    
     def _create_data(self, path: str) -> tuple[str, pd.DataFrame]:
         """
         Creates the data, returns:
-            - name [str]: the sample name.
+            - full_name [str]: sample_name.ext.
             - data [pd.DataFrame]: the data itself.
         """
-        _full_name: str = ''
-        _format: str = ''
-        _data = pd.DataFrame()
+        _full_name: str = os.path.split(path)[-1]
+        _format: str = _full_name.split('.')[-1]
+        _data: pd.DataFrame = pd.DataFrame()
 
-        if path:
-            _full_name: str = os.path.split(path)[-1]
-            _format: str = _full_name.split('.')[-1]
+        #TODO: centeralizes the read mothod scelection into another module maybe!?                
+        _data = import_form_path(path, _format)
+        
+        # We only assume 2*n col df.
+        #TODO: Some popup error crash??
+        if min(_data.shape) > 2:
+            return ('', pd.DataFrame())
+        
+        if _data.shape[1] > 2:
+            _data = _data.T
+        
+        _fst_row: pd.Series = _data.iloc[0,:]
+        _num_fst_row: bool = _fst_row.apply(lambda x: bool(re.match(r'[a-z]', f'{x}'))).sum() != 2
+        _fst_row_no_match: bool = not _fst_row.equals(pd.Series(SAMPLE_HEADER[:2]))
+        _nw_header = SAMPLE_HEADER[:2] if _fst_row_no_match else _fst_row
+        
+        if not _num_fst_row:
+            _data = _data.iloc[1:,:].reset_index(drop=True).astype(np.float64)
 
-            #centeralizes the read mothod scelection.
-            _fmt_func_dict: dict[str, Callable] = {
-                    'csv': pd.read_csv,
-                    'xlsx': pd.read_excel
-                    }
-            _read_fn: Callable[[str], pd.DataFrame] = lambda fmt: _fmt_func_dict[fmt](path)
-            
-            #TODO make it column name agnositc using iloc[]!
-            _data: pd.DataFrame = _read_fn(_format)
-            _data.replace({'wht': {0.0: np.nan}}, inplace=True) #type: ignore
+        _crnt_header: np.ndarray = _data.columns.values
+        _data.rename(columns={k: v for k,v in zip(_crnt_header, _nw_header)}, inplace=True)
+        _data.replace({SAMPLE_HEADER[1]: {0.0: np.nan}}, inplace=True)
 
-            _data['wht%'] = ((_data['wht']/_data['wht'].sum())*100).round(2)
-            _data['cum.wht%'] = _data['wht%'].cumsum().round(2)
-
+        _data[SAMPLE_HEADER[2]] = (
+                    (_data[SAMPLE_HEADER[1]]/_data[SAMPLE_HEADER[1]].sum())*100).round(2)
+        _data[SAMPLE_HEADER[3]] = _data[SAMPLE_HEADER[2]].cumsum().round(2)
+        
         return (_full_name, _data)
     
     def get_name(self, full: bool = False) -> str:

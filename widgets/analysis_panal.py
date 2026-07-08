@@ -3,8 +3,8 @@ from matplotlib.axes import Axes
 from typing import Callable
 
 from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod, GraphParameters
-from shared_widgets import ColorPicker
 from models import Sample, Analyzer, Cache
+from shared_widgets import ColorPicker
 from mixins import HasToolTip, CanPlot
 
 import matplotlib.pyplot as plt

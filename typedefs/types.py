@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from .enums import *
 
-import numpy as np
 import pandas as pd
+import numpy as np
 
 type PlotData = tuple[PlotInput, PlotInput, SamplePoints, AnalysisMethod]
 type SamplePoints = list[tuple[float, float]]

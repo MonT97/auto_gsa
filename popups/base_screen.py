@@ -1,5 +1,5 @@
 from mixins import HasToolTip
-from utils import utils
+from utils import utls
 
 import customtkinter as ctk
 
@@ -28,7 +28,7 @@ class BaseScreen(ctk.CTkToplevel, HasToolTip):
         self.cancel_btn: ctk.CTkButton = ctk.CTkButton(self.button_frame,
                     text=cancel_label, width=150, command= lambda: self.close())
 
-        utils.bg_transparent([self.approve_btn, self.cancel_btn])
+        utls.bg_transparent([self.approve_btn, self.cancel_btn])
 
         self.cancel_btn.place(anchor='w', relx=0, rely=.5, relwidth=.2, relheight=1)
         self.approve_btn.place(anchor='e', relx=1, rely=.5, relwidth=.2, relheight=1)

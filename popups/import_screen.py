@@ -4,7 +4,7 @@ from PIL import Image
 from mixins import Defaults, HasToolTip, Validator
 from .base_screen import BaseScreen
 from typedefs import FileFormat
-from utils import utils
+from utils import utls
 
 import os
 import re
@@ -98,7 +98,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
                 font=self.entry_font, corner_radius=5,
                 wraplength=380, fg_color='#e53935')
 
-        utils.bg_transparent([self.entry_frame, self.bck, self.frd, self.up, self.error_label])
+        utls.bg_transparent([self.entry_frame, self.bck, self.frd, self.up, self.error_label])
 
         self.up.pack(side='left', fill='y', padx=2, pady=2)
         self.frd.pack(side='right', fill='y', pady=2, padx=(0,2))
@@ -135,7 +135,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
                 command= lambda: self._filter(bool(self.excel.get()), self.excel.cget('text')))
         self.htt_tip(self.excel, 'excel files only')
         
-        utils.bg_transparent([self.select_all, self.csv, self.excel])
+        utls.bg_transparent([self.select_all, self.csv, self.excel])
 
         # Element for files_frame:
         self.dir_img = ctk.CTkImage(FOLDER_ICON, size=(20,20))
@@ -217,7 +217,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             self.files_frame._parent_canvas.yview_moveto(0.0) #scroll to the top.
 
             file_, frame, btn, label, img = cache_element
-            utils.bg_transparent([btn, label])
+            utls.bg_transparent([btn, label])
 
             self.files_dict[file_] = (btn, label)
 
@@ -275,7 +275,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             _dir_btn.pack(side='left', expand=True, fill='x', padx=(0,2))
             _frame.pack(fill='x', padx=2, pady=_pady)
 
-            utils.bg_transparent(_dir_btn)
+            utls.bg_transparent(_dir_btn)
         
         if _dirs:
             self.dirs_frame.pack(side='top', expand=True, fill='x')
