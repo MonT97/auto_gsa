@@ -1,9 +1,15 @@
 """
 The Base class for the various pickers in pickers.py.
 """
-from mixins import HasToolTip
-
 import customtkinter as ctk
+
+from mixins import HasToolTip
+from utils import utls
+
+# Constants
+# colors:
+ACTIVE_ENTRY_CLR = '#ffffff'
+DEFAULT_ENTRY_CLR = '#565b5e'
 
 #TODO: find a better way to handle defaults.
 class BasePicker(ctk.CTkFrame, HasToolTip):
@@ -33,10 +39,11 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         self.entry = ctk.CTkEntry(self, placeholder_text=default_value)
         self.entry.bind('<Enter>', lambda _: self._on_mouse_enter())
         self.entry.bind('<FocusOut>', lambda _: self._validate())
-        self.entry.configure(state=ctk.DISABLED, border_color='#565b5e')
+        utls.bg_transparent(self.entry)
+        self.entry.configure(state=ctk.DISABLED, border_color=DEFAULT_ENTRY_CLR)
 
         self.toggle.pack(side='left', padx=2)
-        self.entry.pack(side='left', fill='x', expand=True, padx=2)
+        self.entry.pack(side='left', fill='x', expand=True, padx=2, pady=2)
     
     def _activation(self) -> None:
         """
@@ -45,12 +52,12 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         _enabled = bool(self.toggle.get())
         
         if _enabled:
-            self.entry.configure(state=ctk.NORMAL, border_color='#7a848d')
-            self.entry.configure(placeholder_text='')
+            self.entry.configure(state=ctk.NORMAL, border_color=ACTIVE_ENTRY_CLR)
             self.after(1, self.entry.focus_set)
+            self.entry.select_to(ctk.END)
         else:
             self.entry.configure(placeholder_text=self.val)
-            self.entry.configure(state=ctk.DISABLED, border_color='#565b5e')
+            self.entry.configure(state=ctk.DISABLED, border_color=DEFAULT_ENTRY_CLR)
     
     def _on_mouse_enter(self) -> None:
         """
@@ -79,3 +86,27 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         """
         _value = self.entry.get()
         return _value if _value else self.val
+
+
+class BaseToggle(ctk.CTkFrame, HasToolTip):
+    """
+    Picking whether to save the raw file or not.
+    """
+    def __init__(self, master, label_text: str, tooltip_msg: str = '') -> None:
+        super().__init__(master)
+
+        self.toggle: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
+                    text=label_text, border_width=2,
+                    checkbox_height=20, checkbox_width=20)
+
+        if tooltip_msg:
+            self.htt_tip(self.toggle, tooltip_msg)
+        
+        utls.bg_transparent([self.toggle])
+        self.toggle.pack(side='left', padx=2)
+
+    def get_value(self) -> bool:
+        """
+        Returns the color.
+        """
+        return bool(self.toggle.get())

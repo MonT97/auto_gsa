@@ -1,10 +1,13 @@
-from scipy.interpolate import PchipInterpolator
 from collections.abc import Callable
 
-from typedefs import GraphType, SkewnessSchema, SamplePoints, SampleStats, PlotInput, PlotData, StatsInterpretation, AnalysisMethod
-
-import pandas as pd
 import numpy as np
+import pandas as pd
+from scipy.interpolate import PchipInterpolator
+
+from typedefs import (AnalysisMethod, GraphType, PlotData, PlotInput,
+                      SamplePoints, SampleStats, SkewnessSchema,
+                      StatsInterpretation)
+
 
 class Analyzer():
     """
@@ -12,6 +15,9 @@ class Analyzer():
     """
     #TODO: emplement Sample() like memory
     def __init__(self, sample_data: pd.DataFrame = pd.DataFrame()) -> None:
+        """
+        The class that wrangles the data, provides the stats it's interpretation, then prepares it for plotting.
+        """
         if sample_data.empty:
             self.x = pd.Series()
             self.y = pd.Series()
@@ -24,7 +30,7 @@ class Analyzer():
         self.points, self.stats = self._calculate_stats(self.y.min(), interp_f, self.sample_data)
 
         #TODO: expose to user edit!
-        _default_skewness_schema: SkewnessSchema = SkewnessSchema.OBSERVATION
+        _default_skewness_schema: SkewnessSchema = SkewnessSchema.OBSERVATIONAL
         self.interpretation = self._interperate(self.stats, _default_skewness_schema)
 
     def _get_input(self,
@@ -39,10 +45,9 @@ class Analyzer():
         
         def _inverse(
                 interpolation_fn: PchipInterpolator,
-                wt_prcnts: np.ndarray, limit: int = 2) -> tuple[np.ndarray, np.ndarray]:
+                wt_prcnts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
             """
             Interpolation function inversion, get phi(x) at wt_prcnts(y).
-            - limit: added as a fail safe, some datasets yields no results with 3 element list, limit = 3, in such case we use limit = 2
             - -> tuple[phis, wt_prcnts]
             """
             _rounding_digits: int = 4
@@ -50,6 +55,7 @@ class Analyzer():
             _valid_wt_prcnts: list[float] = []
 
             for _wt_prcnt in wt_prcnts:
+                # extrapolate: wither the interpolation should extrapolate.
                 _phi = interpolation_fn.solve(_wt_prcnt, extrapolate=False)
                 if _phi:
                     _phis_inversed.append(_phi[0])
@@ -76,19 +82,18 @@ class Analyzer():
             , sample_data: pd.DataFrame) -> tuple[SamplePoints, SampleStats]:
         """
         Calculates stats: [mean, std, skewness, kurtosis], based on ,if possible, (Folk&Ward, 1957) graphical formulas, otherwise, the Method of Moments is used.
-        - y: [cum.wht%].min().
-        - interp_f: [the interpolation function]
+        - y_min: [cum.wht%].min().
+        - interp_f: the interpolation function.
         """
         _points: SamplePoints = []
         _stats: SampleStats = SampleStats()
         _wt_prcnts: list[float] = [5.0, 16.0, 25.0, 50.0, 75.0, 84.0, 95.0]
         _two_points: bool = sample_data['wht%'].dropna().shape[0] <= 2
 
-        #? 2 or less points sample produces empty [y] from _get_input(), ignoring this sends the flow to the Moments method, leading in a round about way, to a two point linear interpolation; an option??
+        #? 2 or less points sample produces empty [y] from _get_input(), ignoring this sends the flow to the Moments method, leading in a roundabout way, to a two point linear interpolation; an option?? No unjustfied.
         if _two_points:
             self.method = AnalysisMethod.TWOPOINTS
             _stats.mean = sample_data['phi'].mean()
-        
         else:
             _create_point: Callable = lambda wt_prcnt: (wt_prcnt, interp_f.solve(wt_prcnt, extrapolate=False)[0])
             
@@ -130,7 +135,7 @@ class Analyzer():
                     _stats.skewness = np.sum(_f*((_d-_stats.mean)**3))/(_N*_stats.std**3)
                     _stats.kurtosis = np.sum(_f*((_d-_stats.mean)**4))/(_N*_stats.std**4)
                 
-                #TODO: the (> 5.0) case is handled in the [_points] creation, analysis should be done with a caviate in the report and spreadsheet.
+                #TODO: the (> 5.0) case is handled in the [_points] creation, analysis should be done with a caviate in the report and spreadsheet. maybe in a future note: sigment within this class?
                 # else:
                 #     print(f'Pan fraction [{_pan_fraction}] >5%, The analysis is unreliable, disregard this sample!.')
         
@@ -177,7 +182,7 @@ class Analyzer():
                         verbal_schema = ('fine', 'coarse')
                     case SkewnessSchema.FOLKWARD57:
                         verbal_schema = ('positive', 'negative')
-                    case SkewnessSchema.OBSERVATION:
+                    case SkewnessSchema.OBSERVATIONAL:
                         verbal_schema = ('coarse', 'fine')
 
                 return verbal_schema

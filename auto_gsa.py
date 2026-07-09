@@ -1,7 +1,8 @@
-from widgets import MainPanal
+import os
 
 import customtkinter as ctk
-import os
+
+from widgets import MainPanal
 
 if os.name != 'nt':
     print("Running in non-Windows OS, some eyecandy won't be visible!")
@@ -35,7 +36,6 @@ class App(ctk.CTk):
         """
         self.main_panal.on_open()
 
-    # TODO[LTS]: see if you can hide/handle the stuff chucked into the stdo console, it seems fine now!!
     def on_closing(self) -> None:
         """
         Triggered on application closure.

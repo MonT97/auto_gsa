@@ -1,8 +1,8 @@
-from .analysis_panal import AnalysisPanal
-from .log_pannal import LoggingLabel
-from .file_panal import FilePanal
-
 import customtkinter as ctk
+
+from .analysis_panal import AnalysisPanal
+from .file_panal import FilePanal
+from .log_pannal import LoggingLabel
 
 
 class MainPanal(ctk.CTkFrame):

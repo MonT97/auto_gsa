@@ -1,12 +1,14 @@
-from .defaults import Defaults
-from .plotter import CanPlot
-
-from typedefs import GraphType, SaveObject
-from models import Sample, Analyzer
+import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import os
+
+from models import Analyzer, Sample
+from typedefs import GraphType, SaveObject
+
+from .defaults import Defaults
+from .plotter import CanPlot
+
 
 class CanSave(Defaults, CanPlot):
     """
@@ -35,6 +37,7 @@ class CanSave(Defaults, CanPlot):
         _result_folder_name = save_obj.results_folder_name
         _save_raws = save_obj.save_raw_files
         _dpi = save_obj.dpi
+        _transparent = save_obj.transparent
 
         # Paths:
         _result_file_name: str = _prfx+sample.get_name().lower()
@@ -74,9 +77,10 @@ class CanSave(Defaults, CanPlot):
             _fig, _ax = plt.subplots()
             # _fig.set_layout_engine('constrained')
             _x, _y, _points, _method = _ana.get_plot_data(_type)
-            self.cp_plot(_x, _y, _points, _ax, _type, _method, _clr)
+            self.cp_plot(_x, _y, _points, _method, _ax, _type, _clr)
             _ax.set_title(f'{sample.get_name()}\n{_title}')
-            _fig.savefig(_graph_file_path+'.png', dpi=_dpi, format='png')
+            #TODO: ability to make transparent bg.
+            _fig.savefig(_graph_file_path+'.png', dpi=_dpi, format='png', transparent=_transparent)
           
             if _save_raws:
                 if not os.path.exists(_raw_results_dir):

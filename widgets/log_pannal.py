@@ -1,10 +1,11 @@
+import datetime as dt
 import os
+import tkinter as tk
+
+import customtkinter as ctk
 
 from mixins import HasToolTip
 
-import customtkinter as ctk
-import datetime as dt
-import tkinter as tk 
 
 class LoggingLabel(ctk.CTkFrame, HasToolTip):
     """

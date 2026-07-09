@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 
-from .enums import GraphType
 from models import Analyzer
+
+from .enums import GraphType
+
 
 @dataclass
 class GraphParameters():
@@ -11,7 +13,7 @@ class GraphParameters():
     """
     analyzer: Analyzer = Analyzer()
     sample_name: str = ''
-    graph_type: GraphType = GraphType.HIST
+    graph_type: GraphType|None = GraphType.HIST
     graph_color: str = ''
 
     def to_dict(self) -> dict:

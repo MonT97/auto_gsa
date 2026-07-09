@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 
+import customtkinter as ctk
+import numpy as np
+import pandas as pd
+
 from .enums import *
 
-import pandas as pd
-import numpy as np
-
+type CacheElement = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel, ctk.CTkLabel]
 type PlotData = tuple[PlotInput, PlotInput, SamplePoints, AnalysisMethod]
 type SamplePoints = list[tuple[float, float]]
 type PlotInput = pd.Series|np.ndarray
@@ -58,7 +60,6 @@ class DefaultObj():
         return self.__dict__
 
 
-#change into pass around object, no not the best case!
 @dataclass
 class SaveObject(DefaultObj):
     """
@@ -78,3 +79,4 @@ class SaveObject(DefaultObj):
     dpi: int = 0
     save_raw_files: bool = False
     interval: tuple = ()
+    transparent: bool = False

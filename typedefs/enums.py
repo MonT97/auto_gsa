@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class GraphType(Enum):
     """
     An Enum representing the graph types:
@@ -41,4 +42,4 @@ class SkewnessSchema(Enum):
     """
     ANASEDI = 0
     FOLKWARD57 = 1
-    OBSERVATION = 3
+    OBSERVATIONAL = 3

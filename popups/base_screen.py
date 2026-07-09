@@ -1,7 +1,8 @@
+import customtkinter as ctk
+
 from mixins import HasToolTip
 from utils import utls
 
-import customtkinter as ctk
 
 class BaseScreen(ctk.CTkToplevel, HasToolTip):
     """

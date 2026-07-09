@@ -4,9 +4,9 @@ Consider a theme/styles module down the line.
 from typing import Callable
 
 import customtkinter as ctk
+import pandas as pd
 import pywinstyles
 
-import pandas as pd
 
 def bg_transparent(widgets: ctk.CTkBaseClass|list[ctk.CTkBaseClass]) -> None:
     """

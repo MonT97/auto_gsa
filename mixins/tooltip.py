@@ -1,6 +1,7 @@
 from customtkinter import CTkBaseClass
 from tktooltip import ToolTip
 
+
 class HasToolTip():
     """
     Adds a tooltip using the function: htt_tip().

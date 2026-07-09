@@ -1,12 +1,14 @@
+import os
+import re
+
+import numpy as np
+import pandas as pd
+
 from utils.utls import import_form_path
 
-import pandas as pd
-import numpy as np
-import re
-import os
-
+# Constants
 # df header:
-SAMPLE_HEADER: tuple = ('phi', 'wht', 'wht%', 'cum.wht%')
+HEADER: tuple = ('phi', 'wht', 'wht%', 'cum.wht%')
 
 class Sample():
     """
@@ -37,13 +39,10 @@ class Sample():
         """
         _full_name: str = os.path.split(path)[-1]
         _format: str = _full_name.split('.')[-1]
-        _data: pd.DataFrame = pd.DataFrame()
-
-        #TODO: centeralizes the read mothod scelection into another module maybe!?                
-        _data = import_form_path(path, _format)
+        _data: pd.DataFrame = import_form_path(path, _format)
         
-        # We only assume 2*n col df.
         #TODO: Some popup error crash??
+        # We only assume 2*n col df.
         if min(_data.shape) > 2:
             return ('', pd.DataFrame())
         
@@ -52,19 +51,18 @@ class Sample():
         
         _fst_row: pd.Series = _data.iloc[0,:]
         _num_fst_row: bool = _fst_row.apply(lambda x: bool(re.match(r'[a-z]', f'{x}'))).sum() != 2
-        _fst_row_no_match: bool = not _fst_row.equals(pd.Series(SAMPLE_HEADER[:2]))
-        _nw_header = SAMPLE_HEADER[:2] if _fst_row_no_match else _fst_row
+        _fst_row_no_match: bool = not _fst_row.equals(pd.Series(HEADER[:2]))
+        _nw_header = HEADER[:2] if _fst_row_no_match else _fst_row
         
         if not _num_fst_row:
             _data = _data.iloc[1:,:].reset_index(drop=True).astype(np.float64)
 
         _crnt_header: np.ndarray = _data.columns.values
         _data.rename(columns={k: v for k,v in zip(_crnt_header, _nw_header)}, inplace=True)
-        _data.replace({SAMPLE_HEADER[1]: {0.0: np.nan}}, inplace=True)
+        _data.replace({HEADER[1]: {0.0: np.nan}}, inplace=True)
 
-        _data[SAMPLE_HEADER[2]] = (
-                    (_data[SAMPLE_HEADER[1]]/_data[SAMPLE_HEADER[1]].sum())*100).round(2)
-        _data[SAMPLE_HEADER[3]] = _data[SAMPLE_HEADER[2]].cumsum().round(2)
+        _data[HEADER[2]] = ((_data[HEADER[1]]/_data[HEADER[1]].sum())*100).round(2)
+        _data[HEADER[3]] = _data[HEADER[2]].cumsum().round(2)
         
         return (_full_name, _data)
     

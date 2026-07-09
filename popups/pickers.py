@@ -1,22 +1,26 @@
 """
 ExportScreen inputs manipulation.
 """
+import re
 from collections.abc import Callable
 
-from shared_widgets import ColorPicker
-from .base_picker import BasePicker
-from mixins import HasToolTip
-
-import re
 import customtkinter as ctk
+
+from mixins import HasToolTip
+from shared_widgets import ColorPicker
+
+from .base_picker import BasePicker, BaseToggle # needed for export_screen
 
 
 class DpiPicker(BasePicker):
     """
     Picking the DPI, density per inch, i.e. resolution.
     """
-    def __init__(self, master, *args) -> None:
-        super().__init__(master, *args)
+    def __init__(self, master, label_txt: str, default_value: str, tooltip_msg: str = '') -> None:
+        """
+        Picking the DPI, density per inch, i.e. resolution.
+        """
+        super().__init__(master, label_txt, default_value, tooltip_msg)
 
     def _validate(self) -> None:
         """
@@ -34,6 +38,9 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
     Picking the interval, which files to save.
     """
     def __init__(self, master) -> None:
+        """
+        Picking the interval, which files to save.
+        """
         super().__init__(master)
 
         class IntPckr(ctk.CTkFrame, HasToolTip):
@@ -126,7 +133,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         self.pick_var: ctk.StringVar = ctk.StringVar(self, value=_options[0])
 
         self.label: ctk.CTkLabel = ctk.CTkLabel(self,
-                    anchor='w', text='Selection method:')
+                    anchor='w', text='Selection method:', height=17)
         self.htt_tip(self.label, 'The method used to scelect samples to export.')
 
         self.drop_down: ctk.CTkComboBox = ctk.CTkComboBox(self,
@@ -223,23 +230,47 @@ class GraphColorPicker(ctk.CTkFrame):
         return self.color
     
 
-class SaveRawsPicker(ctk.CTkFrame, HasToolTip):
-    """
-    Picking whether to save the raw file or not.
-    """
-    def __init__(self, master, tooltip_msg: str = '') -> None:
-        super().__init__(master)
-        self.toggle: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
-                    text='Save raw files', border_width=2,
-                    checkbox_height=20, checkbox_width=20)
+# class SaveRawsPicker(ctk.CTkFrame, HasToolTip):
+#     """
+#     Picking whether to save the raw file or not.
+#     """
+#     def __init__(self, master, label_text: str, tooltip_msg: str = '') -> None:
+#         super().__init__(master)
+#         self.toggle: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
+#                     text=label_text, border_width=2,
+#                     checkbox_height=20, checkbox_width=20)
 
-        if tooltip_msg:
-            self.htt_tip(self.toggle, tooltip_msg)
+#         if tooltip_msg:
+#             self.htt_tip(self.toggle, tooltip_msg)
         
-        self.toggle.pack(side='left', padx=2)
+#         utls.bg_transparent([self.toggle])
+#         self.toggle.pack(side='left', padx=2)
 
-    def get_value(self) -> bool:
-        """
-        Returns the color.
-        """
-        return bool(self.toggle.get())
+#     def get_value(self) -> bool:
+#         """
+#         Returns the color.
+#         """
+#         return bool(self.toggle.get())
+
+
+# class TransparencyPicker(ctk.CTkFrame, HasToolTip):
+#     """
+#     Picking whether to save the raw file or not.
+#     """
+#     def __init__(self, master, label_text: str, tooltip_msg: str = '') -> None:
+#         super().__init__(master)
+#         self.toggle: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
+#                     text=label_text, border_width=2,
+#                     checkbox_height=20, checkbox_width=20)
+
+#         if tooltip_msg:
+#             self.htt_tip(self.toggle, tooltip_msg)
+        
+#         utls.bg_transparent([self.toggle])
+#         self.toggle.pack(side='left', padx=2)
+
+#     def get_value(self) -> bool:
+#         """
+#         Returns the color.
+#         """
+#         return bool(self.toggle.get())

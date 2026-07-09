@@ -1,23 +1,25 @@
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.axes import Axes
+import tkinter as tk
 from typing import Callable
 
-from typedefs import GraphType, PlotData, SampleStats, StatsInterpretation, AnalysisMethod, GraphParameters
-from models import Sample, Analyzer, Cache
-from shared_widgets import ColorPicker
-from mixins import HasToolTip, CanPlot
-
-import matplotlib.pyplot as plt
 import customtkinter as ctk
-import tkinter as tk
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+from mixins import CanPlot, HasToolTip
+from models import Analyzer, Cache, Sample
+from shared_widgets import ColorPicker
+from typedefs import (AnalysisMethod, GraphParameters, GraphType, PlotData,
+                      SampleStats, StatsInterpretation)
 
 # Constants
-
 # fonts:
 DATA_NOTE_FONT = ('Arial', 14, 'bold')
 
-# colors:
+# graph:
 GRAPH_COLOR_DEFAULT = '#1f7bb4'
+
+CUST_BAR_PARAMS: tuple =  (.3, .25, .04)
 
 class AnalysisPanal(ctk.CTkFrame):
     """
@@ -27,6 +29,12 @@ class AnalysisPanal(ctk.CTkFrame):
         - display the sample data and the analysis result [data_panal: AnalysisBook]
     """
     def __init__(self, master: ctk.CTkFrame) -> None:
+        """
+        CTkFrame:
+        The class that handels viewing and analyzing the data.
+            - display the sample graphs [gaph_panal: ctk.CTkLabel].
+            - display the sample data and the analysis result [data_panal: AnalysisBook]
+        """
         super().__init__(master)
 
         self.configure(corner_radius=0)
@@ -49,12 +57,15 @@ class AnalysisPanal(ctk.CTkFrame):
             padx=5, pady=5, sticky='nsew')
 
     def _create_analyzer(self, sample: Sample) -> None:
+        """
+        Creates an Anlayzer object for the given [sample].
+        """
         if self.current_sample != sample:
             self.analyzer: Analyzer = Analyzer(sample.get_data())
 
     def draw_graphs(self, sample: Sample, graph_type: GraphType) -> None:
         """
-        Triggered by an outside signal.
+        Triggered by an outside signal from [MainPanal].
         """
         self._create_analyzer(sample)
         #? is this the best place for this? NO, actually it might
@@ -62,14 +73,14 @@ class AnalysisPanal(ctk.CTkFrame):
 
     def write(self, sample: Sample, graph_type: GraphType|None) -> None:
         """
-        Triggered by an outside signal.
+        Triggered by an outside signal from [MainPanal].
         """
         self._create_analyzer(sample)
         self.data_panal.write(self.analyzer, sample, graph_type)
     
     def get_graph_color(self) -> str:
         """
-        Triggered by an outside signal.
+        Triggered by an outside signal from [MainPanal].
         """
         return self.graph_panal.get_graph_params().graph_color
 
@@ -80,13 +91,16 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
     Views the resulting graphs.
     """
     def __init__(self, master: AnalysisPanal) -> None:
+        """
+        CTkFrame:
+        Views the resulting graphs.
+        """
         super().__init__(master)
 
         # Cache:
-        self.graphs_cache: Cache = Cache(100)
+        self.graphs_cache: Cache = Cache()
 
         self.graphs: list[Axes] = []
-        self.graph_color: str = GRAPH_COLOR_DEFAULT
         self.graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
 
         self.graph_frame: ctk.CTkFrame = ctk.CTkFrame(self)
@@ -96,14 +110,13 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
 
         self.graph_frame.pack(fill='both', expand=1, padx=5, pady=5)
 
-        self.cust_bar: CustomizationBar = CustomizationBar(self, .3, .25, .04)
+        self.cust_bar: CustomizationBar = CustomizationBar(self, *CUST_BAR_PARAMS)
 
     def _generate_graph(self, 
                        plot_data: PlotData, sample_name: str, graph_type: GraphType,
                        color: str) -> tk.Canvas:
         """
-        Generates the graph/plot as a layout ready widget
-        - -> tk.Canvas
+        Generates the graph/plot as a layout ready widget.
         """
         _fig, _ax = plt.subplots()
         _fig.set_layout_engine('constrained')
@@ -112,8 +125,7 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
 
         _title: str = f"{_graph_name}\n{sample_name}"
 
-        self.x, self.y, self.points, _analysis_method = plot_data
-        self.cp_plot(self.x, self.y, self.points, _ax, graph_type, _analysis_method, color)
+        self.cp_plot(*plot_data, _ax, graph_type, color)
                      
         _ax.set_title(_title)
         plt.close()
@@ -121,16 +133,11 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
         return _canvas.get_tk_widget()
 
     def _set_graph_params(self, analyzer: Analyzer, sample_name: str,
-                          graph_type: GraphType, graph_color: str) -> None:
+                          graph_color: str, graph_type: GraphType|None = None) -> None:
         """
-        Saves the current params used to produce the graph as a praph_params dict.
+        Saves the current params used to produce the graph as a GraphParameters object.
         """
-        self.graph_params: GraphParameters = GraphParameters()
-
-        self.graph_params.analyzer = analyzer
-        self.graph_params.graph_type = graph_type
-        self.graph_params.sample_name = sample_name
-        self.graph_params.graph_color = graph_color
+        self.graph_params = GraphParameters(analyzer, sample_name, graph_type, graph_color)
 
     def get_graph_params(self) -> GraphParameters:
         """
@@ -148,12 +155,13 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
 
     def draw_graphs(self,
                     analyzer: Analyzer, sample_name: str,
-                    graph_type: GraphType, graph_color:str) -> None:
+                    graph_type: GraphType|None, graph_color:str) -> None:
         """
         Layout the graphs:
         - graph_type = None -> layout all the graphs in enums.GraphType.
         """
         _color_id = str(int(graph_color[1:],16))
+
         def get_canvas_obj(id_, type_) -> tk.Canvas:
             """
             Using the given [id_] and [type_], creates or retrives from cache then returns the tk.Canvas obj to plot.
@@ -170,18 +178,19 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
         # Resetting the layout:
         for i in self.graph_frame.grid_slaves():
             i.grid_forget()
-
+        
         if graph_type:
             _id = sample_name+f'{graph_type}'+_color_id
-            graph = get_canvas_obj(_id,graph_type) #type: ignore
-            graph.grid(column=0, row=0, columnspan=2, rowspan=1) #type: ignore
+            graph = get_canvas_obj(_id,graph_type)
+            graph.grid(column=0, row=0, columnspan=2, rowspan=1)
         else:
             for ind, _type in enumerate(GraphType):
                 _id = sample_name+f'{_type}'+_color_id
-                graph = get_canvas_obj(_id,_type) #type: ignore
-                graph.grid(column=ind, row=0, columnspan=1, rowspan=1) #type: ignore
+                graph = get_canvas_obj(_id,_type)
+                graph.grid(column=ind, row=0, columnspan=1, rowspan=1)
+                
+        self._set_graph_params(analyzer, sample_name, graph_color ,graph_type)
         
-        self._set_graph_params(analyzer, sample_name, graph_type, graph_color)
         self.cust_bar.enable()
 
 
@@ -205,18 +214,17 @@ class DataPanal(ctk.CTkFrame):
         
         _stats = analyzer.get_stats()
         _interpretation = analyzer.get_interpretation()
+        _ana_method: AnalysisMethod = analyzer.get_method()
         
         def _get_msg(inp) -> str:
             
-            _inp_type = type(inp)
-
-            if _inp_type is SampleStats:
+            if isinstance(inp, SampleStats):
                 _msg = "".join([f"{k.capitalize()}\t> {v:.3f}\n" for k,v in inp.to_dict().items()])
-            elif _inp_type is StatsInterpretation:
+            elif isinstance(inp, StatsInterpretation):
                 _msg = "".join(
                     [f"{k.capitalize()}\t> {v.capitalize()}\n" for k,v in inp.to_dict().items()]
                     )
-            elif _inp_type is Sample:
+            elif isinstance(inp, Sample):
                 _msg = inp.get_data().to_string(index=False, col_space= 10, justify='center')
             else:
                 _msg = ''
@@ -226,7 +234,6 @@ class DataPanal(ctk.CTkFrame):
         _sample_data_msg: str = _get_msg(sample)
         _stats_msg: str = _get_msg(_stats)
         _interp_msg: str = _get_msg(_interpretation)
-        _ana_method: AnalysisMethod = analyzer.get_method()
         
         self.data_note.update_note(_sample_data_msg)
         self.stats_note.update_note(_stats_msg, _interp_msg, _ana_method)
@@ -241,11 +248,11 @@ class DataNote(ctk.CTkTextbox):
         self.configure(state=ctk.DISABLED, font=font, tabs=150)  
 
     def update_note(self, text: str ) -> None:
-                
-                self.configure(state=ctk.NORMAL)
-                self.delete("1.0", "end")
-                self.insert("1.0", text)
-                self.configure(state=ctk.DISABLED)  
+        
+        self.configure(state=ctk.NORMAL)
+        self.delete('0.0', ctk.END)
+        self.insert(ctk.INSERT, text)
+        self.configure(state=ctk.DISABLED)  
 
 
 class StatsNote(ctk.CTkTextbox):
@@ -258,16 +265,16 @@ class StatsNote(ctk.CTkTextbox):
 
     def update_note(self, stats: str, interpretation: str, analysis_method: AnalysisMethod) -> None:
                 
-                self.configure(state=ctk.NORMAL)
-                self.delete('1.0', ctk.END)
-                self.insert(ctk.INSERT, "-Stats:\n")
-                self.insert(ctk.INSERT, stats)
-                self.insert(ctk.INSERT, "\n")
-                self.insert(ctk.INSERT, "-Interpretation:\n")
-                self.insert(ctk.INSERT, interpretation)
-                self.insert(ctk.INSERT, "[Method Used]: ")
-                self.insert(ctk.INSERT, analysis_method.value)
-                self.configure(state=ctk.DISABLED)  
+        self.configure(state=ctk.NORMAL)
+        self.delete('0.0', ctk.END)
+        self.insert(ctk.INSERT, '-Stats:\n')
+        self.insert(ctk.INSERT, stats)
+        self.insert(ctk.INSERT, '\n')
+        self.insert(ctk.INSERT, '-Interpretation:\n')
+        self.insert(ctk.INSERT, interpretation)
+        self.insert(ctk.INSERT, '[Method Used]: ')
+        self.insert(ctk.INSERT, analysis_method.value)
+        self.configure(state=ctk.DISABLED)  
 
 
 class CustomizationBar(ctk.CTkFrame, HasToolTip):
@@ -277,6 +284,10 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip):
     """
     def __init__(self, master:GraphPanal,
                  width: float, height:float, anim_speed: float =.01) -> None:
+        """
+        CkFrame:
+            Gives the ability to change the graph preview visuals.
+        """
         super().__init__(master)
         
         _offset: float = 0
@@ -286,25 +297,24 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip):
         self.rowconfigure(1, weight=1, uniform='a')
 
         self.master: GraphPanal = master
-        self.anim_speed: float = anim_speed
 
         self.width = width
         self.height = height
 
-        self.initial_pos = .07
-        self.crnt_y_pos = self.initial_pos
+        self.init_y_pos = .07
+        self.crnt_y_pos = self.init_y_pos
         self.final_pos = self.height + _offset
 
         self.in_start_pos:bool = True
 
-        _clr_pikr: ColorPicker = ColorPicker(self)
+        self.clr_pikr: ColorPicker = ColorPicker(self)
 
-        self.move_btn_txt: str = 'configuration'
+        self.move_btn_txt: str = 'edit'
         self.move_btn: ctk.CTkButton = ctk.CTkButton(self, corner_radius=0,
                 height=100, text=f'\\ {self.move_btn_txt} /', state=ctk.DISABLED,
-                command=lambda: self.animate())
+                command=lambda: self.animate(anim_speed))
 
-        _clr_pikr.grid(column=0, row=0, sticky='nsew')
+        self.clr_pikr.grid(column=0, row=0, sticky='nsew')
         self.move_btn.grid(column=0, row=1, sticky='nsew')
 
         self.place(anchor='s',
@@ -316,25 +326,25 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip):
         """
         self.master.update_graphs(graph_params)
 
-    def animate(self) -> None:
+    def animate(self, animation_speed: float) -> None:
         """
         Animates self into place
         """
         def _move():
             self.place(anchor='s',
                 relx=.5, rely=self.crnt_y_pos, relheight=self.height, relwidth=self.width)
-            self.after(10, self.animate) 
+            self.after(10, lambda: self.animate(animation_speed)) 
 
         if self.in_start_pos:
             if self.crnt_y_pos < self.final_pos:
-                self.crnt_y_pos += self.anim_speed
+                self.crnt_y_pos += animation_speed
                 _move()
                 return
             self.move_btn.configure(text= f'/ {self.move_btn_txt} \\')
             self.in_start_pos = not self.in_start_pos
         else:
-            if self.crnt_y_pos > self.initial_pos:
-                self.crnt_y_pos -= self.anim_speed
+            if self.crnt_y_pos > self.init_y_pos:
+                self.crnt_y_pos -= animation_speed
                 _move()
                 return
             self.move_btn.configure(text= f'\\ {self.move_btn_txt} /')
@@ -344,9 +354,9 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip):
         """
         Triggerd by a preview button press From the clr_pikr: ColorPicker.
         """
-        graph_params: GraphParameters = self.master.get_graph_params()
-        graph_params.graph_color = color
-        self._update_graphs(graph_params)
+        _graph_params: GraphParameters = self.master.get_graph_params()
+        _graph_params.graph_color = color
+        self._update_graphs(_graph_params)
         self.winfo_toplevel().event_generate("<<AnalysisPanal-color>>")
 
     def enable(self) -> None:

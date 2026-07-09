@@ -1,14 +1,17 @@
 """
 Creating, storing and retrieving default values.
 """
-from typing import TypeVar, Type, cast
+import json
+import os
+from typing import Type, TypeVar, cast
 
 from typedefs import DefaultObj, SaveObject
 
-import os
-import json
-
 T = TypeVar('T', bound=DefaultObj)
+
+# Constants
+# color:
+DEFAULT_CLR = '#1f7bb4'
 
 class Defaults():
     """
@@ -42,10 +45,11 @@ class Defaults():
             _data.prefix = 'resutls_'
             _data.results_path = 'd:/documents/auto gsa data'
             _data.results_folder_name = 'analysis_results'
-            _data.color = '#1f7bb4'
+            _data.color = DEFAULT_CLR
             _data.dpi = 300
             _data.save_raw_files = False
             _data.interval = (0,0)
+            _data.transparent = False
 
         return cast(T, _data)
 

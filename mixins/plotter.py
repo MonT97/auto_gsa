@@ -1,19 +1,19 @@
+import numpy as np
 from matplotlib.axes import Axes
 
-from typedefs import PlotInput, SamplePoints, AnalysisMethod, GraphType
+from typedefs import AnalysisMethod, GraphType, PlotInput, SamplePoints
 
-import numpy as np
 
 class CanPlot():
     """
     Gives the ability to plot data.
     """
     def cp_plot (self, x: PlotInput, y: PlotInput,
-                 points: SamplePoints, ax: Axes, graph_type: GraphType,
-                 analysis_method: AnalysisMethod, clr: str = '#1f7bb4',
+                 points: SamplePoints, analysis_method: AnalysisMethod,
+                 ax: Axes, graph_type: GraphType, clr: str = '#1f7bb4',
                  kde_clr: str = 'k') -> None:
         """
-        The plotting functoin:
+        The plotting function:
             - clr ------> face color, hexadecimal.
             - line_clr -> kde color, hexadecimal.
         """

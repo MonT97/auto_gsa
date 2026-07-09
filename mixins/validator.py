@@ -1,13 +1,11 @@
-from typedefs import FileFormat
-from typing import Callable
-
-from utils.utls import import_form_path
-
-import pandas as pd
 import os
 
-# Constants:
+import pandas as pd
 
+from typedefs import FileFormat
+from utils import utls
+
+# Constants:
 # phi values:
 MAX_SIEVE_SIZE: float = -6.75 # in phi scale [-log2(mm)].
 MIN_SIEVE_SIZE: float = 6.75
@@ -27,35 +25,31 @@ class Validator():
         Validates the sample file format and the sample data within.
         - ** for now it's just a format validator.
         """
-        _get_path: Callable[[str],str] = lambda x: os.path.join(samples_dir_path, x)
+        #! It seems we don't need to check the data within; as the <=2 heuristic invalidates aio, Other ways seems impractical as a spreadsheet can take many a form!, PONDER!, if you need to reimplement, check commit 43 I think.
         _valid_sample: bool = False
-        _valid_data: bool = False
 
-        _fomrat: str = sample_file_name.split('.')[-1]
+        _fmt: str = sample_file_name.split('.')[-1]
         _supported_formats: list[str]  = [format_.value for format_ in FileFormat]
 
-        _valid_format = _fomrat in _supported_formats
+        _valid_format = _fmt in _supported_formats
         
-        #TODO: add sample data validation:
-        if _valid_format:
-            _valid_data = min(import_form_path(_get_path(sample_file_name), _fomrat).shape) <= 2
-
-        _valid_sample = _valid_format and _valid_data
+        _valid_sample = _valid_format
 
         return _valid_sample
     
     def val_handle_aio(self, sample_dir_path: str, sample_file_name: str) -> list[str]:
         """
         Check if the file is an AIO one, if so unpacks it.
+        * Must be called after [val_samples] on the same [args].
         """
-        _format: str = sample_file_name.split('.')[-1]
+        _fmt: str = sample_file_name.split('.')[-1]
         _path: str = os.path.join(sample_dir_path, sample_file_name)
         
-        _df: pd.DataFrame = import_form_path(_path, _format)
+        _df: pd.DataFrame = utls.import_form_path(_path, _fmt)
+        
+        _nms: list[str] = [sample_file_name]
         
         _is_aio: bool = min(_df.shape) > 2
-
-        _nms: list[str] = [sample_file_name]
 
         if _is_aio:
             # assume data is in the top left corner of the spread sheet:
@@ -96,7 +90,7 @@ class Validator():
                         }
             
             # unpack aio data into disk:
-            #TODO: should we make a temp cache insted of disc?!!, or maybe too complex?
+            #TODO: should we make a temp cache insted of disc?!!, or maybe too complex?, leaning against this idea for now!.
             for name, data in _samples_dict.items():
                 _path = os.path.join(sample_dir_path, name)
                 data.to_csv(_path, index=False)
