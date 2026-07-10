@@ -25,7 +25,7 @@ class Sample():
         
     def __repr__(self) -> str:
 
-        return f"{__class__.__name__} ({self.full_name=}, {self.data=})"
+        return f"{__class__.__name__} ({self.full_name=}, {self.data.shape=})"
     
     def __eq__(self, other) -> bool:
         

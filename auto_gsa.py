@@ -12,7 +12,7 @@ class App(ctk.CTk):
     """
     The application.
     """
-    def __init__(self, title:str="AutoGSA", size:tuple[int,int]=(800,550)) -> None:
+    def __init__(self, title:str="AutoGSA", size:tuple[int,int]=(800,600)) -> None:
         super().__init__()
         #This is a hard coded value; trail&error driven.
         position: tuple[int,int] = (

@@ -18,14 +18,12 @@ class Validator():
     """
     Rsoponsible for validating data.
     """
-    #TODO: Abstract somewhere else?
-
     def val_samples(self, samples_dir_path: str, sample_file_name: str) -> bool:
         """
         Validates the sample file format and the sample data within.
         - ** for now it's just a format validator.
         """
-        #! It seems we don't need to check the data within; as the <=2 heuristic invalidates aio, Other ways seems impractical as a spreadsheet can take many a form!, PONDER!, if you need to reimplement, check commit 43 I think.
+        #! It seems we don't need to check the data within; as the <=2 heuristic invalidates aio, Other ways seems impractical as a spreadsheet can take many a form!, PONDER!, if you need to re-implement, check commit 43 I think.
         _valid_sample: bool = False
 
         _fmt: str = sample_file_name.split('.')[-1]

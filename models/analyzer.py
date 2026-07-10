@@ -57,7 +57,7 @@ class Analyzer():
             for _wt_prcnt in wt_prcnts:
                 # extrapolate: wither the interpolation should extrapolate.
                 _phi = interpolation_fn.solve(_wt_prcnt, extrapolate=False)
-                if _phi:
+                if _phi.size != 0:
                     _phis_inversed.append(_phi[0])
                     _valid_wt_prcnts.append(_wt_prcnt)
                 

@@ -1,11 +1,15 @@
+from typing import Any
+
 import customtkinter as ctk
+
+from mixins import Observer
 
 from .analysis_panal import AnalysisPanal
 from .file_panal import FilePanal
 from .log_pannal import LoggingLabel
 
 
-class MainPanal(ctk.CTkFrame):
+class MainPanal(ctk.CTkFrame, Observer):
     """
     The applicatoin's main panal.
     """
@@ -15,7 +19,7 @@ class MainPanal(ctk.CTkFrame):
         #! Still not sure about this!
         self.columnconfigure(0, weight=4, uniform='a')
         self.columnconfigure(1, weight=13, uniform='a')
-        self.rowconfigure(0, weight=20, uniform='b')
+        self.rowconfigure(0, weight=23, uniform='b')
         self.rowconfigure(1, weight=1, uniform='b')
 
         self.file_panal: FilePanal = FilePanal(self)
@@ -25,13 +29,13 @@ class MainPanal(ctk.CTkFrame):
         self._layout()
 
         #TODO: expirement with custom singelton comm system! [LTS].
-        # Inter-widget communication, signature <<Signal Source-Action to make>>:
-        self.winfo_toplevel().bind("<<FilePanal-log>>", lambda _: self.log())
-        self.winfo_toplevel().bind("<<FilePanal-analyze>>", lambda _: self.analyze())
-        self.winfo_toplevel().bind("<<FilePanal-exported>>", lambda _:self.exported())
-        self.winfo_toplevel().bind("<<Screens-saved>>", lambda _: self.saved())
-        self.winfo_toplevel().bind("<<AnalysisPanal-color>>", lambda _: self.update_color())
-        self.winfo_toplevel().bind("<<LoggingPanal-zoom>>", lambda _: self.expand_log("log"))
+        # Inter-widget communication, signature <<Observer Source-Action to make>>:
+        self.obs_listen('FilePanal-log', self, self.log)
+        self.obs_listen('Screens-saved', self, self.saved)
+        self.obs_listen('FilePanal-analyze', self, self.analyze)
+        self.obs_listen('FilePanal-exported', self, self.exported)
+        self.obs_listen("LoggingPanal-zoom", self, self.expand_log)
+        self.obs_listen('AnalysisPanal-color', self, self.update_color)
 
     def _layout(self) -> None:
         """
@@ -43,22 +47,18 @@ class MainPanal(ctk.CTkFrame):
         self.analysis_panal.grid(column=1, row=0, sticky='nsew')
         self.logging_label.grid(column=0, row=1, columnspan=2, sticky='nsew')
 
-    def log(self) -> None:
+    def log(self, msg) -> None:
         """
         Log the massage into the logging widget; signal triggered.
         """
-        _msg = self.file_panal.get_log_massage()
-        self.logging_label.write(_msg)
+        self.logging_label.write(msg)
 
-    def analyze(self) -> None:
+    def analyze(self, sample, graph_type: Any|None = None) -> None:
         """
         Tells the analysis widget to analyze the sample; signal triggered.
         """
-        _sample, _graph_type = self.file_panal.get_analysis_data()
-
-        self.analysis_panal.write(_sample, _graph_type)
-        #? This is a signal triggered function, so [_graph_type] can never bo None, hence the ignore flag
-        self.analysis_panal.draw_graphs(_sample, _graph_type) #type: ignore 
+        self.analysis_panal.write(sample, graph_type)
+        self.analysis_panal.draw_graphs(sample, graph_type) #type: ignore 
 
     def exported(self) -> None:
         """
@@ -72,12 +72,11 @@ class MainPanal(ctk.CTkFrame):
         """
         self.file_panal.save_all()
     
-    def update_color(self) -> None:
+    def update_color(self, color) -> None:
         """
         Tells the save object about the graph color; signal triggered.
         """
-        _color: str = self.analysis_panal.get_graph_color()
-        self.file_panal.update_save_obj_color(_color)
+        self.file_panal.update_save_obj_color(color)
         
     def expand_log(self, widget_name: str) -> None:
         """

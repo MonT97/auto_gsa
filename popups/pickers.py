@@ -9,7 +9,7 @@ import customtkinter as ctk
 from mixins import HasToolTip
 from shared_widgets import ColorPicker
 
-from .base_picker import BasePicker, BaseToggle # needed for export_screen
+from .base_picker import BasePicker, BaseToggle  # needed for export_screen
 
 
 class DpiPicker(BasePicker):
@@ -228,49 +228,3 @@ class GraphColorPicker(ctk.CTkFrame):
         Returns the color.
         """
         return self.color
-    
-
-# class SaveRawsPicker(ctk.CTkFrame, HasToolTip):
-#     """
-#     Picking whether to save the raw file or not.
-#     """
-#     def __init__(self, master, label_text: str, tooltip_msg: str = '') -> None:
-#         super().__init__(master)
-#         self.toggle: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
-#                     text=label_text, border_width=2,
-#                     checkbox_height=20, checkbox_width=20)
-
-#         if tooltip_msg:
-#             self.htt_tip(self.toggle, tooltip_msg)
-        
-#         utls.bg_transparent([self.toggle])
-#         self.toggle.pack(side='left', padx=2)
-
-#     def get_value(self) -> bool:
-#         """
-#         Returns the color.
-#         """
-#         return bool(self.toggle.get())
-
-
-# class TransparencyPicker(ctk.CTkFrame, HasToolTip):
-#     """
-#     Picking whether to save the raw file or not.
-#     """
-#     def __init__(self, master, label_text: str, tooltip_msg: str = '') -> None:
-#         super().__init__(master)
-#         self.toggle: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
-#                     text=label_text, border_width=2,
-#                     checkbox_height=20, checkbox_width=20)
-
-#         if tooltip_msg:
-#             self.htt_tip(self.toggle, tooltip_msg)
-        
-#         utls.bg_transparent([self.toggle])
-#         self.toggle.pack(side='left', padx=2)
-
-#     def get_value(self) -> bool:
-#         """
-#         Returns the color.
-#         """
-#         return bool(self.toggle.get())

@@ -2,19 +2,20 @@ import os
 
 import customtkinter as ctk
 
-from mixins import Defaults, HasToolTip
+from mixins import Defaults, HasToolTip, Observer
 from typedefs import SaveObject
 from utils import utls
 
 from .base_screen import BaseScreen
-from .pickers import (BasePicker, BaseToggle, DpiPicker, GraphColorPicker, IntervalPicker)
+from .pickers import (BasePicker, BaseToggle, DpiPicker, GraphColorPicker,
+                      IntervalPicker)
 
 # Constant
 # fonts:
 BTN_FRAME_FONT = ('Arial', 16)
 
 #TODO: a way to remember what we did before, a running singlton of sorts; LTS.
-class ExportScreen(BaseScreen, Defaults, HasToolTip):
+class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
     """
     The export confirmation dialougue screen.
     """
@@ -106,8 +107,7 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip):
         self.save_params.save_raw_files = self.raws_pckr.get_value()
         self.save_params.transparent = self.trans_pckr.get_value()
         
-        # As the toplevel() from a ctk.TopLevel isn't the same, so, master is needed!
-        self.master.winfo_toplevel().event_generate("<<Screens-saved>>")
+        self.obs_broadcast('Screens-saved', self)
 
     def set_results_path(self, path: str) -> None:
         """

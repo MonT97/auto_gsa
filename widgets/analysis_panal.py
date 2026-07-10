@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-from mixins import CanPlot, HasToolTip
+from mixins import CanPlot, HasToolTip, Observer
 from models import Analyzer, Cache, Sample
 from shared_widgets import ColorPicker
 from typedefs import (AnalysisMethod, GraphParameters, GraphType, PlotData,
@@ -19,7 +19,7 @@ DATA_NOTE_FONT = ('Arial', 14, 'bold')
 # graph:
 GRAPH_COLOR_DEFAULT = '#1f7bb4'
 
-CUST_BAR_PARAMS: tuple =  (.3, .25, .04)
+CUST_BAR_PARAMS =  (.3, .25, .04)
 
 class AnalysisPanal(ctk.CTkFrame):
     """
@@ -78,24 +78,18 @@ class AnalysisPanal(ctk.CTkFrame):
         self._create_analyzer(sample)
         self.data_panal.write(self.analyzer, sample, graph_type)
     
-    def get_graph_color(self) -> str:
-        """
-        Triggered by an outside signal from [MainPanal].
-        """
-        return self.graph_panal.get_graph_params().graph_color
-
 
 class GraphPanal(ctk.CTkFrame, CanPlot):
     """
     CTkFrame:
     Views the resulting graphs.
     """
-    def __init__(self, master: AnalysisPanal) -> None:
+    def __init__(self, master: AnalysisPanal, height: int = 200) -> None:
         """
         CTkFrame:
         Views the resulting graphs.
         """
-        super().__init__(master)
+        super().__init__(master, height=height)
 
         # Cache:
         self.graphs_cache: Cache = Cache()
@@ -108,6 +102,9 @@ class GraphPanal(ctk.CTkFrame, CanPlot):
         self.graph_frame.columnconfigure(1, weight=1, uniform='a')
         self.graph_frame.rowconfigure(0, weight=1, uniform='a')
 
+        self.label = ctk.CTkLabel(self,
+                text='Graphs:', font=DATA_NOTE_FONT)
+        self.label.pack(side='top', padx=5, anchor='w')
         self.graph_frame.pack(fill='both', expand=1, padx=5, pady=5)
 
         self.cust_bar: CustomizationBar = CustomizationBar(self, *CUST_BAR_PARAMS)
@@ -199,16 +196,18 @@ class DataPanal(ctk.CTkFrame):
     CTkFrame:
     Views the data and resulting stats
     """
-    def __init__(self, master: AnalysisPanal) -> None:
-        super().__init__(master)
-
+    def __init__(self, master: AnalysisPanal, height: int = 200) -> None:
+        super().__init__(master, height=height)
+        self.label = ctk.CTkLabel(self,
+                text='Data and analysis:', font=DATA_NOTE_FONT)
         self.note_font: ctk.CTkFont = ctk.CTkFont(*DATA_NOTE_FONT)
 
         self.data_note: DataNote = DataNote(self, self.note_font) 
         self.stats_note: StatsNote = StatsNote(self, self.note_font)
 
-        self.data_note.pack(side='left', fill='both', expand=1, padx=(5,0), pady=5)
-        self.stats_note.pack(side='left', fill='both', expand=1, padx=5, pady=5)
+        self.label.pack(side='top', padx=5, anchor='w')
+        self.data_note.pack(side='left', fill='both', expand=1, padx=(5,0), pady=(0,5))
+        self.stats_note.pack(side='left', fill='both', expand=1, padx=5, pady=(0,5))
 
     def write(self, analyzer: Analyzer, sample: Sample, _type: GraphType|None):
         
@@ -277,7 +276,7 @@ class StatsNote(ctk.CTkTextbox):
         self.configure(state=ctk.DISABLED)  
 
 
-class CustomizationBar(ctk.CTkFrame, HasToolTip):
+class CustomizationBar(ctk.CTkFrame, HasToolTip, Observer):
     """
     CkFrame:
         Gives the ability to change the graph preview visuals.
@@ -357,7 +356,7 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip):
         _graph_params: GraphParameters = self.master.get_graph_params()
         _graph_params.graph_color = color
         self._update_graphs(_graph_params)
-        self.winfo_toplevel().event_generate("<<AnalysisPanal-color>>")
+        self.obs_broadcast('AnalysisPanal-color', self, [color])
 
     def enable(self) -> None:
         """

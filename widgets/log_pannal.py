@@ -4,10 +4,10 @@ import tkinter as tk
 
 import customtkinter as ctk
 
-from mixins import HasToolTip
+from mixins import HasToolTip, Observer
 
 
-class LoggingLabel(ctk.CTkFrame, HasToolTip):
+class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
     """
     CTkFrame:
     The class that handels logging various massages and saving said massages to a log file.
@@ -78,7 +78,7 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip):
         Expands the logging widget.
         """
         # This fills the app with the this widget
-        self.winfo_toplevel().event_generate("<<LoggingPanal-zoom>>")
+        self.obs_broadcast('LoggingPanal-zoom', self, ['log'])
 
     def on_open(self) -> None:
         """

@@ -13,17 +13,17 @@ T = TypeVar('T', bound=DefaultObj)
 # color:
 DEFAULT_CLR = '#1f7bb4'
 
+_objs: dict = {}
+_cnfg_folder_name: str = 'auto_gsa'
+_defaults_file_name: str = 'defaults.json'
+_app_data_path: str = os.environ.get('LOCALAPPDATA') #type: ignore
+_cnfg_dir_path: str = os.path.join(_app_data_path, _cnfg_folder_name)
+_cnfg_file_path: str = os.path.join(_cnfg_dir_path, _defaults_file_name)
+
 class Defaults():
     """
     A mixin wrapping the functionality to create default values.
     """
-    _objs: dict = {}
-    _cnfg_folder_name: str = 'auto_gsa'
-    _defaults_file_name: str = 'defaults.json'
-    _app_data_path: str = os.environ.get('LOCALAPPDATA') #type: ignore
-    _cnfg_dir_path: str = os.path.join(_app_data_path, _cnfg_folder_name)
-    _cnfg_file_path: str = os.path.join(_cnfg_dir_path, _defaults_file_name)
-
     def _add_default(self, obj: Type[T]) -> None:
         """
         Creates the default version of the [obj] and adds it to the [_objs] list and the JSON file.
@@ -33,7 +33,7 @@ class Defaults():
         _data = self._get_default_version(obj)
         self._write_into_file(_data, id_)
 
-        self._objs[id_] = _data
+        _objs[id_] = _data
 
     def _get_default_version(self, obj: Type[T]) -> T:
         """
@@ -59,12 +59,12 @@ class Defaults():
         """
         _json: dict = {}
 
-        _dir_exist: bool = os.path.exists(self._cnfg_dir_path)
-        _file_exist: bool = os.path.exists(self._cnfg_file_path)
+        _dir_exist: bool = os.path.exists(_cnfg_dir_path)
+        _file_exist: bool = os.path.exists(_cnfg_file_path)
         if not _dir_exist:
-             os.mkdir(self._cnfg_dir_path)
+             os.mkdir(_cnfg_dir_path)
         try:
-            with open(self._cnfg_file_path, 'r') as f:
+            with open(_cnfg_file_path, 'r') as f:
                     _json = json.load(f)
             if id_ in _json: return
         except Exception as e:
@@ -74,10 +74,10 @@ class Defaults():
 
         # Lunix like [user,group,others], 4=r,2=w,1=exc,0=none.
         if _file_exist:
-            os.chmod(self._cnfg_file_path, 0o700)
-        with open(self._cnfg_file_path, 'w') as f:
+            os.chmod(_cnfg_file_path, 0o700)
+        with open(_cnfg_file_path, 'w') as f:
                 json.dump(_json, f, indent=4)
-        os.chmod(self._cnfg_file_path, 0o400)
+        os.chmod(_cnfg_file_path, 0o400)
 
     def df_get_from_file(self, obj: Type[T]):
         """
@@ -85,7 +85,7 @@ class Defaults():
         """
         id_: str = obj.__name__
 
-        with open(self._cnfg_file_path, 'r') as f:
+        with open(_cnfg_file_path, 'r') as f:
             _json = json.load(f)
 
         def _match_type(obj: Type[T], json, id_: str) -> T:
@@ -106,13 +106,13 @@ class Defaults():
         Retrieves the default version of the provided [obj], creates it if doesn't exist.
         - obj: is the class itself [obj], not an instanse [obj()].
         """
-        if obj.__name__ not in self._objs:
+        if obj.__name__ not in _objs:
             self._add_default(obj)
             
-        return self._objs[obj.__name__]
+        return _objs[obj.__name__]
 
     def df_get_all(self) -> dict:
         """
         Retrieves all default objects.
         """
-        return self._objs
+        return _objs

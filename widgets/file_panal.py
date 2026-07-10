@@ -1,10 +1,10 @@
 import os
-from tkinter import Event, ttk
+from tkinter import ttk
 
 import customtkinter as ctk
 from PIL import Image
 
-from mixins import CanSave, Defaults, HasToolTip, Validator
+from mixins import CanSave, Defaults, HasToolTip, Observer, Validator
 from models import Cache, Sample
 from popups import ExportScreen, ImportScreen
 from typedefs import GraphType, SaveObject
@@ -25,7 +25,7 @@ EXPORT_ICON = Image.open('assets/upload.png')
 # convension to keep:
 # file -> file_name.extension
 # sample -> Sample(file_path)
-class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
+class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
     """
     CTkFrame:
     The class handeling:
@@ -197,9 +197,9 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
             _sample: Sample = Sample(_file_path)
             self.samples_cache.add(_file_path, _sample)
 
-        #! Signal!:
+        #! Observer!:
         self._set_analysis_data(_sample, graph_type)
-        self.winfo_toplevel().event_generate("<<FilePanal-analyze>>")
+        self.obs_broadcast('FilePanal-analyze', self, [self.crnt_sample, self.graph_type])
         self._set_log_message(f'[{_sample.get_name().lower()}] analyzed.')
 
         self.after(5, self.file_viewer.focus_set)
@@ -217,14 +217,9 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         """
         Setting for an outside signal trigger.
         """
-        self.log_massage: str = massage if not error else '<!> Error: '+ massage
-        self.winfo_toplevel().event_generate("<<FilePanal-log>>")
 
-    def get_log_massage(self) -> str:
-        """
-        Returns the logged massage, triggered by an outside signal.
-        """
-        return self.log_massage
+        self.log_massage: str = massage if not error else '<!> Error: '+ massage
+        self.obs_broadcast('FilePanal-log', self, [self.log_massage])
     
     def _on_save_btn_pressed(self, sample: Sample, save_obj: SaveObject) -> None:
         """
@@ -291,7 +286,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         
         _export_path: str = os.path.join(_results_path, _results_folder_name)
         self._set_log_message(f'all samples saved to [{_export_path}]')
-        self.winfo_toplevel().event_generate("<<FilePanal-exported>>")
+        self.obs_broadcast('FilePanal-exported', self)
 
     def on_exported(self) -> None:
         """
@@ -300,13 +295,6 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip):
         _save_obj: SaveObject = self.export_popup.get_params()
         _path: str = os.path.join(_save_obj.results_path, _save_obj.results_folder_name)
         self.export_popup.set_results_path(_path)
-
-    def get_analysis_data(self) -> tuple[Sample, GraphType|None]:
-        """
-        Triggered by an outside signal from [MainPanal].
-        """
-        return (self.crnt_sample, self.graph_type)
-
 
 class FileViewer(ttk.Treeview, Validator):
     """
