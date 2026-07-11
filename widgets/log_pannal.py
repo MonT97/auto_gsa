@@ -29,7 +29,7 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
         self.htt_tip(self.label, 'double click to expand/shrink')
 
         self.label.pack(side='left', padx=5)
-        self.text_box.pack(side='left', fill='both', expand=1)
+        self.text_box.pack(side='left', fill='both', expand=True)
         
         self._setup_log_file()
 

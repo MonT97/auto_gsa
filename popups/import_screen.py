@@ -22,6 +22,7 @@ FILE_ATTRIBUTE_HIDDEN = 2
 FILE_ATTRIBUTE_SYSTEM = 4
 
 # icons:
+ICON_SIZE = (20,20)
 FILE_ICON = Image.open('assets/file.png')
 FOLDER_ICON = Image.open('assets/folder.png')
 
@@ -151,8 +152,8 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         utls.bg_transparent([self.select_all, self.csv, self.excel, self.select_between])
 
         # Element for files_frame:
-        self.dir_img = ctk.CTkImage(FOLDER_ICON, size=(20,20))
-        self.file_img = ctk.CTkImage(FILE_ICON, size=(20,20))
+        self.dir_img = ctk.CTkImage(FOLDER_ICON, size=ICON_SIZE)
+        self.file_img = ctk.CTkImage(FILE_ICON, size=ICON_SIZE)
 
         self.csv.pack(side='left', expand=True, fill='x', padx=(2,0))
         self.excel.pack(side='left', expand=True, fill='x')

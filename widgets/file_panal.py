@@ -19,8 +19,10 @@ DEFAULT_ENTRY = '#565b5e'
 ENTRY_FONT = ('Arial', 16)
 
 # icons:
+ICON_SIZE = size=(15,15)
 IMPORT_ICON = Image.open('assets/import.png')
 EXPORT_ICON = Image.open('assets/upload.png')
+EXPORT_DIS_ICON = Image.open('assets/upload_dis.png')
 
 # convension to keep:
 # file -> file_name.extension
@@ -55,7 +57,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         self.samples_cache: Cache = Cache(50)
 
         # Entry related:
-        self.import_icon: ctk.CTkImage = ctk.CTkImage(IMPORT_ICON, size=(11,11))
+        self.import_icon: ctk.CTkImage = ctk.CTkImage(IMPORT_ICON, size=ICON_SIZE)
 
         self.entry_font = ctk.CTkFont(*ENTRY_FONT)
 
@@ -94,10 +96,12 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         self.htt_tip(self.analyze_btn, 'Analayze and preview the sample file selected above')
         
         self.export_btn_icon: ctk.CTkImage = ctk.CTkImage(
-            EXPORT_ICON, size=(11,11))
+            EXPORT_ICON, size=ICON_SIZE)
+        self.export_btn_dis_icon: ctk.CTkImage = ctk.CTkImage(
+            EXPORT_DIS_ICON, size=ICON_SIZE)
         self.export_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="export",
-            image=self.export_btn_icon,
+            image=self.export_btn_dis_icon,
             compound='right',
             font=self.entry_font,
             state=ctk.DISABLED, 
@@ -174,7 +178,7 @@ class FilePanal(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         Sub-routine for importing files is Done.
         """
-        self.export_btn.configure(state=ctk.NORMAL)
+        self.export_btn.configure(state=ctk.NORMAL, image=self.export_btn_icon)
 
         self._reset_focus()
         self._set_log_message(

@@ -34,8 +34,8 @@ class Observer():
         - func: the listener function to be called.
         """
         _top_level: Toplevel = listener.winfo_toplevel()
-        _top_level.bind(f'<<{signal_name}>>', lambda _: self._bind_func(func, signal_name), add='+')
+        _top_level.bind(f'<<{signal_name}>>', lambda _: self._bind_func(signal_name,func), add='+')
         
-    def _bind_func(self, func, signal_name) -> None:
+    def _bind_func(self, signal_name: str, func: Callable) -> None:
         _args = self._get_args(signal_name)
         func(*_args)

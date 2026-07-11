@@ -1,10 +1,26 @@
 from collections.abc import Callable
+from PIL import Image
 
 import customtkinter as ctk
 
 # Constatns
+# icon:
+ICON_SIZE = (35,35)
+
+PREVIEW_ICON_ON_BK = Image.open('assets/check_box_on_bk.png')
+PREVIEW_ICON_ON_WH = Image.open('assets/check_box_on_wh.png')
+PREVIEW_ICON_OFF_BK = Image.open('assets/check_box_off_bk.png')
+PREVIEW_ICON_OFF_WH = Image.open('assets/check_box_off_wh.png')
+
 # color:
-RGB: tuple = (138, 117, 216)
+DEFAULT_RGB = (31,123,180) # translation of ['#1f7bb4']
+
+HOVER_CONTRAST = 35
+assert HOVER_CONTRAST < 127, 'This value should never exceed 127 for the math to checkout!'
+TONE_THRESHOLD = 381
+GREEN_THRESHOLD = 239
+THRESHOLD_FOR_GREEN = 64
+
 HOVER_COLOR = '#ffffff'
 DEFAULT_COLOR = '#000000'
 BORDER_COLOR_ACTIVE = '#00ff00'
@@ -36,12 +52,13 @@ class ColorPicker(ctk.CTkFrame):
         self.color: str = DEFAULT_COLOR
 
         self.preview: ctk.CTkButton = ctk.CTkButton(self,
-                text='set', border_color='red', border_width=2,
+                text='', border_color='red', border_width=2,
+                image=ctk.CTkImage(PREVIEW_ICON_OFF_WH,size=ICON_SIZE),
                 command= lambda: self._update_color(master, self.color))
 
-        _r: ctk.IntVar = ctk.IntVar(self, value=RGB[0])
-        _g: ctk.IntVar = ctk.IntVar(self, value=RGB[1])
-        _b: ctk.IntVar = ctk.IntVar(self, value=RGB[2])
+        _r: ctk.IntVar = ctk.IntVar(self, value=DEFAULT_RGB[0])
+        _g: ctk.IntVar = ctk.IntVar(self, value=DEFAULT_RGB[1])
+        _b: ctk.IntVar = ctk.IntVar(self, value=DEFAULT_RGB[2])
 
         self._set_color((_r,_g,_b))
 
@@ -54,32 +71,65 @@ class ColorPicker(ctk.CTkFrame):
         _g_slider.grid(column=1, row=1, rowspan=1, padx=5)
         _b_slider.grid(column=1, row=2, rowspan=1, padx=5)
 
+    def _convert_clr(self, color: str|tuple[int,int,int]) -> str|tuple:
+        """
+        Converts the given [color] into the opposit format, a [color:str] returns a [color:tuple] and vise versa.
+        - color: the color in either str or tuple form.
+        """
+        _clr: str|tuple = ''
+        if isinstance(color, str):
+            color = color.lstrip('#')
+            _clr = tuple(int(f'{color[i]}{color[i+1]}',16) for i in range(0,len(color),2))
+        elif isinstance(color, tuple):
+            _clr = '#'+''.join([f'{c:02x}' for c in color])
+        return _clr
+
     def _set_color(self, rgb: tuple[ctk.IntVar,ctk.IntVar,ctk.IntVar]) -> None:
         """
         Sets the color.
         """
-        clr: tuple[int,int,int] = tuple(i.get() for i in rgb) #type: ignore
-        crnt_hvr_clr: list[str] = self.preview.cget('hover_color')
+        _clr: tuple[int,int,int] = tuple(i.get() for i in rgb) #type: ignore
+        # special case as full green ['00ff00'] is very bright to have a white icon.
+        _green_case = (_clr[1] > GREEN_THRESHOLD) and (min(_clr[0],_clr[2]) < THRESHOLD_FOR_GREEN)
         
-        self.color = '#'+''.join([f'{c:02x}' for c in clr])
-        self.preview.configure(fg_color = self.color)
+        def get_hvr(clr: tuple) -> str:
+            """
+            Computes the hover color based on max(_clr).
+            """
+            _cap: int = 255-HOVER_CONTRAST
+            _get_wt = lambda x: int(HOVER_CONTRAST-(HOVER_CONTRAST*((x+1)/10)))
+            _clr_ranked = {k: v for v, k in enumerate(sorted(clr,reverse=True))}
+            _wts = [_clr_ranked[c] for c in clr]
+            _lclr = tuple(c+_get_wt(id_) if c < _cap else c-_get_wt(id_) for c,id_ in zip(clr, _wts))
+            return self._convert_clr(_lclr) #type:ignore
 
-        if sum(clr) > 245:
-            self.preview.configure(text_color = DEFAULT_COLOR)
-            self.preview.configure(hover_color=[crnt_hvr_clr[0],HOVER_COLOR])
-        if sum(clr) < 245:
-            self.preview.configure(text_color = HOVER_COLOR)
-            self.preview.configure(hover_color=[crnt_hvr_clr[0],DEFAULT_COLOR])
+        self.color = self._convert_clr(_clr) #type:ignore
+        self.preview.configure(fg_color = self.color)
+        
+        if sum(_clr) > TONE_THRESHOLD or _green_case:
+            self.preview.configure(
+                hover_color=get_hvr(_clr),
+                image=ctk.CTkImage(PREVIEW_ICON_OFF_BK, size=ICON_SIZE))
+        elif sum(_clr) < TONE_THRESHOLD:
+            self.preview.configure(
+                hover_color=get_hvr(_clr),
+                image=ctk.CTkImage(PREVIEW_ICON_OFF_WH, size=ICON_SIZE))
 
         if self.preview.cget('border_color') != BORDER_COLOR_INACTIVE:
-            self.preview.configure(border_color=BORDER_COLOR_INACTIVE, text='set')
+            self.preview.configure(border_color=BORDER_COLOR_INACTIVE)
 
     def _update_color(self, master: ctk.CTkFrame, color: str) -> None:
         """
         Update the graph with the new color, delegated to master.
         """
         master.on_preview_press(color) #type: ignore
-        self.preview.configure(border_color=BORDER_COLOR_ACTIVE, text='set!')
+        _sum: int = sum(self._convert_clr(color)) #type: ignore
+
+        _img = PREVIEW_ICON_ON_BK if _sum > TONE_THRESHOLD else PREVIEW_ICON_ON_WH
+
+        self.preview.configure(
+            border_color=BORDER_COLOR_ACTIVE,
+            image=ctk.CTkImage(_img, size=ICON_SIZE))
 
 
 class ColorSlider(ctk.CTkSlider):

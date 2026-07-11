@@ -1,10 +1,11 @@
 icon.svg
+tester.py
+
 n.py
 /lab
 /test
 /result_sheets
 /bu.py
-/test.py
 /__pycache__
 /assets/*.svg
 /self_assets/
