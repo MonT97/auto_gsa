@@ -2,4 +2,4 @@
 The main widgets.
 """
 
-from .main_panal import MainPanal
+from .main_panel import MainPanel

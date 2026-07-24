@@ -1,16 +1,28 @@
 import datetime as dt
 import os
 import tkinter as tk
+from typing import Final
 
 import customtkinter as ctk
 
 from mixins import HasToolTip, Observer
 
+# Constants:
+
+# names:
+CNFG_DIR_NAME: Final[str] = 'auto_gsa'
+LOG_FILE_NAME: Final[str] = 'log.txt'
+CONFG_DIR: Final[str|None] = os.environ.get('LOCALAPPDATA')
+assert CONFG_DIR, 'Strange!, you don\'t have an appdata dir??!!'
+
+# file permission:
+FULL_PERM: Final[int] = 0o700
+READ_ONLY: Final[int] = 0o400
 
 class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
     """
     CTkFrame:
-    The class that handels logging various massages and saving said massages to a log file.
+    The class that handles logging various massages and saving said massages to a log file.
     """
     def __init__(self, master: ctk.CTkFrame) -> None:
         super().__init__(master)
@@ -18,9 +30,7 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
         self.configure(corner_radius=0)
 
         self.cnfg_path: str = ''
-        self.cnfg_folder_name: str = 'auto_gsa'
         self.log_file_path: str = ''
-        self.log_file_name: str = 'log.txt'
 
         self.label: ctk.CTkLabel = ctk.CTkLabel(self, anchor='w', text='Log:')
         self.text_box: ctk.CTkTextbox = ctk.CTkTextbox(self,
@@ -35,50 +45,52 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
 
     def _setup_log_file(self) -> None:
     
-        _cnfg_dir: str = os.environ.get('LOCALAPPDATA') #type: ignore
-        self.cnfg_path = os.path.join(_cnfg_dir, self.cnfg_folder_name)
+        self.cnfg_path = os.path.join(CONFG_DIR, CNFG_DIR_NAME)
 
         if not os.path.exists(self.cnfg_path):
             os.mkdir(self.cnfg_path)
 
     def _log_to_file(self, text: str) -> None:
         """
-        Log text into the log file.
+        Log [text] into the log file.
         """
         _mode: str = 'a'
-        _header: str = f'created in: {dt.datetime.now().ctime()}\n--------------<>-------------\nAuto_GSA configuration\n--------------<>-------------\n'
+        _header: str = f'created in: {dt.datetime.now().ctime()}\n---------------------------<\nAuto_GSA logfile\n>---------------------------\n'
         
-        self.log_file_path = os.path.join(self.cnfg_path, self.log_file_name)
+        self.log_file_path = os.path.join(self.cnfg_path, LOG_FILE_NAME)
         _file_exists: bool = os.path.exists(self.log_file_path)
         if not _file_exists: #TODO: additional conditions??
             _mode: str = 'w'
             text+=_header
 
-        # Lunix like [user,group,others], 4=r,2=w,1=exc,0=none.
+        # Linux like [user,group,others], 4=r,2=w,1=exc,0=none.
         if _file_exists:
-            os.chmod(self.log_file_path, 0o700)
+            os.chmod(self.log_file_path, FULL_PERM)
         with open(self.log_file_path, _mode) as f:
             f.write(text+'\n')
-        os.chmod(self.log_file_path, 0o400)
+        os.chmod(self.log_file_path, READ_ONLY)
+        
+    def write(self, text: str, error: bool) -> None:
+        """
+        Write [text] into the text box.
+        error: when the [text] is meant to be an error massage.
+        """
+        _text = text if not error else '<!> Error: '+text
 
-    def write(self, text: str) -> None:
-        """
-        Write into the text box.
-        """
         self.text_box.configure(state=ctk.NORMAL)
-        self.text_box.insert(tk.INSERT, text)
+        self.text_box.insert(tk.INSERT, _text)
         self.text_box.see(tk.END)
         self.text_box.insert(tk.INSERT, '\n')
         self.text_box.configure(state=ctk.DISABLED)
 
-        self._log_to_file(text)
+        self._log_to_file(_text)
     
     def _expand(self) -> None:
         """
         Expands the logging widget.
         """
-        # This fills the app with the this widget
-        self.obs_broadcast('LoggingPanal-zoom', self, ['log'])
+        # This expands the app with the this widget
+        self.obs_broadcast('LoggingPanel-expand', self, ['log'])
 
     def on_open(self) -> None:
         """

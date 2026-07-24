@@ -208,6 +208,10 @@ class GraphColorPicker(ctk.CTkFrame):
 
         self.toggle.pack(side='left')
 
+    def update(self, color: str) -> None:
+
+        self.color_pckr.update_clr_and_intvars(color)
+
     def _on_check(self) -> None:
  
         if self.toggle.get():

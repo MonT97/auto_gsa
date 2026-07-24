@@ -7,11 +7,11 @@ from typing import Type, TypeVar, cast
 
 from typedefs import DefaultObj, SaveObject
 
-T = TypeVar('T', bound=DefaultObj)
-
 # Constants
 # color:
 DEFAULT_CLR = '#1f7bb4'
+
+T = TypeVar('T', bound=DefaultObj)
 
 _objs: dict = {}
 _cnfg_folder_name: str = 'auto_gsa'
@@ -42,7 +42,7 @@ class Defaults():
         if obj is SaveObject:
 
             _data = SaveObject()
-            _data.prefix = 'resutls_'
+            _data.prefix = 'results_'
             _data.results_path = 'd:/documents/auto gsa data'
             _data.results_folder_name = 'analysis_results'
             _data.color = DEFAULT_CLR
@@ -72,7 +72,7 @@ class Defaults():
 
         _json[f'{id_}'] = default_obj.to_dict()
 
-        # Lunix like [user,group,others], 4=r,2=w,1=exc,0=none.
+        # Linux like [user,group,others], 4=r,2=w,1=exc,0=none.
         if _file_exist:
             os.chmod(_cnfg_file_path, 0o700)
         with open(_cnfg_file_path, 'w') as f:
@@ -81,7 +81,7 @@ class Defaults():
 
     def df_get_from_file(self, obj: Type[T]):
         """
-        Retieves the default version of the provided [obj] from the defaults.json file.
+        Retrieves the default version of the provided [obj] from the defaults.json file.
         """
         id_: str = obj.__name__
 
@@ -104,7 +104,7 @@ class Defaults():
     def df_get(self, obj: Type[T]) -> T:
         """
         Retrieves the default version of the provided [obj], creates it if doesn't exist.
-        - obj: is the class itself [obj], not an instanse [obj()].
+        - obj: is the class itself [obj], not an instance [obj()].
         """
         if obj.__name__ not in _objs:
             self._add_default(obj)

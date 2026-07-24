@@ -6,7 +6,7 @@ import pandas as pd
 
 from .enums import *
 
-type CacheElement = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel, ctk.CTkLabel]
+type ImportCacheElement = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel, ctk.CTkLabel]
 type PlotData = tuple[PlotInput, PlotInput, SamplePoints, AnalysisMethod]
 type SamplePoints = list[tuple[float, float]]
 type PlotInput = pd.Series|np.ndarray
@@ -54,7 +54,7 @@ class StatsInterpretation():
 @dataclass
 class DefaultObj():
     """
-    A base class, intendent to use as a base class for all [DefaultObj]s.
+    A base class, intended to be used as a base class for all [DefaultObj]s.
     """
     def to_dict(self) -> dict:
         return self.__dict__
@@ -67,10 +67,10 @@ class SaveObject(DefaultObj):
     - prefix: To append to the beginning of the file's name.
     - results_path: To save the file within.
     - results_folder_name: The dir name.
-    - color: The color of garph elements.
+    - color: The color of graph elements.
     - dpi: The png resolution.
-    - save_raw_files: If True a non interperated spreadsheet would be exported as well.
-    - interval: To enclusively export files between which.
+    - save_raw_files: If True a non interpreted spreadsheet would be exported as well.
+    - interval: To inclusively export files between which.
     """
     prefix: str = ''
     results_path: str = ''

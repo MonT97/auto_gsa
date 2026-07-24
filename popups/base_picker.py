@@ -69,7 +69,7 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
 
     def _validate(self) -> None:
         """
-        Validates user input, each child implements his own.
+        Validates user input, each instance implements his own.
         """
         pass
 
@@ -79,6 +79,14 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         """
         self.entry.delete(0, ctk.END)
         self.entry.insert(0, value)
+
+    def update_default(self, value: str) -> None:
+        """
+        Updates the placeholder_text and the self.val using [value].
+        """
+        self.val = value
+        self.toggle.toggle()
+        self.toggle.toggle()
 
     def get_value(self) -> str:
         """

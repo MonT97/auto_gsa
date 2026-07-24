@@ -6,7 +6,8 @@ import customtkinter as ctk
 from PIL import Image
 
 from mixins import Defaults, HasToolTip, Validator
-from typedefs import CacheElement, FileFormat
+from models import Cache
+from typedefs import FileFormat, ImportCacheElement
 from utils import utls
 
 from .base_screen import BaseScreen
@@ -17,7 +18,7 @@ ACTIVE_ENTRY = '#ffffff'
 DEFAULT_ENTRY = '#565b5e'
 ERROR_LABEL_COLOR = '#e53935'
 
-# windows consts:
+# windows consts, used to mimic windows explorer behaviour:
 FILE_ATTRIBUTE_HIDDEN = 2
 FILE_ATTRIBUTE_SYSTEM = 4
 
@@ -32,25 +33,30 @@ NAV_BTN_FONT = ('Arial', 16, 'bold')
 FILTERS_FONT = ('Arial', 14, 'bold')
 
 # widget dimentions:
-CACHE_LIMIT = 25
+X_OFFSET = 500
+SCREEN_SIZE = (420,530)
+
 NAV_BTN_WIDTH = 20
 FLTR_CHBX_DIM = 18
 ITEM_LIST_HEIGHT = 25
 
+# cache:
+LIMIT_TO_CACHE = 25
+
+
 class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
     """
     Dialouge screem widget.
-    - master_setter: function to call on approve.
+    - connection_func: function to call on approve.
     """
-    def __init__(self, master, master_setter: Callable, path: str = '') -> None:
+    def __init__(self, master, connection_func: Callable, path: str = '') -> None:
         """
         Dialouge screem widget.
-        - master_setter: function to call on approve.
+        - connection_func: function to call on approve.
         """
-        super().__init__(master, title='import screen', approve_label='import', size=(420,530))
-        _x_offset: int = 500
+        super().__init__(master, title='import screen', approve_label='import', size=SCREEN_SIZE)
         self.pos: tuple[int,int] = (
-            (self.master.winfo_screenwidth()+_x_offset)//4,
+            (self.master.winfo_screenwidth()+X_OFFSET)//4,
             self.master.winfo_screenheight()//4)
         self.geometry(f'{self.size[0]}x{self.size[1]}+{self.pos[0]}+{self.pos[1]}')
 
@@ -65,8 +71,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.selected_files: list[str] = []
         
         # Cache:
-        self.cache_threshod: int = CACHE_LIMIT # in list size
-        self.cache: dict[str, list[CacheElement]] = {}
+        self.cache: Cache = Cache()
 
         # Fonts:
         self.entry_font = ctk.CTkFont(*ENTRY_FONT)
@@ -74,7 +79,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.filters_font = ctk.CTkFont(*FILTERS_FONT)
 
         # Frames:
-        self.entry_frame=  ctk.CTkFrame(self.main_frame)
+        self.entry_frame = ctk.CTkFrame(self.main_frame)
         self.filters_frame = ctk.CTkFrame(self.main_frame)
         self.files_frame = ctk.CTkScrollableFrame(self.main_frame)
         self.dirs_frame = ctk.CTkFrame(self.files_frame)
@@ -161,7 +166,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         self.select_between.pack(side='left', expand=True, fill='x', padx=(0,2))
 
         self.approve_btn.configure(font=self.entry_font, state=ctk.DISABLED,
-                command= lambda: self._on_approve(master_setter))
+                command= lambda: self._on_approve(connection_func))
         self.cancel_btn.configure(font=self.entry_font)
         self.show_btn.configure(command=lambda: self._on_show_btn())
 
@@ -184,7 +189,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         - filter_: format based filtering, uses format from FileFormat enum.
         """
         
-        _cache_elements: list[CacheElement] = []
+        _cache_elements: list[ImportCacheElement] = []
         _new_entry = bool(self.path != self.entry.get())
         filter_ = [format_.value for format_ in FileFormat] if not self.filters else self.filters
 
@@ -204,7 +209,8 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             _flag = False
             _msg = f'path [{self.path}]\n is invalid or doesn\'t exist,\nenter a new path.'
             if re.match(r'^[a-z]$', self.path):
-                self.path+=r':/'
+                self.path = self.path.capitalize()+r':/'
+                _flag = True
                 self._update_entry_and_import()
             if not os.path.exists(self.path):
                 self.error_label.configure(text=_msg)
@@ -231,7 +237,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             self.dirs_frame.pack_forget()
             self.files_frame.pack_forget()
 
-        def _prepare_and_pack(cache_element: CacheElement, last_to_pack: bool) -> None:
+        def _prepare_and_pack(cache_element: ImportCacheElement, last_to_pack: bool) -> None:
             """
             Houses shared functionality in both cases, cached and non cached.
             - cache_element: tuple housing needed data, file_name, frame, button, label, img.
@@ -258,7 +264,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             self.prev_paths.clear()
             self.next_paths.clear()
 
-        # Clean selection:
+        # Clear selections:
         self.select_all.deselect()
         self.select_between.deselect()
         self.selected_files.clear()
@@ -268,7 +274,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         if _is_path_invalid(): return
 
         # Handle hidden files:
-        _attribs = lambda x: os.stat(os.path.join(self.path, x)).st_file_attributes
+        _attribs = lambda x: os.lstat(os.path.join(self.path, x)).st_file_attributes
         _hidden = lambda x: _attribs(x) & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM) 
         if os.name != 'nt':
             _hidden = lambda x: x.startswith('.')
@@ -282,16 +288,16 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         _files: list[str] = [_file for _file in _children if _validate(self.path, _file, filter_)]
         
         # Cache flags.
-        _in_cache: bool = self.path in self.cache and len(self.cache[self.path]) == len(os.listdir(self.path))
-        _should_cache: bool = not _in_cache and (len(_files) >= self.cache_threshod)
+        _in_cache: bool = self.cache.check(self.path, _files)
+        _should_cache: bool = not _in_cache and (len(_files) >= LIMIT_TO_CACHE)
 
-        # Fill-in dirs and valid files:
+        # Fills in dirs and valid files:
         for dir_ in _dirs:
             _frame = ctk.CTkFrame(self.dirs_frame, height=ITEM_LIST_HEIGHT)
             _img = ctk.CTkLabel(_frame, text='', image=self.dir_img)
             _dir_btn = ctk.CTkButton(_frame,text=dir_)
             _dir_btn.configure(command=lambda x=_dir_btn.cget('text'): self._go_to_dir(x))
-            self.htt_tip(_dir_btn, f'{self.path}\\{dir_}')
+            self.htt_tip(_dir_btn, f'{os.path.join(self.path,dir_)}')
 
             _pady = (2,0) if dir_ != _dirs[-1] else (2,2)
             _img.pack(side='left', padx=(5,5), pady=2)
@@ -304,7 +310,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             self.dirs_frame.pack(side='top', expand=True, fill='x')
 
         if _in_cache:
-            _elements_list = [ele for ele in self.cache[self.path] if ele[0] in _files]
+            _elements_list = [ele for ele in self.cache.get(self.path) if ele[0] in _files]
             
             for element in _elements_list:
                 btn = element[2]
@@ -328,7 +334,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
                     _cache_elements.append(_data)
 
             if _should_cache:
-                self.cache[self.path] = _cache_elements
+                self.cache.add(self.path, _cache_elements)
             if _files:
                 self.approve_btn.configure(state=ctk.NORMAL)                
 
@@ -478,8 +484,8 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
         """
         os.startfile(self.path)
 
-    def _on_approve(self, setter: Callable[[str, list[str]],None]) -> None:
+    def _on_approve(self, func: Callable[[str, list[str]],None]) -> None:
         """
-        Calls the master prvided [setter] function.
+        Calls the master prvided [func] function.
         """
-        setter(self.entry.get(), sorted(self.selected_files))
+        func(self.entry.get(), sorted(self.selected_files))

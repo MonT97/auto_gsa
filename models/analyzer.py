@@ -13,7 +13,7 @@ class Analyzer():
     """
     The class that wrangles the data, provides the stats it's interpretation, then prepares it for plotting.
     """
-    #TODO: emplement Sample() like memory
+    #TODO: implement Sample() like memory
     def __init__(self, sample_data: pd.DataFrame = pd.DataFrame()) -> None:
         """
         The class that wrangles the data, provides the stats it's interpretation, then prepares it for plotting.
@@ -31,12 +31,12 @@ class Analyzer():
 
         #TODO: expose to user edit!
         _default_skewness_schema: SkewnessSchema = SkewnessSchema.OBSERVATIONAL
-        self.interpretation = self._interperate(self.stats, _default_skewness_schema)
+        self.interpretation = self._interpret(self.stats, _default_skewness_schema)
 
     def _get_input(self,
                    sample_data: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, PchipInterpolator]:
         """
-        Prepares the data [phi, cum.wt%] for stats calculation via interpolation using Scipy's PchipInterpolator, an implementation of Hermite plynomial interpolation.
+        Prepares the data [phi, cum.wt%] for stats calculation via interpolation using Scipy's PchipInterpolator, an implementation of Hermite polynomial interpolation.
         - -> (interpolated_phi, interpolated_cum.wt%, interpolation_function)
         """
         sample_data = sample_data.dropna().reset_index(drop=True)
@@ -51,17 +51,17 @@ class Analyzer():
             - -> tuple[phis, wt_prcnts]
             """
             _rounding_digits: int = 4
-            _phis_inversed: list[float] = []
+            _phis_inverted: list[float] = []
             _valid_wt_prcnts: list[float] = []
 
             for _wt_prcnt in wt_prcnts:
                 # extrapolate: wither the interpolation should extrapolate.
                 _phi = interpolation_fn.solve(_wt_prcnt, extrapolate=False)
                 if _phi.size != 0:
-                    _phis_inversed.append(_phi[0])
+                    _phis_inverted.append(_phi[0])
                     _valid_wt_prcnts.append(_wt_prcnt)
                 
-            _x: np.ndarray = np.round(_phis_inversed, _rounding_digits)
+            _x: np.ndarray = np.round(_phis_inverted, _rounding_digits)
             _y: np.ndarray = np.round(_valid_wt_prcnts, _rounding_digits)
 
             return (_x, _y)
@@ -90,9 +90,9 @@ class Analyzer():
         _wt_prcnts: list[float] = [5.0, 16.0, 25.0, 50.0, 75.0, 84.0, 95.0]
         _two_points: bool = sample_data['wht%'].dropna().shape[0] <= 2
 
-        #? 2 or less points sample produces empty [y] from _get_input(), ignoring this sends the flow to the Moments method, leading in a roundabout way, to a two point linear interpolation; an option?? No unjustfied.
+        #? 2 or less points sample produces empty [y] from _get_input(), ignoring this sends the flow to the Moments method, leading in a roundabout way, to a two point linear interpolation; an option?? No unjustified.
         if _two_points:
-            self.method = AnalysisMethod.TWOPOINTS
+            self.method = AnalysisMethod.TWO_POINTS
             _stats.mean = sample_data['phi'].mean()
         else:
             _create_point: Callable = lambda wt_prcnt: (wt_prcnt, interp_f.solve(wt_prcnt, extrapolate=False)[0])
@@ -135,18 +135,18 @@ class Analyzer():
                     _stats.skewness = np.sum(_f*((_d-_stats.mean)**3))/(_N*_stats.std**3)
                     _stats.kurtosis = np.sum(_f*((_d-_stats.mean)**4))/(_N*_stats.std**4)
                 
-                #TODO: the (> 5.0) case is handled in the [_points] creation, analysis should be done with a caviate in the report and spreadsheet. maybe in a future note: sigment within this class?
+                #TODO: the (> 5.0) case is handled in the [_points] creation, analysis should be done with a caveat in the report and spreadsheet. maybe in a future note: segment within this class?
                 # else:
                 #     print(f'Pan fraction [{_pan_fraction}] >5%, The analysis is unreliable, disregard this sample!.')
         
         return (_points,_stats)
 
-    def _interperate(self, stats: SampleStats, skew_schema: SkewnessSchema) -> StatsInterpretation:
+    def _interpret(self, stats: SampleStats, skew_schema: SkewnessSchema) -> StatsInterpretation:
         """
-        Interperate the sample stats according to [see the litrature]
+        Interpret the sample stats according to [see the literature]
         - std ------> sorting.
-        - skewness -> the dominent tail, coarse/fine.
-        - kurtosis ---> gives an idea about peakedness the distribution, it usefullness is questionable, see (Fieller, 1984).
+        - skewness -> the dominant tail, coarse/fine.
+        - kurtosis ---> gives an idea about peakedness the distribution, it usefulness is questionable, see (Fieller, 1984).
         """
         def _sorting(std: float) -> str:
 
@@ -157,9 +157,9 @@ class Analyzer():
             elif .35 <= std <= .5:
                 _sorting = 'well'
             elif .5 <= std <= .7:
-                _sorting = 'moderatrly well'
+                _sorting = 'moderately well'
             elif .7 <= std <= 1:
-                _sorting = 'moderatrly'
+                _sorting = 'moderately'
             elif 1 <= std <= 2:
                 _sorting = 'poorly'
             elif 2 <= std <= 4:
@@ -236,7 +236,7 @@ class Analyzer():
 
     def get_method(self) -> AnalysisMethod:
         """
-        Retruns the analysis method used.
+        Returns the analysis method used.
         - -> str
         """
         return self.method

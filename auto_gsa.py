@@ -2,7 +2,7 @@ import os
 
 import customtkinter as ctk
 
-from widgets import MainPanal
+from widgets import MainPanel
 
 if os.name != 'nt':
     print("Running in non-Windows OS, some eyecandy won't be visible!")
@@ -25,8 +25,8 @@ class App(ctk.CTk):
         self.geometry(f"{size[0]}x{size[1]}+{position[0]}+{position[1]}")
         self.wm_protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        self.main_panal: MainPanal = MainPanal(self)
-        self.main_panal.pack(expand=1, fill='both')
+        self.main_panel: MainPanel = MainPanel(self)
+        self.main_panel.pack(expand=1, fill='both')
         
         self.on_open()
 
@@ -34,14 +34,14 @@ class App(ctk.CTk):
         """
         Triggered on application launch.
         """
-        self.main_panal.on_open()
+        self.main_panel.on_open()
 
     def on_closing(self) -> None:
         """
         Triggered on application closure.
         """
         self.quit()
-        self.main_panal.on_close()
+        self.main_panel.on_close()
         self.destroy()
 
     def run(self) -> None:

@@ -16,7 +16,7 @@ SAMPLE_HEADER: tuple = ('phi', 'wht', 'wht%', 'cum.wht%')
 
 class Validator():
     """
-    Rsoponsible for validating data.
+    Responsible for validating data.
     """
     def val_samples(self, samples_dir_path: str, sample_file_name: str) -> bool:
         """
@@ -50,16 +50,18 @@ class Validator():
         _is_aio: bool = min(_df.shape) > 2
 
         if _is_aio:
+            _fname: str = sample_file_name[:3] # an ID of sorts.
+
             # assume data is in the top left corner of the spread sheet:
             # index of the first (na) value, r:row, c:col :
-            _frst_r: int = _df.isna().idxmax(0).max()
-            _frst_r = _df.shape[0] if _frst_r == 0 else _frst_r
-            _frst_c: int = _df.isna().idxmax(1).max()
-            _frst_c = _df.shape[1] if _frst_c == 0 else _frst_c
+            _first_r: int = _df.isna().idxmax(0).max()
+            _first_r = _df.shape[0] if _first_r == 0 else _first_r
+            _first_c: int = _df.isna().idxmax(1).max()
+            _first_c = _df.shape[1] if _first_c == 0 else _first_c
 
-            _df = _df.iloc[:_frst_r, :_frst_c]
+            _df = _df.iloc[:_first_r, :_first_c]
 
-            # assume it's col wise, sample per each col:
+            # assume it's col wise, a sample per col:
             _assume_c = _df.iloc[:,0][_df.iloc[:,0].str.contains('[a-z]').isna()]
             # any phi series must contain values [between] sieve size limits.
             _assume_c_lmtd = _assume_c.between(MAX_SIEVE_SIZE,MIN_SIEVE_SIZE)
@@ -72,12 +74,13 @@ class Validator():
             _nsmpls: int = _df_num.shape[1]
             _padding: int = len(f'{_nsmpls}')
 
-            # would propably need reworking, what if we have only numerical sample names?
+            # would probably need a reworking, what if we have only numerical sample names?, or does it?? I don't think it's that common to have a sample named [12-88], in most cases, some alphabets is used!.
             _has_names = bool(_df.iloc[0,:].str.contains(r'[a-z]').any())
             if _has_names:
                 _nms = [f'{i}.csv' for i in _df.iloc[0,1:]]
             else:
-                _nms = [f'sample_{i:0{_padding}}.csv' for i in range(1,_df_num.shape[1])]
+                # default name generation:
+                _nms = [f'{_fname}_sample_{i:0{_padding}}.csv' for i in range(1,_df_num.shape[1])]
             
             _get_sample = lambda i: _df_num.iloc[:,[0,i]].rename(
                         columns={0: SAMPLE_HEADER[0], i: SAMPLE_HEADER[1]})
@@ -88,7 +91,7 @@ class Validator():
                         }
             
             # unpack aio data into disk:
-            #TODO: should we make a temp cache insted of disc?!!, or maybe too complex?, leaning against this idea for now!.
+            #TODO: should we make a temp cache instead of disc?!!, or maybe too complex?, leaning against this idea for now!.
             for name, data in _samples_dict.items():
                 _path = os.path.join(sample_dir_path, name)
                 data.to_csv(_path, index=False)

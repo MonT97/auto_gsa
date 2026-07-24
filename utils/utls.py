@@ -7,12 +7,12 @@ import customtkinter as ctk
 import pandas as pd
 import pywinstyles
 
+TRANSPARENT_COLOR = '#000001'
 
 def bg_transparent(widgets: ctk.CTkBaseClass|list[ctk.CTkBaseClass]) -> None:
     """
     Makes the [widget] background transparent.
     """
-    _color: str = '#000001'
 
     if not isinstance(widgets, list):
         widgets  = [widgets]
@@ -20,13 +20,14 @@ def bg_transparent(widgets: ctk.CTkBaseClass|list[ctk.CTkBaseClass]) -> None:
     for widget in widgets:
         _id: int = widget.winfo_id()
 
-        widget.configure(bg_color=_color)
-        pywinstyles.set_opacity(_id, color=_color)
+        widget.configure(bg_color=TRANSPARENT_COLOR)
+        pywinstyles.set_opacity(_id, color=TRANSPARENT_COLOR)
 
-#! It's here due to circ import, when Sample import mixin, CanSave within mixin needs Sample and sense Sample isn't fully inited, CRASH!
+#! It's here due to circ import, when Sample import mixin, CanSave within mixin needs Sample and since Sample isn't fully initiated, CRASH!
 def import_form_path(full_path: str, format_: str) -> pd.DataFrame:
         """
-        Imports using the provided [full_path] and [format_] using the viable pd.read_[format_] function use for data validation without creating a Sample().
+        Imports using the provided [full_path] and [format_] using the viable pd.read_[format_] function.\n
+        Use for data validation without creating a Sample().
         - full_path: name inclusive.
         """
         _kw: dict[str, dict] = {'xlsx':{'engine':'openpyxl', 'header': None},

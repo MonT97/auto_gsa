@@ -13,22 +13,22 @@ from .plotter import CanPlot
 class CanSave(Defaults, CanPlot):
     """
     A mixin wrapping the saving functionality.
-    - save_resutlts.
+    - save_results.
     """
     def cs_save_results(self, sample: Sample, raw_dir: str,
                         save_obj: SaveObject, rounding: int = 3) -> None:
         """
         Saves the results graphs and spreadsheets to desk.
-        - raw_dir: the dirctory that contains the raw result files, [svg] graphs and [csv] spreadsheets.
+        - raw_dir: the directory that contains the raw result files, [svg] graphs and [csv] spreadsheets.
         - rounding: rounding the values in the output sheet.
         - The fallowing are within a SaveObject:
             - prefix: To append to the beginning of the file's name.
             - results_path: To save the file within.
             - results_folder_name: The dir name.
-            - color: The color of garph elements.
+            - color: The color of graph elements.
             - dpi: The png resolution.
-            - save_raw_files: If True a non interperated spreadsheet would be exported as well.
-            - interval: To enclusively export files between which.
+            - save_raw_files: If True a non interpreted spreadsheet would be exported as well.
+            - interval: To inclusively export files between which.
         """
         # Unpacking the SaveObj:
         _clr = save_obj.color
@@ -79,7 +79,7 @@ class CanSave(Defaults, CanPlot):
             _x, _y, _points, _method = _ana.get_plot_data(_type)
             self.cp_plot(_x, _y, _points, _method, _ax, _type, _clr)
             _ax.set_title(f'{sample.get_name()}\n{_title}')
-            #TODO: ability to make transparent bg.
+            
             _fig.savefig(_graph_file_path+'.png', dpi=_dpi, format='png', transparent=_transparent)
           
             if _save_raws:

@@ -4,14 +4,14 @@ import customtkinter as ctk
 
 from mixins import Observer
 
-from .analysis_panal import AnalysisPanal
-from .file_panal import FilePanal
-from .log_pannal import LoggingLabel
+from .analysis_panel import AnalysisPanel
+from .file_panel import FilePanel
+from .log_panel import LoggingLabel
 
 
-class MainPanal(ctk.CTkFrame, Observer):
+class MainPanel(ctk.CTkFrame, Observer):
     """
-    The applicatoin's main panal.
+    The application's main panel.
     """
     def __init__(self, master: ctk.CTk):
         super().__init__(master)
@@ -22,20 +22,19 @@ class MainPanal(ctk.CTkFrame, Observer):
         self.rowconfigure(0, weight=23, uniform='b')
         self.rowconfigure(1, weight=1, uniform='b')
 
-        self.file_panal: FilePanal = FilePanal(self)
-        self.analysis_panal: AnalysisPanal = AnalysisPanal(self)
+        self.file_panel: FilePanel = FilePanel(self)
+        self.analysis_panel: AnalysisPanel = AnalysisPanel(self)
         self.logging_label: LoggingLabel = LoggingLabel(self)
 
         self._layout()
 
-        #TODO: expirement with custom singelton comm system! [LTS].
+        #TODO: experiment with custom singleton comm system! [LTS].
         # Inter-widget communication, signature <<Observer Source-Action to make>>:
-        self.obs_listen('FilePanal-log', self, self.log)
-        self.obs_listen('Screens-saved', self, self.saved)
-        self.obs_listen('FilePanal-analyze', self, self.analyze)
-        self.obs_listen('FilePanal-exported', self, self.exported)
-        self.obs_listen("LoggingPanal-zoom", self, self.expand_log)
-        self.obs_listen('AnalysisPanal-color', self, self.update_color)
+        self.obs_listen('FilePanel-log', self, self.log)
+        self.obs_listen('FilePanel-analyze', self, self.analyze)
+        self.obs_listen('FilePanel-exported', self, self.exported)
+        self.obs_listen("LoggingPanel-expand", self, self.expand_log)
+        self.obs_listen('AnalysisPanel-color', self, self.update_color)
 
     def _layout(self) -> None:
         """
@@ -43,46 +42,40 @@ class MainPanal(ctk.CTkFrame, Observer):
         """
         self.zoom: bool = False
 
-        self.file_panal.grid(column=0, row=0, sticky='nsew')
-        self.analysis_panal.grid(column=1, row=0, sticky='nsew')
+        self.file_panel.grid(column=0, row=0, sticky='nsew')
+        self.analysis_panel.grid(column=1, row=0, sticky='nsew')
         self.logging_label.grid(column=0, row=1, columnspan=2, sticky='nsew')
 
-    def log(self, msg) -> None:
+    def log(self, msg, flag) -> None:
         """
         Log the massage into the logging widget; signal triggered.
         """
-        self.logging_label.write(msg)
+        self.logging_label.write(msg, flag)
 
     def analyze(self, sample, graph_type: Any|None = None) -> None:
         """
         Tells the analysis widget to analyze the sample; signal triggered.
         """
-        self.analysis_panal.write(sample, graph_type)
-        self.analysis_panal.draw_graphs(sample, graph_type) #type: ignore 
+        self.analysis_panel.write(sample, graph_type)
+        self.analysis_panel.draw_graphs(sample, graph_type) #type: ignore
 
     def exported(self) -> None:
         """
         Tells the export screen; signal triggered. 
         """
-        self.file_panal.on_exported()
-
-    def saved(self) -> None:
-        """
-        Triggers the saving function; signal triggered.
-        """
-        self.file_panal.save_all()
+        self.file_panel.on_exported()
     
     def update_color(self, color) -> None:
         """
         Tells the save object about the graph color; signal triggered.
         """
-        self.file_panal.update_save_obj_color(color)
+        self.file_panel.update_save_obj_color(color)
         
     def expand_log(self, widget_name: str) -> None:
         """
         Expand the [widget_name]; signal triggered.
         """
-        # Any other widgets needs, in other words, do we need a match statment?
+        # Any other widgets needs, in other words, do we need a match statement?
         if self.zoom:
             self._layout()
             return

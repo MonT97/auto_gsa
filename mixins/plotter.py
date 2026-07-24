@@ -64,7 +64,7 @@ class CanPlot():
                 _plot_histo(ax, x, y, clr, kde_clr)
 
             case GraphType.CUM:       
-                if analysis_method != AnalysisMethod.TWOPOINTS:
+                if analysis_method != AnalysisMethod.TWO_POINTS:
                     _padding: float = .35
                     ax.set_xlim(x.min()-_padding/5, x.max()+_padding/5)
                     ax.set_ylim(0-_padding*10, 100+_padding*10)

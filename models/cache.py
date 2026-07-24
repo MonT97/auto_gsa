@@ -1,46 +1,56 @@
+from typing import Any, Sequence
+
+
 class Cache():
     """
     Caching functionality.
     """
     def __init__(self, size: int = 1000) -> None:
         """
+        Caching functionality.
         - size: sets the size limit, in terms of number of entries
         """
         self.data: dict = {}
-        self.size = size
+        self.limit = size
 
-    def check(self, id_: str) -> bool:
-        """
-        Checks if item with the [id] is cached.
-        """
-        return id_ in self.data
+    def __repr__(self) -> str:
+        return f'Data ID\'s: {self.data.keys()}\nSize: {self.size()}'
 
-    def _get_size(self) -> int:
+    def check(self, id_: str, against: Sequence[Any] = []) -> bool:
         """
-        The length of the cache.
+        Checks if item with the [id] is cached then does a length/size comparison with [against] if provided, otherwise, it assumes that it's not needed.
+        - against: a python sequence, e.g., list, tuple, etc, to compare against.
+        """
+        _valid_id: bool = id_ in self.data
+        _valid_data: bool = len(self.data[id_]) == len(against) if _valid_id and against else True
+        return _valid_id and _valid_data
+    
+    def size(self) -> int:
+        """
+        The overall cache size.
         """
         return len(self.data)
 
-    def add(self, _id: str, widget) -> None:
+    def add(self, id_: str, widget) -> None:
         """
-        Adds widget using the given [_id] to the cache.
+        Adds element using the given [id_] to the cache.
         """
-        if _id not in self.data:
-            self.data[_id] = widget
+        if id_ not in self.data:
+            self.data[id_] = widget
         
         # Limit size:
-        if self._get_size() > self.size:
-            _keys = [i for i in self.data.keys()][-self.size:]
+        if self.size() > self.limit:
+            _keys = [i for i in self.data.keys()][-self.limit:]
             self.data = self.data.fromkeys(_keys)
     
-    def get(self, _id: str):        
+    def get(self, id_: str) -> list:        
         """
-        Gets the widget using the given [_id] from the cache.
-        - must chech if the item is cached first.
+        Gets the element at the given [id_] from the cache.
+        - must cache if the item is cached first.
         """
-        _output = False
-        if _id not in self.data:
-            print(f"Item{_id} isn't cached!!, call check!")
+        if id_ not in self.data:
+            _output = []
+            # print(f"Item{id_} isn't cached!!, call check!")
         else:
-            _output = self.data[_id]
+            _output = self.data[id_]
         return _output
