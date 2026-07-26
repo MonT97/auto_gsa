@@ -1,12 +1,15 @@
 """
 Consider a theme/styles module down the line.
 """
+from tkinter import BaseWidget, Toplevel
 from typing import Callable
 
 import customtkinter as ctk
 import pandas as pd
 import pywinstyles
 
+# Constants:
+# color:
 TRANSPARENT_COLOR = '#000001'
 
 def bg_transparent(widgets: ctk.CTkBaseClass|list[ctk.CTkBaseClass]) -> None:
@@ -40,3 +43,10 @@ def import_form_path(full_path: str, format_: str) -> pd.DataFrame:
         _data: pd.DataFrame = _read_fn(format_)
 
         return _data
+
+# this is only here because I dislike the type: ignore, as it's necessary in this case!
+def get_root(widget: BaseWidget) -> Toplevel:
+     """
+     Returns the [widget]'s true root using [widget]._root().
+     """
+     return widget._root() #type: ignore

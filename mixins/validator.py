@@ -1,4 +1,5 @@
 import os
+from typing import Final
 
 import pandas as pd
 
@@ -7,11 +8,11 @@ from utils import utls
 
 # Constants:
 # phi values:
-MAX_SIEVE_SIZE: float = -6.75 # in phi scale [-log2(mm)].
-MIN_SIEVE_SIZE: float = 6.75
+MAX_SIEVE_SIZE: Final[float] = -6.75 # in phi scale [-log2(mm)].
+MIN_SIEVE_SIZE: Final[float] = 6.75
 
 # headers:
-SAMPLE_HEADER: tuple = ('phi', 'wht', 'wht%', 'cum.wht%')
+SAMPLE_HEADER: Final[tuple] = ('phi', 'wht', 'wht%', 'cum.wht%')
 
 
 class Validator():
@@ -20,8 +21,9 @@ class Validator():
     """
     def val_samples(self, samples_dir_path: str, sample_file_name: str) -> bool:
         """
+        Part of the Validator mixin.
         Validates the sample file format and the sample data within.
-        - ** for now it's just a format validator.
+        - for now it's just a format validator.
         """
         #! It seems we don't need to check the data within; as the <=2 heuristic invalidates aio, Other ways seems impractical as a spreadsheet can take many a form!, PONDER!, if you need to re-implement, check commit 43 I think.
         _valid_sample: bool = False
@@ -37,9 +39,11 @@ class Validator():
     
     def val_handle_aio(self, sample_dir_path: str, sample_file_name: str) -> list[str]:
         """
+        Part of the Validator mixin.
         Check if the file is an AIO one, if so unpacks it.
-        * Must be called after [val_samples] on the same [args].
+        - Must be called after [val_samples] on the same [args].
         """
+
         _fmt: str = sample_file_name.split('.')[-1]
         _path: str = os.path.join(sample_dir_path, sample_file_name)
         

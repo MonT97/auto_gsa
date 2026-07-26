@@ -1,7 +1,6 @@
 # Due to the way tkinter handles event bindings race conditions are bound to happen, in which a listener might be added before the broadcaster/sender leading to a situation where we don't know the [args] to listen to, hence the convoluted args logic resulting from the need to handle multiple entry points to append new [arg] to [self.args]!!
-from inspect import Signature, signature
-from tkinter import Misc
-from typing import Any, Callable
+from tkinter import BaseWidget
+from typing import Any
 
 
 class SignalData():
@@ -17,12 +16,11 @@ class SignalData():
         - [.pop_arg] to get arguments to pass to the listener function.
         """
         self.added_func: bool = False
-        self.sender: Misc|None = None
-        self.listeners: list[Misc] = []
+        self.sender: BaseWidget|None = None
+        self.listeners: list[BaseWidget] = []
         self.args: list[list[Any]] = [[]]
     
     def __repr__(self) -> str:
-        self.__dict__.pop('added_func')
         return f'{self.__dict__}'
 
     def add_arg(self, arg: list[Any]) -> None:
@@ -40,13 +38,13 @@ class SignalData():
         if arg != _temp_arg:
             self.args = [arg for arg_ in self.args]
         
-    def add_listener(self, listener: Misc) -> None:
+    def add_listener(self, listener: BaseWidget) -> None:
         """
         Adds a listener.
         """
         self.listeners.append(listener)
     
-    def set_sender(self, sender: Misc) -> None:
+    def set_sender(self, sender: BaseWidget) -> None:
         """
         Adds a sender.
         """
@@ -54,6 +52,6 @@ class SignalData():
     
     def pop_arg(self) -> list[Any]:
         """
-        Gets an argument.
+        Gets an argument from [self.args].
         """
         return self.args.pop(-1)

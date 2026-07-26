@@ -46,7 +46,7 @@ class MainPanel(ctk.CTkFrame, Observer):
         self.analysis_panel.grid(column=1, row=0, sticky='nsew')
         self.logging_label.grid(column=0, row=1, columnspan=2, sticky='nsew')
 
-    def log(self, msg, flag) -> None:
+    def log(self, msg, flag: bool = False) -> None:
         """
         Log the massage into the logging widget; signal triggered.
         """
@@ -57,7 +57,7 @@ class MainPanel(ctk.CTkFrame, Observer):
         Tells the analysis widget to analyze the sample; signal triggered.
         """
         self.analysis_panel.write(sample, graph_type)
-        self.analysis_panel.draw_graphs(sample, graph_type) #type: ignore
+        self.analysis_panel.draw_graphs(sample, graph_type)
 
     def exported(self) -> None:
         """

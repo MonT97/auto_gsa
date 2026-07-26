@@ -1,4 +1,5 @@
 import os
+from typing import Final
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -9,6 +10,11 @@ from typedefs import GraphType, SaveObject
 from .defaults import Defaults
 from .plotter import CanPlot
 
+# Constants:
+
+# graph:
+WIDTH_PER_X: Final[float] = .71*.75 # test driven, 6.4[default graph width]/9[len(x)] in the sample.
+EDGE_PADDING: Final[float] = 10/72
 
 class CanSave(Defaults, CanPlot):
     """
@@ -18,6 +24,7 @@ class CanSave(Defaults, CanPlot):
     def cs_save_results(self, sample: Sample, raw_dir: str,
                         save_obj: SaveObject, rounding: int = 3) -> None:
         """
+        Part of the CanSave mixin.
         Saves the results graphs and spreadsheets to desk.
         - raw_dir: the directory that contains the raw result files, [svg] graphs and [csv] spreadsheets.
         - rounding: rounding the values in the output sheet.
@@ -70,13 +77,17 @@ class CanSave(Defaults, CanPlot):
             
         for _type in GraphType:
             _graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
+            _sample_name: str = sample.get_name().lower()
             _title: str = _graph_names[_type]
-            _graph_file_name: str = f'{sample.get_name().lower()}_{_title.lower().replace(' ', '_')}'
+            _graph_file_name: str = f'{_sample_name}_{_title.lower().replace(' ', '_')}'
             _graph_file_path: str = os.path.join(_results_dir, _graph_file_name)
-              
-            _fig, _ax = plt.subplots()
-            # _fig.set_layout_engine('constrained')
+            
             _x, _y, _points, _method = _ana.get_plot_data(_type)
+            # for samples analyzed with in extensive sieve set.
+            _graph_width: float = len(_x)*WIDTH_PER_X if _type == GraphType.HIST else 6.8
+            _fig, _ax = plt.subplots(figsize=(_graph_width,4.8), layout='constrained')
+            _fig.get_layout_engine().set(h_pad=EDGE_PADDING, w_pad=EDGE_PADDING*2) #type: ignore
+
             self.cp_plot(_x, _y, _points, _method, _ax, _type, _clr)
             _ax.set_title(f'{sample.get_name()}\n{_title}')
             

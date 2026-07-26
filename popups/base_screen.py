@@ -37,7 +37,8 @@ class BaseScreen(ctk.CTkToplevel, HasToolTip):
         self.main_frame.pack(side='top', expand=True, fill='both', padx=5, pady=(5,0))
         self.button_frame.pack(side='bottom', fill='x', padx=5, pady=5)
 
-        self.after(200, lambda: self.iconbitmap('assets/default.ico'))
+        # otherwise it wont work as intended!.
+        self.bind('<Map>', lambda _: self.iconbitmap('assets/default.ico'))
 
     def close(self) -> None:
         """

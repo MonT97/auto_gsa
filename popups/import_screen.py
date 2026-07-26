@@ -215,7 +215,7 @@ class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
             if not os.path.exists(self.path):
                 self.error_label.configure(text=_msg)
                 self.error_label.pack(side='top', fill='x', padx=5)
-                self.entry.select_to(ctk.END)
+                self.entry.select_range('0', ctk.END)
                 _flag = True
             elif self.error_label.winfo_ismapped():
                 self.error_label.pack_forget()

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 import customtkinter as ctk
 import numpy as np
@@ -9,7 +10,7 @@ from .enums import *
 type ImportCacheElement = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel, ctk.CTkLabel]
 type PlotData = tuple[PlotInput, PlotInput, SamplePoints, AnalysisMethod]
 type SamplePoints = list[tuple[float, float]]
-type PlotInput = pd.Series|np.ndarray
+type PlotInput = pd.Series[Any]|np.ndarray[Any, Any]
 
 @dataclass
 class SampleStats():
@@ -63,14 +64,14 @@ class DefaultObj():
 @dataclass
 class SaveObject(DefaultObj):
     """
-    Data model for data needed for exporting/saving output.
+    Data model for data needed for exporting/saving output data.
     - prefix: To append to the beginning of the file's name.
     - results_path: To save the file within.
     - results_folder_name: The dir name.
     - color: The color of graph elements.
-    - dpi: The png resolution.
+    - dpi: The png image resolution.
     - save_raw_files: If True a non interpreted spreadsheet would be exported as well.
-    - interval: To inclusively export files between which.
+    - interval: To inclusively export files between.
     """
     prefix: str = ''
     results_path: str = ''

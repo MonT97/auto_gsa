@@ -11,14 +11,15 @@ class CanPlot():
     def cp_plot (self, x: PlotInput, y: PlotInput,
                  points: SamplePoints, analysis_method: AnalysisMethod,
                  ax: Axes, graph_type: GraphType, clr: str = '#1f7bb4',
-                 kde_clr: str = 'k') -> None:
+                 edge_color: str = 'k') -> None:
         """
+        Part of the CanPlot mixin.
         The plotting function:
-            - clr ------> face color, hexadecimal.
-            - line_clr -> kde color, hexadecimal.
+            - clr: face color, hexadecimal.
+            - edge_color: bin lines color, hexadecimal.
         """
         def _plot_histo(ax: Axes, x: PlotInput,
-                        y: PlotInput, color: str, kde_color: str) -> None:
+                        y: PlotInput, color: str, edge_color: str) -> None:
             """
             Plots the Histogram.
             """
@@ -27,7 +28,7 @@ class CanPlot():
 
             ax.stairs(values=y, edges=_edges, fill=True,
                       color=color, zorder=2,
-                      **{'linewidth': 1.5, 'edgecolor': 'k'})
+                      **{'linewidth': 1.5, 'edgecolor': edge_color})
             ax.grid(True, axis='y', zorder=1)
 
             #plot vertical lines to make pseudo bins!:
@@ -61,7 +62,7 @@ class CanPlot():
     
         match graph_type:
             case GraphType.HIST:
-                _plot_histo(ax, x, y, clr, kde_clr)
+                _plot_histo(ax, x, y, clr, edge_color)
 
             case GraphType.CUM:       
                 if analysis_method != AnalysisMethod.TWO_POINTS:

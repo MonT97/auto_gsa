@@ -1,5 +1,7 @@
 import os
+import time
 from tkinter import ttk
+from typing import Callable
 
 import customtkinter as ctk
 from PIL import Image
@@ -140,14 +142,15 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         self.entry.focus_set()
         self.entry.configure(border_color=ACTIVE_ENTRY)
-        self.entry.select_to(ctk.END)
+        self.entry.select_range('0', ctk.END)
         
     def _direct_import(self, path: str) -> None:
         """
         From [self.entry].
         """
         if not os.path.exists(path):
-            self._log_massage(f'path [{path}] is invalid or doesn\'t exist.', error=True)
+            self.obs_broadcast('FilePanel-log',
+                    self, [f'path [{path}] is invalid or doesn\'t exist.', True])
             return
         
         self.set_valid_files(path)
@@ -183,8 +186,8 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         self.export_btn.configure(state=ctk.NORMAL, image=self.export_btn_icon)
         self._reset_focus()
-        self._log_massage(
-            f'[{self.number_of_valid_files}] files imported from [{self.files_dir_path}].')
+        self.obs_broadcast('FilePanel-log', self, 
+            [f'[{self.number_of_valid_files}] files imported from [{self.files_dir_path}].'])
 
     def _set_data(self) -> None:
         
@@ -206,7 +209,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         #! Observer!:
         self._set_analysis_data(_sample, graph_type)
         self.obs_broadcast('FilePanel-analyze', self, [self.crnt_sample, self.graph_type])
-        self._log_massage(f'[{_sample.get_name().lower()}] analyzed.')
+        self.obs_broadcast('FilePanel-log', self, [f'[{_sample.get_name().lower()}] analyzed.'])
 
         self.after(5, self.file_viewer.focus_set)
         if self.save_btn.cget('state') == ctk.DISABLED:
@@ -218,19 +221,13 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         self.crnt_sample = sample
         self.graph_type = graph_type
-
-    def _log_massage(self, massage: str, error: bool = False) -> None:
-        """
-        Sends a 'FilePanel-log' signal with [massage] and [error] as arguments.
-        """
-        self.obs_broadcast('FilePanel-log', self, [massage, error])
     
     def _on_save_btn_pressed(self, sample: Sample, save_obj: SaveObject) -> None:
         """
         Saves a single sample.
         """
         self.cs_save_results(sample, self.raw_results_dir_name, save_obj)
-        self._log_massage(f'[{sample.get_name().lower()}] saved...')
+        self.obs_broadcast('FilePanel-log', self, [f'[{sample.get_name().lower()}] saved...'])
 
     def _on_export_btn_pressed(self, use_global_defaults: bool = False) -> None:
         """
@@ -257,19 +254,24 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         Triggered by an outside signal from [MainPanel].
         """
-        self._log_massage('saving all samples...')
+        self.obs_broadcast('FilePanel-log', self, ['saving all samples...'])
         self._update_save_obj(save_obj)
 
+        _trigger_ui_update: Callable[[list[str],int],bool] = lambda list_,cap=20: len(list_)> cap
+        
         _files: list[str] = self.valid_files
 
         _results_path: str = save_obj.results_path #!config
         _results_folder_name: str = save_obj.results_folder_name #!config
         _index, _interval = save_obj.interval #!config
+        
+        _export_path: str = os.path.join(_results_path, _results_folder_name)
 
         def _prep_files_list(index: int, list_: list[str], interval: list[int]) -> list[str]:
             """
             Partition/slice the list of files depending on the index provided, the index is a mode selection of sorts.
             """
+
             match index:
                 case 0:
                     list_ = list_
@@ -281,14 +283,19 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
             return list_
 
         _files = _prep_files_list(_index, _files, _interval)
-
+    
         for file_ in _files:
             _path: str = os.path.join(self.files_dir_path, file_)
             _sample = Sample(_path)
             self.cs_save_results(_sample, self.raw_results_dir_name, save_obj)
-        
-        _export_path: str = os.path.join(_results_path, _results_folder_name)
-        self._log_massage(f'all samples saved to [{_export_path}]')
+
+            #TODO: is there a better option??, queue/thread??
+            if _trigger_ui_update(_files):
+                utls.get_root(self).update()
+                utls.get_root(self).update_idletasks()
+                time.sleep(.01)
+
+        self.obs_broadcast('FilePanel-log', self, [f'all samples saved to [{_export_path}]'])
         self.obs_broadcast('FilePanel-exported', self)
 
     def on_exported(self) -> None:
@@ -311,40 +318,36 @@ class FileViewer(ttk.Treeview, Validator, Observer):
         
         self.master: FilePanel = master
 
-        # Styling:
-        def _style() -> None:
-            _row_style = ttk.Style()
-            _row_style.theme_use('default')
-            _row_style.configure('F_Viewer.Treeview',
-                foreground='white',
-                background='#2b2b2b',
-                bordercolor='#1f6aa5',
-                borderwidth=0,
-                rowheight=25, font=('Arial', 12),
-                fieldbackground='#2b2b2b')
-            _row_style.map('F_Viewer.Treeview')
+        self.width: int = 0
+        self.no_col_width: int = 40
+        self.name_col_width: int = 0
 
-            _header_style = ttk.Style()
-            _header_style.configure('F_Viewer.Treeview.Heading', 
-                relief='flat',
-                foreground='white',
-                background='#1f6aa5',
-                bordercolor='#1f6aa5',
-                font=('Arial', 14, 'bold'))
-            _header_style.map('F_Viewer.Treeview.Heading',
-                background=[('active', '#144870')])
+        # otherwise it wont work as intended!.
+        self.bind("<Map>", lambda _: _set_element_width(self.winfo_width()))
 
-        _style()
+        def _set_element_width(width: int) -> None:
+            """
+            Programmatically set the size of each TreeView column.
+            """
+            self.width = width
+            width -= width%2
+            self.name_col_width = self.width - self.no_col_width
 
-        self.configure(style='F_Viewer.Treeview', selectmode="browse",
-                       show="headings",
-                       columns = ["no", "file_name"])
-        
-        self.column('no', width=40, minwidth=40, stretch=False, anchor="center")
-        self.column('file_name', width=194, minwidth=190, stretch=False)
+            _layout()
 
-        self.heading("no", text="NO", anchor="center")
-        self.heading("file_name", text="File Name", anchor="w")
+        def _layout() -> None:
+            self.configure(style='F_Viewer.Treeview', selectmode="browse",
+                        show="headings",
+                        columns = ["no", "file_name"])
+            
+            self.column('no',
+                    width=self.no_col_width,
+                    minwidth=self.no_col_width, stretch=False, anchor="center")
+            self.column('file_name',
+                    width=self.name_col_width, minwidth=self.name_col_width)
+
+            self.heading("no", text="NO", anchor="center")
+            self.heading("file_name", text="File Name", anchor="w")
 
     def display_files(self, path: str, files: list[str], from_screen: bool) -> list[str]:
         """

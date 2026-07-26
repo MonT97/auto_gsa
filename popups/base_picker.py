@@ -54,7 +54,7 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         if _enabled:
             self.entry.configure(state=ctk.NORMAL, border_color=ACTIVE_ENTRY_CLR)
             self.after(1, self.entry.focus_set)
-            self.entry.select_to(ctk.END)
+            self.entry.select_range('0', ctk.END)
         else:
             self.entry.configure(placeholder_text=self.val)
             self.entry.configure(state=ctk.DISABLED, border_color=DEFAULT_ENTRY_CLR)
@@ -65,7 +65,7 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
         """
         if self.toggle.get():
             self.after(1,self.entry.focus_set)
-            self.entry.select_to(ctk.END)
+            self.entry.select_range('0', ctk.END)
 
     def _validate(self) -> None:
         """

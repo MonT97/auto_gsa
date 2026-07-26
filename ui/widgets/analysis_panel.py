@@ -72,7 +72,7 @@ class AnalysisPanel(ctk.CTkFrame, Observer):
         if self.current_sample != sample:
             self.analyzer: Analyzer = Analyzer(sample.get_data())
 
-    def draw_graphs(self, sample: Sample, graph_type: GraphType) -> None:
+    def draw_graphs(self, sample: Sample, graph_type: GraphType|None = None) -> None:
         """
         Triggered by an outside signal from [MainPanel].
         """
@@ -290,8 +290,7 @@ class DataPanel(ctk.CTkFrame):
         _stats_msg: str = (_get_msg(_stats)) # type: ignore
         _interp_msg: str = (_get_msg(_interpretation)) # type: ignore
         
-        # self.data_table.update_note(_sample_data_msg)
-        self.data_table.update_note(_sample_data_msg) # type: ignore
+        self.data_table.populate_table(_sample_data_msg) # type: ignore
         self.stats_note.update_note(_stats_msg, _interp_msg, _ana_method)
 
 
@@ -303,40 +302,29 @@ class DataTable(ttk.Treeview):
                  header_font: ctk.CTkFont, data_font: ctk.CTkFont) -> None:
         super().__init__(master)
 
-        self.ele_width: int = 86
+        self.width: int = 0
+        self.pad_value: int = 4 #subtracted from other cols to account for the bigger last one.
+        self.col_width: int = 0
 
-        def _style() -> None:
+        self.bind("<Map>", lambda _: _set_element_width(self.winfo_width()))
+
+        def _set_element_width(width: int) -> None:
             """
-            A subroutine for applying styles.
+            Programmatically set the size of each TreeView column.
             """
-            _d_style = ttk.Style()
-            _d_style.theme_use('default')
-            _d_style.configure('DataTable.Treeview',
-                foreground=DATA_TABLE_FONT_CLR,
-                background=DATA_TABLE_ROW_BG_CLR,
-                bordercolor=DATA_TABLE_HDR_BG_CLR,
-                borderwidth=0,
-                rowheight=25,
-                font=data_font,
-                fieldbackground=DATA_TABLE_ROW_BG_CLR)
-            _d_style.map('DataTable.Treeview')
-
-            _hdr_style = ttk.Style()
-            _hdr_style.configure('DataTable.Treeview.Heading', 
-                relief='flat',
-                foreground=DATA_TABLE_FONT_CLR,
-                background=DATA_TABLE_HDR_BG_CLR,
-                bordercolor=DATA_TABLE_HDR_BG_CLR,
-                font=header_font)
-            _hdr_style.map('DataTable.Treeview.Heading',
-                background=[('active', DATA_TABLE_HDR_BG_ACTV_CLR)])
-
-        _style()
+            self.width = width
+            width -= width%2
+            self.col_width = (width//4)-self.pad_value
 
         self.configure(style='DataTable.Treeview', selectmode="none", show="headings")
 
-    def update_note(self, data: pd.DataFrame) -> None:    
-        _header = data.columns.to_list()
+    def populate_table(self, data: pd.DataFrame) -> None:
+        """
+        Fills the table.
+        - data: used to populate the table.
+        """    
+        _header: list = data.columns.to_list()
+        _last_col_width = self.width - (self.col_width*(len(_header)-1))
 
         _n_rows = data.shape[0]-1 # as the first row is the header
         _rows = [data.iloc[i+1,:].to_list() for i in range(_n_rows)]
@@ -352,11 +340,12 @@ class DataTable(ttk.Treeview):
         for hdr in _header:
             self.heading(hdr, text=hdr, anchor="center")
             if _header.index(hdr) == len(_header)-1:
-                self.column(hdr, width=self.ele_width+21,
-                        minwidth=self.ele_width+21, stretch=False, anchor="center")
+                # this 21 is trail&error driven, as the last column name is typically longer.
+                self.column(hdr, width=_last_col_width,
+                        minwidth=_last_col_width, stretch=True, anchor="center")
                 continue
-            self.column(hdr, width=self.ele_width,
-                    minwidth=self.ele_width, stretch=False, anchor="center")
+            self.column(hdr, width=self.col_width,
+                    minwidth=self.col_width, stretch=True, anchor="center")
         
         # handle data:
         for ele in _rows:

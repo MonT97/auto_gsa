@@ -2,7 +2,7 @@ import os
 
 import customtkinter as ctk
 
-from widgets import MainPanel
+from ui import MainPanel, Styles
 
 if os.name != 'nt':
     print("Running in non-Windows OS, some eyecandy won't be visible!")
@@ -24,6 +24,8 @@ class App(ctk.CTk):
         self.iconbitmap("assets/icon.ico")
         self.geometry(f"{size[0]}x{size[1]}+{position[0]}+{position[1]}")
         self.wm_protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        Styles().apply_styles()
 
         self.main_panel: MainPanel = MainPanel(self)
         self.main_panel.pack(expand=1, fill='both')

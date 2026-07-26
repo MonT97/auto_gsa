@@ -12,11 +12,11 @@ from mixins import HasToolTip, Observer
 # names:
 CNFG_DIR_NAME: Final[str] = 'auto_gsa'
 LOG_FILE_NAME: Final[str] = 'log.txt'
-CONFG_DIR: Final[str|None] = os.environ.get('LOCALAPPDATA')
-assert CONFG_DIR, 'Strange!, you don\'t have an appdata dir??!!'
+CNFG_DIR: Final[str|None] = os.environ.get('LOCALAPPDATA')
+assert CNFG_DIR, 'Strange!, you don\'t have an appdata dir??!!'
 
 # file permission:
-FULL_PERM: Final[int] = 0o700
+FULL_PERMISSION: Final[int] = 0o700
 READ_ONLY: Final[int] = 0o400
 
 class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
@@ -45,7 +45,7 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
 
     def _setup_log_file(self) -> None:
     
-        self.cnfg_path = os.path.join(CONFG_DIR, CNFG_DIR_NAME)
+        self.cnfg_path = os.path.join(CNFG_DIR, CNFG_DIR_NAME)
 
         if not os.path.exists(self.cnfg_path):
             os.mkdir(self.cnfg_path)
@@ -65,12 +65,12 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
 
         # Linux like [user,group,others], 4=r,2=w,1=exc,0=none.
         if _file_exists:
-            os.chmod(self.log_file_path, FULL_PERM)
+            os.chmod(self.log_file_path, FULL_PERMISSION)
         with open(self.log_file_path, _mode) as f:
             f.write(text+'\n')
         os.chmod(self.log_file_path, READ_ONLY)
         
-    def write(self, text: str, error: bool) -> None:
+    def write(self, text: str, error: bool = False) -> None:
         """
         Write [text] into the text box.
         error: when the [text] is meant to be an error massage.

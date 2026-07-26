@@ -16,6 +16,7 @@ class HasToolTip():
     def htt_tip(self, widget: CTkBaseClass|Canvas,
                 msg: str, font_size: int = 12, font_name: str = 'Arial') -> None:
         """
+        Part of the HasTooltip mixin.
         Adds a tooltip for the given [widget] using the provided [msg].
         """
         ToolTip(widget,
