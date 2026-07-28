@@ -1,4 +1,13 @@
+from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tkinter import Widget
+
+    from models import Sample
+
+    from .base_types import SaveObject
 
 
 class GraphType(Enum):
@@ -9,6 +18,56 @@ class GraphType(Enum):
     """
     HIST = 0
     CUM = 1
+
+
+class LogMsgType(Enum):
+    """
+    An Enum representing various log massage types:
+    - NORMAL -----> normal massage.
+    - WARNING ----> warning massage.
+    - ERROR ----> error massage.
+    """
+    NORMAL = ''
+    WARNING = '<!> Warning: '
+    ERROR = '<!> Error: '
+
+
+@dataclass
+class SignalSchema():
+    """
+    Use to define the signal schema.
+    """
+    name: str
+    args: tuple
+
+
+class Signal(Enum):
+    """
+    An Enum representing the signals, done to mitigate the string trap:\n
+    Use print(Signal.name.value) to know the args to pass into the lister.
+    - LOG: signal to log a massage into the [LoggingPanel] --> args=[str, LogMsgType].
+    - ANALYZE: signals the [AnalysisPanel] to analyze the data --> args=[sample, graph_type].
+    - EXPORTED: signals [FilePanel] the end of the exporting process --> args=[].
+    - EXPAND: signals the [MainPanel] to expand a Widget --> args=[Widget].
+    - COLOR: signals the [FilePanel] to update the [SaveObject] color --> args=[color].
+    """
+    LOG = SignalSchema('log', (str, LogMsgType))
+    ANALYZE = SignalSchema('analyze', ('Sample', 'SaveObject', GraphType|None))
+    EXPORTED = SignalSchema('exported', ())
+    EXPAND = SignalSchema('expand', ('Widget',))
+    COLOR = SignalSchema('color', (str,))
+
+    def __lt__(self, other) -> bool:
+        return len(self.value.args) < len(other)
+    
+    def __gt__(self, other) -> bool:
+        return len(self.value.args) > len(other)
+
+    def __repr__(self) -> str:
+        return self.value.name
+
+    def __str__(self) -> str:
+        return self.value.name
 
 
 class FileFormat(Enum):

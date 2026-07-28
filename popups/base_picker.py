@@ -1,6 +1,8 @@
 """
 The Base class for the various pickers in pickers.py.
 """
+from typing import Final
+
 import customtkinter as ctk
 
 from mixins import HasToolTip
@@ -8,8 +10,8 @@ from utils import utls
 
 # Constants
 # colors:
-ACTIVE_ENTRY_CLR = '#ffffff'
-DEFAULT_ENTRY_CLR = '#565b5e'
+ACTIVE_ENTRY_CLR: Final[str] = '#ffffff'
+DEFAULT_ENTRY_CLR: Final[str] = '#565b5e'
 
 #TODO: find a better way to handle defaults.
 class BasePicker(ctk.CTkFrame, HasToolTip):
@@ -75,7 +77,7 @@ class BasePicker(ctk.CTkFrame, HasToolTip):
 
     def _update_value(self, value: str) -> None:
         """
-        Udates whats written in the entry widget using the given [value].
+        Updates whats written in the entry widget using the given [value].
         """
         self.entry.delete(0, ctk.END)
         self.entry.insert(0, value)

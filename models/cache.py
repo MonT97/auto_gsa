@@ -1,5 +1,6 @@
-from typing import Any, Sequence
+from typing import Any, Sequence, TypeVar
 
+Element = TypeVar('Element')
 
 class Cache():
     """
@@ -46,11 +47,12 @@ class Cache():
     def get(self, id_: str) -> list:        
         """
         Gets the element at the given [id_] from the cache.
-        - must cache if the item is cached first.
+        - make sure the item is cached first!.
+        - if the item isn't in the cache, return -> [].
         """
         if id_ not in self.data:
             _output = []
-            # print(f"Item{id_} isn't cached!!, call check!")
+            print(f"Item{id_} isn't cached!!, call Cache.check({id_})!")
         else:
             _output = self.data[id_]
         return _output

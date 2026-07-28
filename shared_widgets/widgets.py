@@ -1,32 +1,36 @@
 from collections.abc import Callable
+from typing import Final, overload
 
 import customtkinter as ctk
 from PIL import Image
 
+from mixins import Observer
+from typedefs import Signal
+
 # Constants
 # icon:
-ICON_SIZE = (34,34)
+ICON_SIZE: Final[tuple[int,int]] = (34,34)
 
-PREVIEW_ICON_ON_BK = Image.open('assets/check_box_on_bk.png')
-PREVIEW_ICON_ON_WH = Image.open('assets/check_box_on_wh.png')
-PREVIEW_ICON_OFF_BK = Image.open('assets/check_box_off_bk.png')
-PREVIEW_ICON_OFF_WH = Image.open('assets/check_box_off_wh.png')
+PREVIEW_ICON_ON_BK: Final = Image.open('assets/check_box_on_bk.png')
+PREVIEW_ICON_ON_WH: Final = Image.open('assets/check_box_on_wh.png')
+PREVIEW_ICON_OFF_BK: Final = Image.open('assets/check_box_off_bk.png')
+PREVIEW_ICON_OFF_WH: Final = Image.open('assets/check_box_off_wh.png')
 
 # color:
-HOVER_CONTRAST = 35 # the contrast from the currnet color
+TONE_THRESHOLD: Final[int] = 127
+HOVER_CONTRAST: Final[int] = 35 # the contrast from the current color
 assert HOVER_CONTRAST < 127, f'{HOVER_CONTRAST} should never exceed 127 for the math to checkout!'
-TONE_THRESHOLD = 127
 
-DEFAULT_COLOR = '#1f7bb4'
-HOVER_COLOR = '#ffffff'
-BORDER_COLOR_ACTIVE = '#00ff00'
-BORDER_COLOR_INACTIVE = '#ff0000'
-DEFAULT_R_COLOR = ('#b50000', '#ff0000', '#855656')
-DEFAULT_G_COLOR = ('#00b500', '#00ff00', '#568556')
-DEFAULT_B_COLOR = ('#0000b5', '#0000ff', '#565685')
+DEFAULT_COLOR: Final[str] = '#1f7bb4'
+HOVER_COLOR: Final[str] = '#ffffff'
+BORDER_COLOR_ACTIVE: Final[str] = '#00ff00'
+BORDER_COLOR_INACTIVE: Final[str] = '#ff0000'
+DEFAULT_R_COLOR: Final[tuple[str,str,str]] = ('#b50000', '#ff0000', '#855656')
+DEFAULT_G_COLOR: Final[tuple[str,str,str]] = ('#00b500', '#00ff00', '#568556')
+DEFAULT_B_COLOR: Final[tuple[str,str,str]] = ('#0000b5', '#0000ff', '#565685')
 
 
-class ColorPicker(ctk.CTkFrame):
+class ColorPicker(ctk.CTkFrame, Observer):
     """
     CTkFrame:
         An (RGB) color picker.
@@ -38,8 +42,6 @@ class ColorPicker(ctk.CTkFrame):
         Note: all masters should have on_preview_press(color) function, assertion enforced.
         """
         super().__init__(master)
-
-        assert getattr(master, 'on_preview_press')
 
         self.columnconfigure(0, weight=1, uniform='a')
         self.columnconfigure(1, weight=2, uniform='a')
@@ -53,7 +55,7 @@ class ColorPicker(ctk.CTkFrame):
         self.preview: ctk.CTkButton = ctk.CTkButton(self,
                 text='', border_color='red', border_width=2,
                 image=ctk.CTkImage(PREVIEW_ICON_OFF_WH,size=ICON_SIZE),
-                command= lambda: self._update_color(master, self.color))
+                command= lambda: self._on_preview_btn_press(self.color))
 
         self.r: ctk.IntVar = ctk.IntVar(self, value=self.default_rgb[0])
         self.g: ctk.IntVar = ctk.IntVar(self, value=self.default_rgb[1])
@@ -81,8 +83,12 @@ class ColorPicker(ctk.CTkFrame):
         self.b.set(_color[2])
         
         self._set_color((self.r,self.g,self.b))
+        self._on_preview_btn_press(color)
 
-
+    @overload
+    def _convert_clr(self, color: str) -> tuple[int,int,int]: ...
+    @overload
+    def _convert_clr(self, color: tuple[int,int,int]) -> str: ...
     def _convert_clr(self, color: str|tuple[int,int,int]) -> str|tuple:
         """
         Converts the given [color] into the opposite format, a [color:str] returns a [color:tuple] and vise versa.
@@ -129,18 +135,19 @@ class ColorPicker(ctk.CTkFrame):
         if self.preview.cget('border_color') != BORDER_COLOR_INACTIVE:
             self.preview.configure(border_color=BORDER_COLOR_INACTIVE)
 
-    def _update_color(self, master: ctk.CTkFrame, color: str) -> None:
+    def _on_preview_btn_press(self, color: str) -> None:
         """
-        Update the graph with the new color, delegated to master.
+        Picks the color and broadcasts [Signal.COLOR].
         """
-        master.on_preview_press(color) #type: ignore
-        _max: int = max(self._convert_clr(color)) #type: ignore
+        _max: int = max(self._convert_clr(color))
 
         _img = PREVIEW_ICON_ON_BK if _max > TONE_THRESHOLD else PREVIEW_ICON_ON_WH
 
         self.preview.configure(
             border_color=BORDER_COLOR_ACTIVE,
             image=ctk.CTkImage(_img, size=ICON_SIZE))
+        
+        self.obs_broadcast(Signal.COLOR, self, (color,))
 
 
 class ColorSlider(ctk.CTkSlider):

@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Callable, Final
+from typing import Callable, Final, overload
 
 import customtkinter as ctk
 import matplotlib.pyplot as plt
@@ -12,23 +12,19 @@ from mixins import CanPlot, HasToolTip, Observer
 from models import Analyzer, Cache, Sample
 from shared_widgets import ColorPicker
 from typedefs import (AnalysisMethod, GraphParameters, GraphType, PlotData,
-                      SampleStats, StatsInterpretation)
+                      SampleStats, SaveObject, Signal, StatsInterpretation)
 
 # Constants
 # fonts:
-DATA_TABLE_FONT: Final[tuple[str, int]] = ('Arial', 18,)
-DATA_TABLE_HDR_FONT: Final[tuple[str, int, str]] = ('Arial', 20, 'bold')
 STATS_NOTE_FONT: Final[tuple[str, int, str]] = ('Arial', 14, 'bold')
 
 # colors:
 GRAPH_COLOR_DEFAULT: Final[str] = '#1f7bb4'
-DATA_TABLE_HDR_BG_CLR: Final[str] = '#1f6aa5'
-DATA_TABLE_HDR_BG_ACTV_CLR: Final[str] = '#144870'
-DATA_TABLE_ROW_BG_CLR: Final[str] = '#2b2b2b'
-DATA_TABLE_FONT_CLR: Final[str] = '#ffffff'
+
 
 # customization bar:
 CUST_BAR_PARAMS: Final[tuple[float, float, float]] =  (.3, .25, .04)
+
 
 class AnalysisPanel(ctk.CTkFrame, Observer):
     """
@@ -72,15 +68,16 @@ class AnalysisPanel(ctk.CTkFrame, Observer):
         if self.current_sample != sample:
             self.analyzer: Analyzer = Analyzer(sample.get_data())
 
-    def draw_graphs(self, sample: Sample, graph_type: GraphType|None = None) -> None:
+    def draw_graphs(self, sample: Sample, save_obj: SaveObject, graph_type: GraphType|None = None) -> None:
         """
         Triggered by an outside signal from [MainPanel].
         """
         self._create_analyzer(sample)
         #? is this the best place for this? NO, actually it might
-        self.graph_panel.draw_graphs(self.analyzer, sample.get_name(), graph_type, GRAPH_COLOR_DEFAULT)      
+        self.graph_panel.draw_graphs(
+            self.analyzer, sample.get_name(), save_obj.color, graph_type)      
 
-    def write(self, sample: Sample, graph_type: GraphType|None) -> None:
+    def write(self, sample: Sample, graph_type: GraphType|None = None) -> None:
         """
         Triggered by an outside signal from [MainPanel].
         """
@@ -104,6 +101,7 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
         self.graphs_cache: Cache = Cache()
 
         self.graphs: list[Axes] = []
+        self.graph_params: GraphParameters = GraphParameters()
         self.graph_is_expanded: bool = False
         self.graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
 
@@ -117,7 +115,8 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
         self.label.pack(side='top', padx=5, anchor='w')
         self.graph_frame.pack(fill='both', expand=1, padx=5, pady=5)
 
-        self.cust_bar: CustomizationBar = CustomizationBar(self, *CUST_BAR_PARAMS)
+        self.cust_bar = CustomizationBar(self,
+                        self.graph_params, self.update_graphs, *CUST_BAR_PARAMS)
 
     def _generate_graph(self, 
                        plot_data: PlotData, sample_name: str, graph_type: GraphType,
@@ -144,25 +143,20 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
         """
         Saves the current params used to produce the graph as a GraphParameters object.
         """
-        self.graph_params = GraphParameters(analyzer, sample_name, graph_type, graph_color)
-
-    def get_graph_params(self) -> GraphParameters:
-        """
-        Returns the graph_params.
-        """
-        return self.graph_params
+        self.graph_params.update(
+                analyzer=analyzer, sample_name=sample_name,
+                graph_type=graph_type, graph_color=graph_color)
 
     def update_graphs(self, graph_params: GraphParameters) -> None:
         """
         Redraws the graph using the newly provided parameters.
         """
-        _graph_params = graph_params.to_dict()
-        self.draw_graphs(**_graph_params)
-        self._set_graph_params(**_graph_params)
+        self.draw_graphs(**graph_params)
+        self._set_graph_params(**graph_params)
 
     def draw_graphs(self,
                     analyzer: Analyzer, sample_name: str,
-                    graph_type: GraphType|None, graph_color:str) -> None:
+                    graph_color:str, graph_type: GraphType|None = None) -> None:
         """
         Layout the graphs:
         - graph_type = None -> layout all the graphs in enums.GraphType.
@@ -174,8 +168,8 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
             """
             Using the given [id_] and [type_], creates or retrieves from cache then returns the tk.Canvas obj to plot.
             """
-            _in_cache: Callable = lambda id_: self.graphs_cache.check(id_)
-            if _in_cache(id_):
+            _in_cache: bool = self.graphs_cache.check(id_)
+            if _in_cache:
                 _graph: tk.Canvas = self.graphs_cache.get(id_) #type: ignore
             else:
                 _graph = self._generate_graph(analyzer.get_plot_data(type_), sample_name, type_, graph_color)
@@ -248,12 +242,9 @@ class DataPanel(ctk.CTkFrame):
         self.table_note_frame.columnconfigure(1, weight=1, uniform='a')
         self.table_note_frame.rowconfigure(0, weight=1, uniform='a')
 
-        self.data_table_font: ctk.CTkFont = ctk.CTkFont(*DATA_TABLE_FONT)
-        self.data_table_hdr_font: ctk.CTkFont = ctk.CTkFont(*DATA_TABLE_HDR_FONT)
         self.stats_note_font: ctk.CTkFont = ctk.CTkFont(*STATS_NOTE_FONT)
 
-        self.data_table = DataTable(self.table_note_frame,
-                                    self.data_table_hdr_font, self.data_table_font)
+        self.data_table = DataTable(self.table_note_frame)
         self.stats_note = StatsNote(self.table_note_frame, self.stats_note_font)
 
         # layout:
@@ -271,8 +262,13 @@ class DataPanel(ctk.CTkFrame):
         _interpretation = analyzer.get_interpretation()
         _ana_method: AnalysisMethod = analyzer.get_method()        
 
-        def _get_msg(inp: Sample|SampleStats|StatsInterpretation|Any) -> str|pd.DataFrame:
-            
+        @overload
+        def _get_msg(inp: Sample) -> pd.DataFrame:...
+        @overload
+        def _get_msg(inp: SampleStats) -> str:...
+        @overload
+        def _get_msg(inp: StatsInterpretation) -> str:...
+        def _get_msg(inp: Sample|SampleStats|StatsInterpretation) -> str|pd.DataFrame:
             if isinstance(inp, SampleStats):
                 _msg = "".join([f"{k.capitalize()}\t> {v:.3f}\n" for k,v in inp.to_dict().items()])
             elif isinstance(inp, StatsInterpretation):
@@ -281,14 +277,12 @@ class DataPanel(ctk.CTkFrame):
                     )
             elif isinstance(inp, Sample):
                 _msg = inp.get_data()
-            else:
-                _msg = ''
-            
+                
             return _msg
         
-        _sample_data_msg: pd.DataFrame = (_get_msg(sample)) # type: ignore
-        _stats_msg: str = (_get_msg(_stats)) # type: ignore
-        _interp_msg: str = (_get_msg(_interpretation)) # type: ignore
+        _sample_data_msg: pd.DataFrame = _get_msg(sample)
+        _stats_msg: str = _get_msg(_stats)
+        _interp_msg: str = _get_msg(_interpretation)
         
         self.data_table.populate_table(_sample_data_msg) # type: ignore
         self.stats_note.update_note(_stats_msg, _interp_msg, _ana_method)
@@ -298,10 +292,10 @@ class DataTable(ttk.Treeview):
     """
     ttk.TreeView.
     """
-    def __init__(self, master: ctk.CTkFrame,
-                 header_font: ctk.CTkFont, data_font: ctk.CTkFont) -> None:
+    def __init__(self, master: ctk.CTkFrame) -> None:
         super().__init__(master)
 
+        # Fonts are set using the theme module.
         self.width: int = 0
         self.pad_value: int = 4 #subtracted from other cols to account for the bigger last one.
         self.col_width: int = 0
@@ -351,7 +345,7 @@ class DataTable(ttk.Treeview):
         for ele in _rows:
             self.insert("", "end", values=ele)
         
-
+        
 class StatsNote(ctk.CTkTextbox):
     """
     CTkTextbox
@@ -380,6 +374,7 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip, Observer):
         Gives the ability to change the graph preview visuals.
     """
     def __init__(self, master:GraphPanel,
+                 graph_params: GraphParameters, connection_func: Callable,
                  width: float, height:float, anim_speed: float =.01) -> None:
         """
         CkFrame:
@@ -389,23 +384,27 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip, Observer):
         
         _offset: float = 0
 
+        self.master: GraphPanel = master
+        self._con_func = connection_func
+        self._graph_parms = graph_params
+
         self.columnconfigure(0, weight=1, uniform='a')
         self.rowconfigure(0, weight=3, uniform='a')
         self.rowconfigure(1, weight=1, uniform='a')
 
-        self.master: GraphPanel = master
-
+        # animation:
         self.width = width
         self.height = height
 
-        self.init_y_pos = .07
+        self.init_y_pos : float = .07
         self.crnt_y_pos = self.init_y_pos
         self.final_pos = self.height + _offset
 
         self.in_start_pos:bool = True
 
         self.clr_pikr: ColorPicker = ColorPicker(self)
-
+        self.obs_listen(Signal.COLOR, self, self.on_color_picked)
+        
         self.move_btn_txt: str = 'edit'
         self.move_btn: ctk.CTkButton = ctk.CTkButton(self, corner_radius=0,
                 height=100, text=f'\\ {self.move_btn_txt} /', state=ctk.DISABLED,
@@ -416,12 +415,6 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip, Observer):
 
         self.place(anchor='s',
                 relx=.5, rely=self.crnt_y_pos, relheight=self.height, relwidth=self.width)
-
-    def _update_graphs(self, graph_params: GraphParameters) -> None:
-        """
-        Delegates the graph update process to master: GraphPanel
-        """
-        self.master.update_graphs(graph_params)
 
     def animate(self, animation_speed: float) -> None:
         """
@@ -447,14 +440,13 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip, Observer):
             self.move_btn.configure(text= f'\\ {self.move_btn_txt} /')
             self.in_start_pos = not self.in_start_pos
     
-    def on_preview_press(self , color: str) -> None:
+    def on_color_picked(self , color: str) -> None:
         """
-        Triggered by a preview button press From the clr_pikr: ColorPicker.
+        Triggered by Signal.COLOR.
         """
-        _graph_params: GraphParameters = self.master.get_graph_params()
-        _graph_params.graph_color = color
-        self._update_graphs(_graph_params)
-        self.obs_broadcast('AnalysisPanel-color', self, [color])
+        #TODO: see for decoupling, the mangling due to the GraphsParameter, signal?!; This is justified due to the inherent coupling of [self] and [master], as this is the only [master] of [self]; for now at least!!---> Implemented a function dependency injection.
+        self._graph_parms.update(graph_color=color)
+        self._con_func(self._graph_parms)
 
     def enable(self) -> None:
         """
@@ -467,65 +459,3 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip, Observer):
         #! add the analysis and the data results into the GUI - DONE👌
         #? add the option to save the image/graph and the related analysis results and organize it to make sense for the end user; maybe report ready format as a pdf -do research?!!
         #? how well the end game well be? - contemplate! 
-
-
-#! frames:
-# class DataNote(ctk.CTkFrame):
-#     """
-#     CTkFrame
-#     """
-#     def __init__(self, master: ctk.CTkFrame, font: ctk.CTkFont) -> None:
-#         super().__init__(master)
-
-#         self.font = font
-#         self.ele_wdth: int = 40 
-
-#         self.hdr_frame = ctk.CTkFrame(self, corner_radius=0)
-#         self.rows_frame = ctk.CTkScrollableFrame(self, corner_radius=0)
-#         bg_transparent([self.hdr_frame, self.rows_frame])
-
-#     def update_note(self, data: pd.DataFrame) -> None:
-#         _at_idx: Callable = lambda x,y,ind=0 : y.index(x) == ind
-
-#         if self.pack_slaves():
-#             for label in self.pack_slaves():
-#                 label.pack_forget()
-
-#         if self.hdr_frame.pack_slaves():
-#             for label in self.hdr_frame.pack_slaves():
-#                 label.pack_forget()
-        
-#         if self.rows_frame.pack_slaves():
-#             for label in self.rows_frame.pack_slaves():
-#                 label.pack_forget()
-    
-#         _header = data.columns.to_list()
-
-#         _n_rows = data.shape[0]-1
-#         _rows = [data.iloc[i+1,:].to_list() for i in range(_n_rows)]
-        
-#         for hdr in _header:
-#             _hdr_label = ctk.CTkLabel(self.hdr_frame, width=self.ele_wdth+26,
-#                     corner_radius=5, text=hdr, font=self.font, fg_color=GRAPH_COLOR_DEFAULT)
-#             if _at_idx(hdr,_header):
-#                 _hdr_label.pack(side='left', fill='both', padx=2, pady=(3,2))
-#                 continue
-#             _hdr_label.pack(side='left', fill='both', padx=(0,2), pady=2)
-        
-#         for row in _rows:
-#             _row_frame = ctk.CTkFrame(self.rows_frame)
-#             for el in row:
-#                 _lbl = ctk.CTkLabel(_row_frame, width=self.ele_wdth, text=el)
-#                 bg_transparent(_lbl)
-#                 if _at_idx(el,row):
-#                     _lbl.configure(font=self.font)
-#                     _lbl.pack(side='left', fill='both', expand=1, padx=2)
-#                     continue
-#                 _lbl.pack(side='left', fill='both', expand=1, padx=(0,2))
-#             if _at_idx(row,_rows):
-#                 _row_frame.pack(side='top', fill='both', expand=1, pady=2)
-#                 continue
-#             _row_frame.pack(side='top', fill='both', expand=1, pady=(0,2))
-        
-#         self.hdr_frame.pack(side='top', fill='both')
-#         self.rows_frame.pack(side='top', fill='both', expand=1) 

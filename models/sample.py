@@ -17,19 +17,19 @@ class Sample():
         - data: pd.DataFrame, a minimum of 3 points is necessary for calculations.
     """
     def __init__(self, path: str = "") -> None:
-        self.full_name: str = ''
-        self.data: pd.DataFrame = pd.DataFrame()
+        self._full_name: str = ''
+        self._data: pd.DataFrame = pd.DataFrame()
 
         if path:
-            self.full_name, self.data = self._create_data(path)
+            self._full_name, self._data = self._create_data(path)
         
     def __repr__(self) -> str:
 
-        return f"{__class__.__name__} ({self.full_name=}, {self.data.shape=})"
+        return f"{__class__.__name__} ({self._full_name=}, {self._data.shape=})"
     
     def __eq__(self, other) -> bool:
         
-        return True if (self.full_name == other.full_name) and (self.data.equals(other.data)) else False
+        return True if (self._full_name == other._full_name) and (self._data.equals(other._data)) else False
     
     def _create_data(self, path: str) -> tuple[str, pd.DataFrame]:
         """
@@ -70,12 +70,12 @@ class Sample():
         """
         full: returns [file_name.format] if true.
         """
-        _short_name: str = self.full_name.split(".")[0].capitalize()
+        _short_name: str = self._full_name.split(".")[0].capitalize()
 
-        return _short_name if not full else self.full_name      
+        return _short_name if not full else self._full_name      
     
     def get_data(self) -> pd.DataFrame:
         """
         Returns the sample data.
         """
-        return self.data
+        return self._data

@@ -1,15 +1,107 @@
 """
 ExportScreen inputs manipulation.
 """
+import os
 import re
 from collections.abc import Callable
+from typing import Final
 
 import customtkinter as ctk
 
-from mixins import HasToolTip
+from mixins import HasToolTip, Observer
 from shared_widgets import ColorPicker
+from typedefs import Signal
 
-from .base_picker import BasePicker, BaseToggle  # needed for export_screen
+from .base_picker import BasePicker  # needed for export_screen
+from .base_screen import DirPickScreen
+
+# Constants
+# color:
+ACTIVE_ENTRY_CLR: Final[str] = '#ffffff'
+DEFAULT_ENTRY_CLR: Final[str] = '#565b5e'
+
+
+class DirPicker(ctk.CTkFrame, HasToolTip):
+    """
+    Directory picker dialog.
+    - label_txt: the toggle's label.
+    - full_path: the default value.
+    - tooltip_msg: the text to be shown in the tool tip.
+    """
+    def __init__(self, master, label_txt: str, full_path: str, tooltip_msg: str = '') -> None:
+        """
+        Directory picker dialog.
+        - label_txt: the toggle's label.
+        - full_path: the default value.
+        - tooltip_msg: the text to be shown in the tool tip.
+        """
+        super().__init__(master)
+        self._full_path: str = full_path
+        self._path, self._dir_name = os.path.split(self._full_path)
+        self._master = master.master
+
+        self._dir_screen = DirPickScreen(self, initialdir=self._full_path)
+
+        self._toggle = ctk.CTkSwitch(self,
+                    text=label_txt, width= 150, command=lambda: self._activation())
+        if tooltip_msg:
+            self.htt_tip(self._toggle, tooltip_msg)
+
+        self._entry = ctk.CTkEntry(self, placeholder_text=self._full_path)
+        self._entry.bind('<FocusIn>', lambda _: self._on_in_focus())
+        self._update_entry_tooltip_and_scroll()
+        self._entry.configure(state=ctk.DISABLED, border_color=DEFAULT_ENTRY_CLR)
+
+        self._toggle.pack(side='left', padx=2)
+        self._entry.pack(side='left', fill='x', expand=True, padx=2, pady=2)
+    
+    def _activation(self) -> None:
+        """
+        Enables/Disables the widget.
+        """
+        _enabled = bool(self._toggle.get())
+        
+        if _enabled:
+            self._entry.configure(state=ctk.NORMAL, border_color=ACTIVE_ENTRY_CLR)
+            self.after(1, self._entry.focus_set)
+            self._entry.select_range('0', ctk.END)
+        else:
+            self._entry.configure(placeholder_text=self._full_path)
+            self._entry.configure(state=ctk.DISABLED, border_color=DEFAULT_ENTRY_CLR)
+    
+    def _update_entry_tooltip_and_scroll(self) -> None:
+        """
+        Scrolls to the [self._entry] widget to the end of the text and updates the [tooltip].
+        """
+        _scroll_unit: int = len(self._full_path)
+        self._entry.xview_scroll(_scroll_unit,'units')
+        self.htt_tip(self._entry, self._full_path)
+
+    def _on_in_focus(self) -> None:
+        """
+        When the mouse enters the entry widget.
+        """
+        if self._toggle.get():
+            self._master.attributes('-topmost', False)
+            _full_path = self._dir_screen.show()
+            if _full_path:
+                self._full_path = _full_path
+                self._path, self._dir_name = os.path.split(self._full_path)
+                self._entry.insert(0, self._full_path)
+                self._update_entry_tooltip_and_scroll()
+            self._master.attributes('-topmost', True)
+
+    def get_path(self) -> str:
+        """
+        Returns the path.
+        """
+        return self._path
+    
+    def get_dir_name(self) -> str:
+        """
+        Returns the directory/folder name.
+        """
+        return self._dir_name
 
 
 class DpiPicker(BasePicker):
@@ -58,20 +150,31 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 self.to: ctk.CTkLabel = ctk.CTkLabel(self, text='to')
            
                 self.u_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                        width=40, textvariable=self.u_var)
+                        width=40, textvariable=self.u_var, border_color='#ffffff')
                 self.htt_tip(self.u_limit_entry, 'The start of the interval, enclusive.')
                 self.u_limit_entry.bind("<FocusOut>",
                     lambda _: self._validate_input(self.u_var, 'u'))
+                self.u_limit_entry.bind('<Enter>',
+                                        lambda _: self._on_mouse_enter(self.u_limit_entry))
 
                 self.l_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                        width=40, textvariable=self.l_var)
+                        width=40, textvariable=self.l_var, border_color='#ffffff')
                 self.htt_tip(self.l_limit_entry, 'The end of the interval, enclusive.')
                 self.l_limit_entry.bind("<FocusOut>",
                     lambda _: self._validate_input(self.l_var, 'l'))
+                self.l_limit_entry.bind('<Enter>',
+                                        lambda _: self._on_mouse_enter(self.l_limit_entry))
 
                 self.u_limit_entry.place(anchor='w', relx=0+_padding, rely=.5)
                 self.to.place(anchor='n', relx=.5, rely=0)
                 self.l_limit_entry.place(anchor='e', relx=1-_padding, rely=.5)
+
+            def _on_mouse_enter(self, entry: ctk.CTkEntry) -> None:
+                """
+                When the mouse enters the entry widget.
+                """
+                self.after(1,entry.focus_set)
+                entry.select_range('0', ctk.END)
 
             def _validate_input(self, var: ctk.StringVar, limit: str) -> None:
                 """
@@ -104,12 +207,20 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 self.variable: ctk.StringVar = ctk.StringVar(self)
                 
                 self.list_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                            textvariable=self.variable)
+                            textvariable=self.variable, border_color='#ffffff')
                 self.htt_tip(self.list_entry, 'List of sample numbers, for example:\n- [1,2,6]: chooses samples 1, 2 and 6.\n- use only [,]as a delimiter.')
+                self.list_entry.bind('<Enter>', lambda _: self._on_mouse_enter())
                 self.list_entry.bind("<FocusOut>", lambda _: self._validate_input(self.variable))
 
                 self.list_entry.pack()
             
+            def _on_mouse_enter(self) -> None:
+                """
+                When the mouse enters the entry widget.
+                """
+                self.after(1,self.list_entry.focus_set)
+                self.list_entry.select_range('0', ctk.END)
+
             def _validate_input(self, value: ctk.StringVar) -> None:
                 """
                 Input validation.
@@ -191,39 +302,38 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         return  (self.index, _output)
     
 
-class GraphColorPicker(ctk.CTkFrame):
+class GraphColorPicker(ctk.CTkFrame, Observer):
     """
     Picking the color of the exported graphs/plots.
     """
-    def __init__(self, master) -> None:
+    def __init__(self, master, color: str) -> None:
         super().__init__(master)
 
         self.color: str = ''
 
-        self.toggle: ctk.CTkSwitch = ctk.CTkSwitch(self,
+        self._toggle: ctk.CTkSwitch = ctk.CTkSwitch(self,
             text='Use preview color', width=150,
             command=lambda: self._on_check())
         self.color_pckr: ColorPicker = ColorPicker(self)
-        self.toggle.toggle()
-
-        self.toggle.pack(side='left')
-
-    def update(self, color: str) -> None:
-
         self.color_pckr.update_clr_and_intvars(color)
+        self._toggle.toggle()
+
+        self.obs_listen(Signal.COLOR, self, self.on_preview_press)
+
+        self._toggle.pack(side='left')
 
     def _on_check(self) -> None:
  
-        if self.toggle.get():
+        if self._toggle.get():
             self.color_pckr.pack_forget()
-            self.toggle.configure(text='Use preview color')
+            self._toggle.configure(text='Use preview color')
         else:
-            self.toggle.configure(text='Pick a color')
+            self._toggle.configure(text='Pick a color')
             self.color_pckr.pack(side='top', padx=2, pady=2)
 
     def on_preview_press(self, color: str) -> None:
         """
-        Triggerd by a preview button press From the clr_pikr: ColorPicker.
+        Triggered by a preview button press From the clr_pikr: ColorPicker.
         """
         self.color = color
 

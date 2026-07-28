@@ -14,10 +14,10 @@ DEFAULT_CLR = '#1f7bb4'
 T = TypeVar('T', bound=DefaultObj)
 
 _objs: dict = {}
-_cnfg_folder_name: str = 'auto_gsa'
+_cnfg_dir: str = 'auto_gsa'
 _defaults_file_name: str = 'defaults.json'
 _app_data_path: str = os.environ.get('LOCALAPPDATA') #type: ignore
-_cnfg_dir_path: str = os.path.join(_app_data_path, _cnfg_folder_name)
+_cnfg_dir_path: str = os.path.join(_app_data_path, _cnfg_dir)
 _cnfg_file_path: str = os.path.join(_cnfg_dir_path, _defaults_file_name)
 
 class Defaults():
@@ -43,17 +43,19 @@ class Defaults():
 
             _data = SaveObject()
             _data.prefix = 'results_'
+            _data.files_path  = 'd:/documents/auto gsa data'
             _data.results_path = 'd:/documents/auto gsa data'
-            _data.results_folder_name = 'analysis_results'
+            _data.results_dir_name = 'analysis_results'
+            _data.raw_results_dir_name = 'raw_files' #!confg
             _data.color = DEFAULT_CLR
             _data.dpi = 300
             _data.save_raw_files = False
-            _data.interval = (0,0)
+            _data.interval = (0,[])
             _data.transparent = False
 
         return cast(T, _data)
 
-    def _write_into_file(self, default_obj, id_: str) -> None:
+    def _write_into_file(self, default_obj: DefaultObj, id_: str) -> None:
         """
         Writes the [default_obj] into the JSON file.
         """
@@ -66,11 +68,12 @@ class Defaults():
         try:
             with open(_cnfg_file_path, 'r') as f:
                     _json = json.load(f)
-            if id_ in _json: return
+            if default_obj.to_dict() == _json[id_]:
+                return
         except Exception as e:
             _json.clear()
 
-        _json[f'{id_}'] = default_obj.to_dict()
+        _json[id_] = default_obj.to_dict()
 
         # Linux like [user,group,others], 4=r,2=w,1=exc,0=none.
         if _file_exist:

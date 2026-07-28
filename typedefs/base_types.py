@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,6 +12,7 @@ type ImportCacheElement = tuple[str, ctk.CTkFrame, ctk.CTkCheckBox, ctk.CTkLabel
 type PlotData = tuple[PlotInput, PlotInput, SamplePoints, AnalysisMethod]
 type SamplePoints = list[tuple[float, float]]
 type PlotInput = pd.Series[Any]|np.ndarray[Any, Any]
+
 
 @dataclass
 class SampleStats():
@@ -64,20 +66,33 @@ class DefaultObj():
 @dataclass
 class SaveObject(DefaultObj):
     """
-    Data model for data needed for exporting/saving output data.
+    Data model for data needed for exporting/saving output data.\n
+    Designed to wander around carrying data.
     - prefix: To append to the beginning of the file's name.
+    - files_path: The dir housing the files.
     - results_path: To save the file within.
-    - results_folder_name: The dir name.
+    - results_dir_name: The dir name.
+    - raw_results_dir_name: Then name of dir to save raw files into.
     - color: The color of graph elements.
     - dpi: The png image resolution.
-    - save_raw_files: If True a non interpreted spreadsheet would be exported as well.
+    - save_raw_files: If true a non interpreted spreadsheet would be exported as well.
     - interval: To inclusively export files between.
+    - transparent: Sets the graph background to transparent.
     """
     prefix: str = ''
+    files_path: str = ''
     results_path: str = ''
-    results_folder_name: str = ''
+    results_dir_name: str = ''
+    raw_results_dir_name: str = ''
     color: str = '' #!config
     dpi: int = 0
     save_raw_files: bool = False
-    interval: tuple = ()
+    interval: tuple[int,list[int|None]] = (0,[])
     transparent: bool = False
+
+    def get_results_path(self) -> str:
+        """
+        Returns the full path to the results dir.\n
+        - -> os.path.join(results_path, results_folder_name)
+        """
+        return os.path.join(self.results_path, self.results_dir_name)

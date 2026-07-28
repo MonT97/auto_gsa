@@ -1,5 +1,5 @@
 """
-The main widgets.
+The User Interface module.
 """
 
 from .themes import Styles

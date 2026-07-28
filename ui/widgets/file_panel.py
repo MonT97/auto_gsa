@@ -1,7 +1,7 @@
 import os
 import time
 from tkinter import ttk
-from typing import Callable
+from typing import Callable, Final
 
 import customtkinter as ctk
 from PIL import Image
@@ -9,23 +9,24 @@ from PIL import Image
 from mixins import CanSave, Defaults, HasToolTip, Observer, Validator
 from models import Cache, Sample
 from popups import ExportScreen, ImportScreen
-from typedefs import GraphType, SaveObject
+from typedefs import GraphType, LogMsgType, SaveObject, Signal
 from utils import utls
 
 # Constants
 # colors:
-DEFAULT_GRAPH_COLOR = '#1f7bb4'
-ACTIVE_ENTRY = '#ffffff' #! Base entry class?!
-DEFAULT_ENTRY = '#565b5e'
+DEFAULT_GRAPH_COLOR: Final[str] = '#1f7bb4'
+ACTIVE_ENTRY: Final[str] = '#ffffff' #! Base entry class?!
+DEFAULT_ENTRY: Final[str] = '#565b5e'
 
 # fonts:
-ENTRY_FONT = ('Arial', 16)
+ENTRY_FONT: Final[tuple[str, int]] = ('Arial', 16)
 
 # icons:
-ICON_SIZE = size=(15,15)
-IMPORT_ICON = Image.open('assets/import.png')
-EXPORT_ICON = Image.open('assets/upload.png')
-EXPORT_DIS_ICON = Image.open('assets/upload_dis.png')
+ICON_SIZE: Final[tuple[int,int]] = (15,15)
+IMPORT_ICON: Final = Image.open('assets/import.png')
+EXPORT_ICON: Final = Image.open('assets/upload.png')
+EXPORT_DIS_ICON: Final = Image.open('assets/upload_dis.png')
+
 
 # convention to keep:
 # file -> file_name.extension
@@ -45,16 +46,14 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         self.configure(corner_radius=0)
 
         self.master = master
-        self.files_dir_path: str = "" #!cnfig
-        self.raw_results_dir_name: str = "raw_files" #!cnfig
+
+        # pass around data holder.
+        self.save_obj: SaveObject = self.df_get(SaveObject)
 
         #type due to the strange return of the treeview selection method
         self.data: tuple[str,...] = ('',)
         self.valid_files: list[str] = []
         self.number_of_valid_files: int = 0
-
-        self.save_obj: SaveObject = self.df_get(SaveObject)
-        self.export_color: str = DEFAULT_GRAPH_COLOR
 
         # Caching:
         self.samples_cache: Cache = Cache(50)
@@ -148,9 +147,10 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         From [self.entry].
         """
+        self.save_obj.files_path = path
         if not os.path.exists(path):
-            self.obs_broadcast('FilePanel-log',
-                    self, [f'path [{path}] is invalid or doesn\'t exist.', True])
+            self.obs_broadcast(Signal.LOG, self,
+                    (f'path [{path}] is invalid or doesn\'t exist.', LogMsgType.ERROR))
             return
         
         self.set_valid_files(path)
@@ -159,7 +159,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         From the import pop-up screen.
         """
-        ImportScreen(self, self.set_valid_files, self.files_dir_path)
+        ImportScreen(self, self.save_obj.files_path, self.set_valid_files)
 
     def set_valid_files(self, path:str, files: list[str] = []) -> None:
         """
@@ -167,7 +167,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         - self.valid_files.
         - self.number_of_valid_files.
         """
-        self.files_dir_path = path
+        self.save_obj.files_path = path
         _from_screen = bool(files)
         
         self.valid_files = self.file_viewer.display_files(path, files, _from_screen) 
@@ -175,7 +175,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
 
         if _from_screen:
             self.entry.delete(0, ctk.END)
-            self.entry.insert(0, self.files_dir_path)
+            self.entry.insert(0, self.save_obj.files_path)
         
         if self.valid_files:
             self._on_imported()
@@ -186,8 +186,8 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         self.export_btn.configure(state=ctk.NORMAL, image=self.export_btn_icon)
         self._reset_focus()
-        self.obs_broadcast('FilePanel-log', self, 
-            [f'[{self.number_of_valid_files}] files imported from [{self.files_dir_path}].'])
+        self.obs_broadcast(Signal.LOG, self, 
+            (f'imported [{self.number_of_valid_files}] files from [{self.save_obj.files_path}].', LogMsgType.NORMAL))
 
     def _set_data(self) -> None:
         
@@ -197,7 +197,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
     def _analyze(self, table_selection: tuple, graph_type: GraphType|None = None) -> None:
 
         _file_name: str = self.file_viewer.get_data(table_selection)[-1] #type: ignore
-        _file_path: str = os.path.join(self.files_dir_path, _file_name)
+        _file_path: str = os.path.join(self.save_obj.files_path, _file_name)
         _in_cache: bool = self.samples_cache.check(_file_path)
 
         if _in_cache:
@@ -208,8 +208,8 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
 
         #! Observer!:
         self._set_analysis_data(_sample, graph_type)
-        self.obs_broadcast('FilePanel-analyze', self, [self.crnt_sample, self.graph_type])
-        self.obs_broadcast('FilePanel-log', self, [f'[{_sample.get_name().lower()}] analyzed.'])
+        self.obs_broadcast(Signal.ANALYZE, self, (self.crnt_sample, self.save_obj, None))
+        self.obs_broadcast(Signal.LOG, self, (f'analyzed sample [{_sample.get_name().lower()}].', LogMsgType.NORMAL))
 
         self.after(5, self.file_viewer.focus_set)
         if self.save_btn.cget('state') == ctk.DISABLED:
@@ -226,85 +226,75 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         Saves a single sample.
         """
-        self.cs_save_results(sample, self.raw_results_dir_name, save_obj)
-        self.obs_broadcast('FilePanel-log', self, [f'[{sample.get_name().lower()}] saved...'])
+        self.cs_save_results(sample, save_obj)
+        self.obs_broadcast(Signal.LOG, self,
+                (f'saved sample [{sample.get_name().lower()}] to [{save_obj.get_results_path()}]', LogMsgType.NORMAL))
 
     def _on_export_btn_pressed(self, use_global_defaults: bool = False) -> None:
         """
         Launches the save all dialogue.
         """
-        self.export_popup: ExportScreen = ExportScreen(self, self.save_all, use_global_defaults)
-        self.export_popup.set_path(self.files_dir_path)
-        self.export_popup.set_color(self.export_color)
+        self.export_popup = ExportScreen(self, self.save_all, self.save_obj, use_global_defaults)
         self.export_popup.set_limit(self.number_of_valid_files)
 
-    def _update_save_obj(self, save_obj: SaveObject) -> None:
-        """
-        Updates this class [save_obj].
-        """
-        self.save_obj  = save_obj
-
-    def update_save_obj_color(self, color: str) -> None:
+    def update_color_obj(self, color: str) -> None:
         """
         Triggered by an outside signal from [MainPanel].
         """
-        self.export_color = color
+        self.save_obj.color = color
 
     def save_all(self, save_obj: SaveObject) -> None:
         """
         Triggered by an outside signal from [MainPanel].
         """
-        self.obs_broadcast('FilePanel-log', self, ['saving all samples...'])
-        self._update_save_obj(save_obj)
+        self.obs_broadcast(Signal.LOG, self, ('saving all samples...', LogMsgType.NORMAL))
 
-        _trigger_ui_update: Callable[[list[str],int],bool] = lambda list_,cap=20: len(list_)> cap
+        _trigger_ui_update: Callable[[list[str],int],bool] = lambda list_,cap=20: len(list_) > cap
         
-        _files: list[str] = self.valid_files
-
-        _results_path: str = save_obj.results_path #!config
-        _results_folder_name: str = save_obj.results_folder_name #!config
         _index, _interval = save_obj.interval #!config
-        
-        _export_path: str = os.path.join(_results_path, _results_folder_name)
 
-        def _prep_files_list(index: int, list_: list[str], interval: list[int]) -> list[str]:
+        def _prep_files_list(index: int, list_: list[str], interval: list[int|None]) -> list[str]:
             """
             Partition/slice the list of files depending on the index provided, the index is a mode selection of sorts.
             """
-
+            
             match index:
                 case 0:
                     list_ = list_
                 case 1:
                     list_ = list_[interval[0]:interval[1]]
                 case 2:
-                    list_ = [list_[i] for i in interval]
+                    list_ = [list_[i] for i in interval] #type: ignore
             
             return list_
 
-        _files = _prep_files_list(_index, _files, _interval)
+        _files: list[str] = _prep_files_list(_index, self.valid_files, _interval)
     
-        for file_ in _files:
-            _path: str = os.path.join(self.files_dir_path, file_)
+        for _ind, file_ in enumerate(_files):
+            _path: str = os.path.join(self.save_obj.files_path, file_)
             _sample = Sample(_path)
-            self.cs_save_results(_sample, self.raw_results_dir_name, save_obj)
+            self.cs_save_results(_sample, save_obj)
+            self.obs_broadcast(Signal.LOG, self,
+                               (f'[{_ind}] out of [{len(_files)}] samples saved.',
+                                LogMsgType.NORMAL))
 
             #TODO: is there a better option??, queue/thread??
-            if _trigger_ui_update(_files):
+            if _trigger_ui_update(_files, 0):
                 utls.get_root(self).update()
                 utls.get_root(self).update_idletasks()
-                time.sleep(.01)
+                time.sleep(.001)
 
-        self.obs_broadcast('FilePanel-log', self, [f'all samples saved to [{_export_path}]'])
-        self.obs_broadcast('FilePanel-exported', self)
+        self.obs_broadcast(Signal.LOG, self,
+                           (f'saved [{len(_files)}] samples to [{save_obj.get_results_path()}]',
+                            LogMsgType.NORMAL))
+        self.obs_broadcast(Signal.EXPORTED, self)
 
     def on_exported(self) -> None:
         """
         Triggered by an outside signal from [MainPanel].
         """
-        _save_obj: SaveObject = self.export_popup.get_params()
-        _path: str = os.path.join(_save_obj.results_path, _save_obj.results_folder_name)
-        self.export_popup.set_results_path(_path)
+        self.export_popup.on_exported()
+
 
 class FileViewer(ttk.Treeview, Validator, Observer):
     """
@@ -377,16 +367,16 @@ class FileViewer(ttk.Treeview, Validator, Observer):
         self.display(_valid_files)
         
         return _valid_files
-    
+
     def display(self, valid_files: list[str]) -> None:
-        
+
         _padding: int = len(f'{len(valid_files)}')
         if not valid_files:
-            self.obs_broadcast('FilePanel-log', self, [f'No valid files where found.', True])
+            self.obs_broadcast(Signal.LOG, self,
+                    (f'No valid files where found.', LogMsgType.ERROR,))
             return
         for _index, file_ in enumerate(valid_files):
             self.insert("", "end", values=[f'{_index+1:0{_padding}}', file_])
-        
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
         

@@ -2,7 +2,6 @@ from tkinter import ttk
 from typing import Final
 
 # Constants:
-
 # fonts
 F_VIEWER_FONT: Final[tuple[str, int]] = ('Arial', 12)
 TABLE_ROW_FONT: Final[tuple[str, int]] = ('Arial', 14)
@@ -18,6 +17,7 @@ DATA_TABLE_FONT_CLR: Final[str] = '#ffffff'
 # dimensions
 ROW_HEIGHT: Final[int] = 25
 HDR_PADDING: Final[tuple[int,int]] = (2,2)
+
 
 class Styles():
     """

@@ -1,3 +1,4 @@
+# face_color can't be None, as it's fed by a SaveObj
 import numpy as np
 from matplotlib.axes import Axes
 
@@ -10,12 +11,12 @@ class CanPlot():
     """
     def cp_plot (self, x: PlotInput, y: PlotInput,
                  points: SamplePoints, analysis_method: AnalysisMethod,
-                 ax: Axes, graph_type: GraphType, clr: str = '#1f7bb4',
+                 ax: Axes, graph_type: GraphType, face_color: str,
                  edge_color: str = 'k') -> None:
         """
         Part of the CanPlot mixin.
         The plotting function:
-            - clr: face color, hexadecimal.
+            - face_color: face color, hexadecimal.
             - edge_color: bin lines color, hexadecimal.
         """
         def _plot_histo(ax: Axes, x: PlotInput,
@@ -62,11 +63,11 @@ class CanPlot():
     
         match graph_type:
             case GraphType.HIST:
-                _plot_histo(ax, x, y, clr, edge_color)
+                _plot_histo(ax, x, y, face_color, edge_color)
 
             case GraphType.CUM:       
                 if analysis_method != AnalysisMethod.TWO_POINTS:
                     _padding: float = .35
                     ax.set_xlim(x.min()-_padding/5, x.max()+_padding/5)
                     ax.set_ylim(0-_padding*10, 100+_padding*10)
-                    _plot_cum(ax, x, y, points, clr, analysis_method)
+                    _plot_cum(ax, x, y, points, face_color, analysis_method)

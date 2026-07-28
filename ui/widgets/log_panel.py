@@ -6,9 +6,9 @@ from typing import Final
 import customtkinter as ctk
 
 from mixins import HasToolTip, Observer
+from typedefs import LogMsgType, Signal
 
 # Constants:
-
 # names:
 CNFG_DIR_NAME: Final[str] = 'auto_gsa'
 LOG_FILE_NAME: Final[str] = 'log.txt'
@@ -18,6 +18,7 @@ assert CNFG_DIR, 'Strange!, you don\'t have an appdata dir??!!'
 # file permission:
 FULL_PERMISSION: Final[int] = 0o700
 READ_ONLY: Final[int] = 0o400
+
 
 class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
     """
@@ -70,12 +71,12 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
             f.write(text+'\n')
         os.chmod(self.log_file_path, READ_ONLY)
         
-    def write(self, text: str, error: bool = False) -> None:
+    def write(self, text: str, prefix: LogMsgType) -> None:
         """
         Write [text] into the text box.
-        error: when the [text] is meant to be an error massage.
+        prefix: to append to the [text] as in [prefix]+[text].
         """
-        _text = text if not error else '<!> Error: '+text
+        _text: str = prefix.value + text
 
         self.text_box.configure(state=ctk.NORMAL)
         self.text_box.insert(tk.INSERT, _text)
@@ -90,7 +91,7 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
         Expands the logging widget.
         """
         # This expands the app with the this widget
-        self.obs_broadcast('LoggingPanel-expand', self, ['log'])
+        self.obs_broadcast(Signal.EXPAND, self, (self,))
 
     def on_open(self) -> None:
         """

@@ -1,3 +1,5 @@
+import tkinter.filedialog as fd
+
 import customtkinter as ctk
 
 from mixins import HasToolTip
@@ -45,3 +47,23 @@ class BaseScreen(ctk.CTkToplevel, HasToolTip):
         Closes the window.
         """
         self.destroy()
+
+
+class DirPickScreen(fd.Directory):
+    """
+    The directory confirmation dialogue screen.
+    """
+    def __init__(self, master, initialdir: str) -> None:
+        """
+        The export confirmation dialogue screen.
+        - initialdir: the dir in which to start the screen.
+        """
+        super().__init__(master=master,
+            title='Pick the folder',
+            initialdir=initialdir)
+    
+    def show(self) -> str:
+        """
+        An overload of the parent [tkinter.filedialog.Directory.show()].
+        """
+        return super().show()

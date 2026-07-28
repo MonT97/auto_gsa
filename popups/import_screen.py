@@ -1,491 +1,58 @@
+# BaseWidget is necessitated by the need to emit/broadcast signals.
 import os
-import re
 from collections.abc import Callable
+from tkinter import BaseWidget
+from tkinter.filedialog import Open
 
-import customtkinter as ctk
-from PIL import Image
-
-from mixins import Defaults, HasToolTip, Validator
-from models import Cache
-from typedefs import FileFormat, ImportCacheElement
-from utils import utls
-
-from .base_screen import BaseScreen
-
-# Constatns:
-# color:
-ACTIVE_ENTRY = '#ffffff'
-DEFAULT_ENTRY = '#565b5e'
-ERROR_LABEL_COLOR = '#e53935'
-
-# windows consts, used to mimic windows explorer behaviour:
-FILE_ATTRIBUTE_HIDDEN = 2
-FILE_ATTRIBUTE_SYSTEM = 4
-
-# icons:
-ICON_SIZE = (20,20)
-FILE_ICON = Image.open('assets/file.png')
-FOLDER_ICON = Image.open('assets/folder.png')
-
-# fonts:
-ENTRY_FONT = ('Arial', 16)
-NAV_BTN_FONT = ('Arial', 16, 'bold')
-FILTERS_FONT = ('Arial', 14, 'bold')
-
-# widget dimentions:
-X_OFFSET = 500
-SCREEN_SIZE = (420,530)
-
-NAV_BTN_WIDTH = 20
-FLTR_CHBX_DIM = 18
-ITEM_LIST_HEIGHT = 25
-
-# cache:
-LIMIT_TO_CACHE = 25
+from mixins import Observer
+from typedefs import FileFormat, LogMsgType, Signal
 
 
-class ImportScreen(BaseScreen, Defaults, HasToolTip, Validator):
+class ImportScreen(Open, BaseWidget, Observer):
     """
-    Dialouge screem widget.
-    - connection_func: function to call on approve.
+    Import dialogue screen widget.
     """
-    def __init__(self, master, connection_func: Callable, path: str = '') -> None:
+    _formats: list[str] = [i.value for i in FileFormat]
+
+    _types: list[tuple[str, list|str]] = [
+        ('All data files', _formats),
+        ('Comma separated values', f'.{FileFormat.CSV.value}'),
+        ('Excel file', f'.{FileFormat.EXCEL.value}')
+        ]
+    
+    def __init__(self, master, path: str,
+                 connection_function: Callable[[str,list[str]],None], multiple: bool =True) -> None:
         """
-        Dialouge screem widget.
+        Import dialogue screen widget.
+        - path: the path to look into.
         - connection_func: function to call on approve.
+        - multiple: enables multi-file selection.
         """
-        super().__init__(master, title='import screen', approve_label='import', size=SCREEN_SIZE)
-        self.pos: tuple[int,int] = (
-            (self.master.winfo_screenwidth()+X_OFFSET)//4,
-            self.master.winfo_screenheight()//4)
-        self.geometry(f'{self.size[0]}x{self.size[1]}+{self.pos[0]}+{self.pos[1]}')
+        self._title: str = 'Select sample files'
+        self._defaultextension: str = FileFormat.CSV.value
 
-        self.path: str = path
+        super().__init__(master=master,
+            title=self._title,
+            initialdir=path,
+            defaultextension=self._defaultextension, 
+            filetypes=self._types,
+            multiple=multiple)
 
-        # Back/Forward navigation psedu stacks:
-        self.prev_paths: list[str] = []
-        self.next_paths: list[str] = []
+        self.show(connection_function)
+
+    def __repr__(self) -> str:
+        return f'{__class__} title: {self._title}'
+
+    def show(self, func: Callable[[str,list[str]],None]) -> None:
+
+        _f_list = super().show()
+        _get_file_name: Callable[[str],str] = lambda x: os.path.split(x)[-1]
+
+        if not _f_list:
+            self.obs_broadcast(Signal.LOG, self, ('No Files where picked!', LogMsgType.WARNING))
+            return
         
-        self.files_dict: dict = {}
-        self.filters: list[str] = []
-        self.selected_files: list[str] = []
-        
-        # Cache:
-        self.cache: Cache = Cache()
+        _path: str = os.path.split(_f_list[0])[0]
+        _f_list = [_get_file_name(i) for i in _f_list]
 
-        # Fonts:
-        self.entry_font = ctk.CTkFont(*ENTRY_FONT)
-        self.nav_btns_font = ctk.CTkFont(*NAV_BTN_FONT)
-        self.filters_font = ctk.CTkFont(*FILTERS_FONT)
-
-        # Frames:
-        self.entry_frame = ctk.CTkFrame(self.main_frame)
-        self.filters_frame = ctk.CTkFrame(self.main_frame)
-        self.files_frame = ctk.CTkScrollableFrame(self.main_frame)
-        self.dirs_frame = ctk.CTkFrame(self.files_frame)
-        utls.bg_transparent([self.files_frame._parent_frame])
-
-        # Entry frame:
-        self.entry: ctk.CTkEntry = ctk.CTkEntry(self.entry_frame,
-                height=30, placeholder_text='sample files folder path...',
-                font=self.entry_font)
-        self.entry.bind("<Enter>", lambda _: self._on_entry_active())
-        self.entry.bind("<FocusOut>", lambda _: self.entry.configure(border_color=DEFAULT_ENTRY))
-        self.entry.bind("<KeyPress-Return>", lambda _: self._import_files())
-        self.htt_tip(self.entry, 'Press Enter/Return to list files to import.')
-
-        self.up = ctk.CTkButton(self.entry_frame, text='^', width=NAV_BTN_WIDTH,
-                font=self.nav_btns_font,
-                command=lambda: self._navigate('up'), state=ctk.DISABLED)
-        self.htt_tip(self.up, 'go up a folder')
-
-        self.bck = ctk.CTkButton(self.entry_frame, text='<', width=NAV_BTN_WIDTH,
-                font=self.nav_btns_font,
-                command=lambda: self._navigate('bck'), state=ctk.DISABLED)
-        self.htt_tip(self.bck, 'back')
-
-        self.frd = ctk.CTkButton(self.entry_frame, text='>', width=NAV_BTN_WIDTH,
-                font=self.nav_btns_font,
-                command=lambda: self._navigate('frd'), state=ctk.DISABLED)
-        self.htt_tip(self.frd, 'forward')
-
-        self.error_label = ctk.CTkLabel(self.main_frame,
-                font=self.entry_font, corner_radius=5,
-                wraplength=380, fg_color=ERROR_LABEL_COLOR)
-
-        utls.bg_transparent([self.bck, self.frd, self.up, self.error_label])
-
-        self.up.pack(side='left', fill='y', padx=2, pady=2)
-        self.entry.pack(side='left', expand=True, fill='x', pady=2)
-        self.frd.pack(side='right', fill='y', padx=(0,3), pady=2)
-        self.bck.pack(side='right', fill='y', padx=(2,0), pady=2)
-
-        self.show_btn: ctk.CTkButton = ctk.CTkButton(self.button_frame,
-                text='show folder', width=150, state=ctk.DISABLED,
-                command=lambda: self._on_show_btn())
-        self.htt_tip(self.show_btn, 'open current directory')
-
-        # Filters frame:
-        self.select_all = ctk.CTkCheckBox(self.filters_frame,
-                state=ctk.DISABLED, text='all', 
-                checkbox_height=FLTR_CHBX_DIM, checkbox_width=FLTR_CHBX_DIM,
-                border_width=2, font=self.filters_font,
-                command=lambda: self._on_select_all())
-        self.htt_tip(self.select_all, 'de/select all files')
-        
-        self.select_between = ctk.CTkCheckBox(self.filters_frame,
-                state=ctk.DISABLED, text='between', 
-                checkbox_height=FLTR_CHBX_DIM, checkbox_width=FLTR_CHBX_DIM,
-                border_width=2, font=self.filters_font,
-                command= lambda: self._toggle_filters(bool(self.select_between.get())))
-        self.htt_tip(self.select_between, 'select every thing between two selections inclusively')
-
-        self.csv = ctk.CTkCheckBox(self.filters_frame,
-                state=ctk.DISABLED, text='csv', 
-                checkbox_height=FLTR_CHBX_DIM, checkbox_width=FLTR_CHBX_DIM,
-                border_width=2, font=self.filters_font,
-                command= lambda: self._filter(bool(self.csv.get()), self.csv.cget('text')))
-        self.htt_tip(self.csv, 'csv files only')
-        
-        self.excel = ctk.CTkCheckBox(self.filters_frame,
-                state=ctk.DISABLED, text='xlsx', 
-                checkbox_height=FLTR_CHBX_DIM, checkbox_width=FLTR_CHBX_DIM,
-                border_width=2, font=self.filters_font,
-                command= lambda: self._filter(bool(self.excel.get()), self.excel.cget('text')))
-        self.htt_tip(self.excel, 'excel files only')
-        
-        utls.bg_transparent([self.select_all, self.csv, self.excel, self.select_between])
-
-        # Element for files_frame:
-        self.dir_img = ctk.CTkImage(FOLDER_ICON, size=ICON_SIZE)
-        self.file_img = ctk.CTkImage(FILE_ICON, size=ICON_SIZE)
-
-        self.csv.pack(side='left', expand=True, fill='x', padx=(2,0))
-        self.excel.pack(side='left', expand=True, fill='x')
-        self.select_all.pack(side='left', expand=True, fill='x')
-        self.select_between.pack(side='left', expand=True, fill='x', padx=(0,2))
-
-        self.approve_btn.configure(font=self.entry_font, state=ctk.DISABLED,
-                command= lambda: self._on_approve(connection_func))
-        self.cancel_btn.configure(font=self.entry_font)
-        self.show_btn.configure(command=lambda: self._on_show_btn())
-
-        self.entry_frame.pack(side='top', fill='x')
-        self.filters_frame.pack(side='top', fill='x',pady=2)
-
-        if self.path:
-            self._update_entry_and_import()
-
-    def _on_entry_active(self) -> None:
-        """
-        Behaviour when hovering over [self.entry].
-        """
-        self.after(1, self.entry.focus_set)
-        self.entry.configure(border_color=ACTIVE_ENTRY)
-
-    def _import_files(self) -> None:
-        """
-        Displays directories and valid files found in [self.path].
-        - filter_: format based filtering, uses format from FileFormat enum.
-        """
-        
-        _cache_elements: list[ImportCacheElement] = []
-        _new_entry = bool(self.path != self.entry.get())
-        filter_ = [format_.value for format_ in FileFormat] if not self.filters else self.filters
-
-        def _enable_filters() -> None:
-            """
-            Enables the filter buttons within self.filters_frame.
-            """
-            if self.filters_frame.pack_slaves()[0].cget('state') != ctk.DISABLED:
-                return
-            for filter_ in self.filters_frame.pack_slaves():
-                filter_.configure(state=ctk.NORMAL) #type: ignore
-
-        def _is_path_invalid() -> bool:
-            """
-            Validates [self.path] and handles relevant widgets.
-            """
-            _flag = False
-            _msg = f'path [{self.path}]\n is invalid or doesn\'t exist,\nenter a new path.'
-            if re.match(r'^[a-z]$', self.path):
-                self.path = self.path.capitalize()+r':/'
-                _flag = True
-                self._update_entry_and_import()
-            if not os.path.exists(self.path):
-                self.error_label.configure(text=_msg)
-                self.error_label.pack(side='top', fill='x', padx=5)
-                self.entry.select_range('0', ctk.END)
-                _flag = True
-            elif self.error_label.winfo_ismapped():
-                self.error_label.pack_forget()
-            return _flag
-
-        def _clear_frames() -> None:
-            """
-            Clears the [self.dirs_frame] and [self.files_frame].
-            """
-            if self.dirs_frame.pack_slaves():
-                for i in self.dirs_frame.pack_slaves():
-                    i.pack_forget()
-
-            if self.files_frame.pack_slaves():
-                for i in self.files_frame.pack_slaves():
-                    i.pack_forget()
-                self.files_dict.clear()
-
-            self.dirs_frame.pack_forget()
-            self.files_frame.pack_forget()
-
-        def _prepare_and_pack(cache_element: ImportCacheElement, last_to_pack: bool) -> None:
-            """
-            Houses shared functionality in both cases, cached and non cached.
-            - cache_element: tuple housing needed data, file_name, frame, button, label, img.
-            - last_to_pack: for layout aesthetic purposes.
-            """
-            self.files_frame._parent_canvas.yview_moveto(0.0) #scroll to the top.
-
-            file_, frame, btn, label, img = cache_element
-            utls.bg_transparent([btn, label])
-
-            self.files_dict[file_] = (btn, label)
-
-            _pady=(5,0) if not last_to_pack else (5,5)
-
-            img.pack(side='left', padx=(7,5), pady=(0,1))
-            label.pack(side='left', expand=True, fill='x')
-            btn.pack(side='left')
-
-            frame.pack(side='top', fill='x', pady=_pady)
-
-        if _new_entry:
-            self.path = self.entry.get()
-
-            self.prev_paths.clear()
-            self.next_paths.clear()
-
-        # Clear selections:
-        self.select_all.deselect()
-        self.select_between.deselect()
-        self.selected_files.clear()
-
-        _clear_frames()
-
-        if _is_path_invalid(): return
-
-        # Handle hidden files:
-        _attribs = lambda x: os.lstat(os.path.join(self.path, x)).st_file_attributes
-        _hidden = lambda x: _attribs(x) & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM) 
-        if os.name != 'nt':
-            _hidden = lambda x: x.startswith('.')
-        _children: list[str] = [i for i in os.listdir(self.path) if not _hidden(i)]
-
-        # Find dirs and valid files:
-        _get_dir_path: Callable = lambda x: os.path.isdir(os.path.join(self.path, x))
-        _dirs: list[str] = [i for i in _children if _get_dir_path(i)]
-        
-        _validate: Callable = lambda x,y,z: (self.val_samples(x, y)) and (y.split('.')[-1] in z)
-        _files: list[str] = [_file for _file in _children if _validate(self.path, _file, filter_)]
-        
-        # Cache flags.
-        _in_cache: bool = self.cache.check(self.path, _files)
-        _should_cache: bool = not _in_cache and (len(_files) >= LIMIT_TO_CACHE)
-
-        # Fills in dirs and valid files:
-        for dir_ in _dirs:
-            _frame = ctk.CTkFrame(self.dirs_frame, height=ITEM_LIST_HEIGHT)
-            _img = ctk.CTkLabel(_frame, text='', image=self.dir_img)
-            _dir_btn = ctk.CTkButton(_frame,text=dir_)
-            _dir_btn.configure(command=lambda x=_dir_btn.cget('text'): self._go_to_dir(x))
-            self.htt_tip(_dir_btn, f'{os.path.join(self.path,dir_)}')
-
-            _pady = (2,0) if dir_ != _dirs[-1] else (2,2)
-            _img.pack(side='left', padx=(5,5), pady=2)
-            _dir_btn.pack(side='left', expand=True, fill='x', padx=(0,2))
-            _frame.pack(fill='x', padx=2, pady=_pady)
-
-            utls.bg_transparent(_dir_btn)
-        
-        if _dirs:
-            self.dirs_frame.pack(side='top', expand=True, fill='x')
-
-        if _in_cache:
-            _elements_list = [ele for ele in self.cache.get(self.path) if ele[0] in _files]
-            
-            for element in _elements_list:
-                btn = element[2]
-                btn.deselect()
-                _prepare_and_pack(element, (element == _elements_list[-1]))
-
-        else: 
-            for file_ in _files:
-                _frame = ctk.CTkFrame(self.files_frame, height=ITEM_LIST_HEIGHT)
-                _file_btn = ctk.CTkCheckBox(_frame, text='', width=20, border_width=2)
-                _label = ctk.CTkLabel(_frame, text=file_)
-                _img = ctk.CTkLabel(_frame, text='', image=self.file_img)
-                _file_btn.configure(command=lambda b=(_file_btn, _label): self._select_file(b))
-                self.htt_tip(_label, file_)
-                
-                _data = (file_, _frame, _file_btn, _label, _img)
-
-                _prepare_and_pack(_data, (file_ == _files[-1]))
-
-                if _should_cache:
-                    _cache_elements.append(_data)
-
-            if _should_cache:
-                self.cache.add(self.path, _cache_elements)
-            if _files:
-                self.approve_btn.configure(state=ctk.NORMAL)                
-
-        # Layout:
-        self.show_btn.configure(state=ctk.NORMAL)
-        
-        self.show_btn.place(anchor='n', relx=.5, rely=0, relwidth=.22, relheight=1)
-        self.files_frame.pack(side='top', expand=True, fill='both', pady=(3,0))  
-
-        _enable_filters()
-        self._update_nav_btns()   
-
-    def _go_to_dir(self, dir_: str) -> None:
-        """
-        Change directory to [dir_].
-        """
-        self.prev_paths.append(self.path)
-        self.path = os.path.join(self.path, dir_)
-        
-        self._update_entry_and_import()
-        self._update_nav_btns()
-
-    def _navigate(self, nave_btn_str: str) -> None:
-        """
-        Navigate up, forward or back the file system.
-        """ 
-        if nave_btn_str == 'up':
-            self.next_paths.append(self.path)
-            self.path = os.path.split(self.path)[0]
-        elif nave_btn_str == 'bck':
-            self.next_paths.append(self.path)
-            self.path = self.prev_paths.pop(-1)
-        else:
-            self.prev_paths.append(self.path)
-            self.path = self.next_paths.pop(-1)
-
-        if self.select_all.cget('text') == 'clear all':
-            self.select_all.toggle()
-    
-        self._update_entry_and_import()
-        self._update_nav_btns()
-    
-    def _update_entry_and_import(self) -> None:
-        """
-        Updates [self.entry] text to the new path.
-        - flag: if True runs _import_file() after updating.
-        """
-        self.entry.delete(0, ctk.END)
-        self.entry.insert(0, self.path)
-        self._import_files()
-
-    def _update_nav_btns(self) -> None:
-        """
-        Handles the state of the navigation buttons, [self.up], [self.bck] and [self.frd].
-        """
-        _at_drive_root: Callable = lambda x: bool(re.match(r'^\W+$', os.path.splitdrive(x)[-1]))
-        
-        if _at_drive_root(self.path):
-            self.up.configure(state=ctk.DISABLED)
-        else:
-            self.up.configure(state=ctk.NORMAL)
-            
-        if not self.prev_paths:
-            self.bck.configure(state=ctk.DISABLED)
-        else:
-            self.bck.configure(state=ctk.NORMAL)
-        
-        if not self.next_paths:
-            self.frd.configure(state=ctk.DISABLED)
-        else:
-            self.frd.configure(state=ctk.NORMAL)
-        
-    def _toggle_filters(self, _flag: bool) -> None:
-        """
-        Tggles the filters On/Off according to the given [flag].
-        """
-        if _flag:
-            self.csv.configure(state=ctk.DISABLED)
-            self.excel.configure(state=ctk.DISABLED)
-        else:
-            self.csv.configure(state=ctk.NORMAL)
-            self.excel.configure(state=ctk.NORMAL)
-
-    def _on_select_all(self) -> None:
-        """
-        Select/deselect all files.
-        """
-        _select_all = bool(self.select_all.get())
-        
-        self.select_between.deselect()
-
-        for _, data in self.files_dict.items():
-            btn = data[0]
-            if _select_all:
-                if not btn.get():
-                    btn.toggle()
-                    _text = 'clear all'
-                    _state = ctk.DISABLED
-            else:
-                if btn.get():
-                    btn.toggle()
-                    _text = 'all'
-                    _state = ctk.NORMAL
-
-        self.select_all.configure(text=_text)
-        self.select_between.configure(state=_state)
-        self._toggle_filters(_select_all)
-
-    def _filter(self, state: bool, filter_: str) -> None:
-        """
-        Filters the files using the given [filter].
-        """
-        if state and (filter_ not in self.filters):
-            self.filters.append(filter_)
-        else:
-            self.filters.remove(filter_)
-
-        self._import_files()
-
-    def _select_file(self, data: tuple[ctk.CTkCheckBox, ctk.CTkLabel]) -> None:
-        """
-        Self documenting name, triggered when a file is checked.
-        """
-        _btn, _label = data
-        _state = bool(_btn.get())
-        _file_name: str = _label.cget('text')
-        _key_list: list [str] = list(self.files_dict.keys())
-        _can_tween = bool(self.selected_files) and (bool(self.select_between.get()))
-        
-        if _state:
-            self.selected_files.append(_file_name)
-            if _can_tween:
-                _start: int = min([_key_list.index(i) for i in self.selected_files])
-                _end: int = max([_key_list.index(i) for i in self.selected_files])+1
-                
-                self.selected_files = _key_list[_start:_end]
-
-                for file_ in self.selected_files:
-                    _btn = self.files_dict[file_][0]
-                    _btn.select()
-        else:
-            self.selected_files.remove(_file_name)
-    
-    def _on_show_btn(self) -> None:
-        """
-        Opens the latest current path [self.path] in the file explorer.
-        """
-        os.startfile(self.path)
-
-    def _on_approve(self, func: Callable[[str, list[str]],None]) -> None:
-        """
-        Calls the master prvided [func] function.
-        """
-        func(self.entry.get(), sorted(self.selected_files))
+        func(_path, _f_list)

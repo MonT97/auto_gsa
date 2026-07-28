@@ -15,7 +15,7 @@ class SignalData():
         - [.add_args], [.add_listeners], [.set_sender] to set the signal data. 
         - [.pop_arg] to get arguments to pass to the listener function.
         """
-        self.added_func: bool = False
+        # self.added_func: bool = False
         self.sender: BaseWidget|None = None
         self.listeners: list[BaseWidget] = []
         self.args: list[list[Any]] = [[]]
