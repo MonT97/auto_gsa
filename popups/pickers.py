@@ -129,7 +129,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
     """
     Picking the interval, which files to save.
     """
-    def __init__(self, master) -> None:
+    def __init__(self, master, default_interval: tuple[int,list[int]] = (0,[])) -> None:
         """
         Picking the interval, which files to save.
         """
@@ -139,14 +139,14 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
             def __init__(self, master):
                 super().__init__(master)
-
                 _padding: float = .2
+
                 self.u_lim: int = 0 # set from master
                 self.configure(height=28)
 
                 self.u_var: ctk.StringVar = ctk.StringVar(self)
                 self.l_var: ctk.StringVar = ctk.StringVar(self)
-
+                
                 self.to: ctk.CTkLabel = ctk.CTkLabel(self, text='to')
            
                 self.u_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
@@ -169,6 +169,10 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 self.to.place(anchor='n', relx=.5, rely=0)
                 self.l_limit_entry.place(anchor='e', relx=1-_padding, rely=.5)
 
+                if self.u_var.get() and self.l_var.get():
+                    self._validate_input(self.u_var, 'u')
+                    self._validate_input(self.l_var, 'l')
+
             def _on_mouse_enter(self, entry: ctk.CTkEntry) -> None:
                 """
                 When the mouse enters the entry widget.
@@ -190,12 +194,20 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
                 var.set('')
 
-            def _get_var(self) -> str:
+            def get_var(self) -> str:
 
                 _u_lim: int = int(self.u_var.get())
                 _l_lim: int = int(self.l_var.get())+1 #for the exclusivity of python list indexing
 
                 return f'{_u_lim},{_l_lim}'
+            
+            def set_var(self, interval: list[int]) -> None:
+                """
+                Sets the var before viewing the widget.
+                """
+                _u, _l = interval
+                self.u_var.set(value=str(_u+1))
+                self.l_var.set(value=str(_l))
 
 
         class ListPckr(ctk.CTkFrame, HasToolTip):
@@ -205,12 +217,15 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
                 self.u_lim: int = 0 # set from master
                 self.variable: ctk.StringVar = ctk.StringVar(self)
-                
+
                 self.list_entry: ctk.CTkEntry = ctk.CTkEntry(self,
                             textvariable=self.variable, border_color='#ffffff')
                 self.htt_tip(self.list_entry, 'List of sample numbers, for example:\n- [1,2,6]: chooses samples 1, 2 and 6.\n- use only [,]as a delimiter.')
                 self.list_entry.bind('<Enter>', lambda _: self._on_mouse_enter())
                 self.list_entry.bind("<FocusOut>", lambda _: self._validate_input(self.variable))
+
+                if self.variable.get():
+                    self._validate_input(self.variable)
 
                 self.list_entry.pack()
             
@@ -234,11 +249,19 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
                 value.set(_str_numbers)
 
-            def _get_var(self) -> str:
+            def get_var(self) -> str:
 
                 return self.variable.get()
 
+            def set_var(self, interval: list[int]) -> None:
+                """
+                Sets the var before viewing the widget.
+                """
+                _interv = ','.join(f'{i+1}' for i in interval)
+                self.variable.set(_interv)
+
         _options: list[str] = ['all', 'interval', 'list']
+        _ind, self._interv = default_interval
 
         self.getter_function: Callable[[],str]
         self.pick_var: ctk.StringVar = ctk.StringVar(self, value=_options[0])
@@ -255,7 +278,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         self.list_pckr: ListPckr = ListPckr(self)
 
         self.label.pack(side='top', fill='x', padx=2)
-        self._update_layout(_options[0])
+        self._update_layout(_options[_ind])
 
     def _update_layout(self, option: str) -> None:
 
@@ -269,11 +292,15 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
             case 'interval':
                 self.drop_down.pack(side='left', fill='x', padx=2, pady=2)
                 self.interval_pckr.pack(side='top', fill='x', padx=2, pady=2)
+                if self._interv:
+                    self.interval_pckr.set_var(self._interv)
                 self._set_getter(self.interval_pckr)
                 self.index = 1
             case 'list':
                 self.drop_down.pack(side='left', fill='x', padx=2, pady=2)
                 self.list_pckr.pack(side='left', fill='x', padx=2, pady=2, expand=True)
+                if self._interv:
+                    self.list_pckr.set_var(self._interv)
                 self._set_getter(self.list_pckr)
                 self.index = 2
 
@@ -281,7 +308,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         """
         Sets the getter function based on child widget picked.
         """
-        self.getter_function = widget._get_var
+        self.getter_function = widget.get_var
     
     def set_upper_limit(self, val: int) -> None:
         """

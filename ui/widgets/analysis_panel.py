@@ -288,7 +288,7 @@ class DataPanel(ctk.CTkFrame):
         self.stats_note.update_note(_stats_msg, _interp_msg, _ana_method)
 
 
-class DataTable(ttk.Treeview):
+class DataTable(ttk.Treeview, HasToolTip):
     """
     ttk.TreeView.
     """
@@ -367,7 +367,7 @@ class StatsNote(ctk.CTkTextbox):
         self.insert(ctk.INSERT, analysis_method.value)
         self.configure(state=ctk.DISABLED)  
 
-
+#! Contemplate ConnectioObject!
 class CustomizationBar(ctk.CTkFrame, HasToolTip, Observer):
     """
     CkFrame:

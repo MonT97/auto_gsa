@@ -1,6 +1,7 @@
 import os
+from copy import copy
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 import customtkinter as ctk
 import numpy as np
@@ -87,8 +88,24 @@ class SaveObject(DefaultObj):
     color: str = '' #!config
     dpi: int = 0
     save_raw_files: bool = False
-    interval: tuple[int,list[int|None]] = (0,[])
+    interval: tuple[int,list[int]] = (0,[])
     transparent: bool = False
+
+    def update(self, **kwargs) -> None:
+        """
+        Updates the instance values in-place.
+        """
+        for k, v in kwargs.items():
+            if hasattr(self, k):
+                setattr(self, k, v)
+            else:
+                raise AttributeError
+
+    def copy(self) -> Self:
+        """
+        Returns a copy of it self.
+        """
+        return copy(self)
 
     def get_results_path(self) -> str:
         """

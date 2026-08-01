@@ -4,6 +4,7 @@ from typing import Callable, Final
 import customtkinter as ctk
 
 from mixins import Defaults, HasToolTip, Observer
+from models import Cache
 from typedefs import SaveObject
 
 from .base_picker import BasePicker, BaseToggle
@@ -18,6 +19,8 @@ SCREEN_SIZE: Final[tuple[int,int]] = (450,315)
 # fonts:
 BTN_FRAME_FONT: Final[tuple[str,int]] = ('Arial', 16)
 
+_saveobj_cache = Cache(1)
+
 
 #TODO: a way to remember what we did before, a running singleton of sorts; LTS, Currently the SaveObj does this mission.
 class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
@@ -31,12 +34,10 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         - use_global_defaults: If true, the [ExportScreen] uses the global default values instead of the latest used.
         """
         super().__init__(master, title='export screen', approve_label='export', size=SCREEN_SIZE)
-
         self.master = master
-        self.use_global_defaults: bool = use_global_defaults
         self.approve_btn.configure(command=lambda: self._on_approve(connection_func))
-        
-        self.save_obj = save_obj if not use_global_defaults else self.df_get_from_file(SaveObject)
+        self.wm_protocol("WM_DELETE_WINDOW", lambda: self._on_close(use_global_defaults))
+        self.cancel_btn.configure(command=lambda: self._on_close(use_global_defaults))
         
         #This is a hard coded value; trail&error driven.
         self.pos: tuple[int,int] = (
@@ -44,6 +45,15 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
             self.master.winfo_screenheight()//4)
         
         self.geometry(f'{self.size[0]}x{self.size[1]+20}+{self.pos[0]}+{self.pos[1]}')
+
+        # Pick SaveObj:
+        if use_global_defaults:
+            self.save_obj = self.df_get_from_file(SaveObject)
+        else:
+            if _saveobj_cache.check('first') and (save_obj != _saveobj_cache.get('first')):
+                self.save_obj = _saveobj_cache.get('first')
+            else:
+                self.save_obj = save_obj
 
         self.default_color: str = self.save_obj.color
 
@@ -62,13 +72,15 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         self.dpi_picker = DpiPicker(self.main_frame, 'Dpi',
                 str(self.save_obj.dpi), 'The resolution of the graphs, higher is better')
         self.graph_clr_pckr = GraphColorPicker(self.main_frame, self.save_obj.color)  
-        self.inter_pckr = IntervalPicker(self.main_frame)
-
+        self.inter_pckr = IntervalPicker(self.main_frame, self.save_obj.interval)
+        
         self.raws_pckr = BaseToggle(self.qualifiers_frame,
-                'Save raw files?',
+                'Save raw files?', 
+                self.save_obj.save_raw_files,
                 'Export raw/un-interpreted spreadsheets.')
         self.trans_pckr = BaseToggle(self.qualifiers_frame,
-                'Transparent',
+                'Transparent', 
+                self.save_obj.transparent,
                 'Make graph transparent.')
 
         self.btn_frame_font = ctk.CTkFont(*BTN_FRAME_FONT)
@@ -94,19 +106,26 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         """
         self.inter_pckr.set_upper_limit(val)
 
+    def _update_save_obj(self) -> None:
+        """
+        .
+        """
+        self.save_obj.update(
+            prefix = self.prfx_pckr.get_value(),
+            results_path = self.dir_picker.get_path(),
+            results_dir_name = self.dir_picker.get_dir_name(),
+            interval  = self.inter_pckr.get_value(),
+            color = self.graph_clr_pckr.color if self.graph_clr_pckr.get_value() else self.default_color,
+            dpi = int(self.dpi_picker.get_value()),
+            save_raw_files = self.raws_pckr.get_value(),
+            transparent = self.trans_pckr.get_value())
+
     def _on_approve(self, func: Callable[[SaveObject], None]) -> None:
         """
         Sets the SaveObj, triggered by approve button press.\n
         It also calls the [connection_func]/[func] delegated to the screen.
         """
-        self.save_obj.prefix = self.prfx_pckr.get_value()
-        self.save_obj.results_path = self.dir_picker.get_path()
-        self.save_obj.results_dir_name = self.dir_picker.get_dir_name()
-        self.save_obj.interval  = self.inter_pckr.get_value()
-        self.save_obj.color = self.graph_clr_pckr.color if self.graph_clr_pckr.get_value() else self.default_color
-        self.save_obj.dpi = int(self.dpi_picker.get_value())
-        self.save_obj.save_raw_files = self.raws_pckr.get_value()
-        self.save_obj.transparent = self.trans_pckr.get_value()
+        self._update_save_obj()
         
         func(self.save_obj)
 
@@ -128,4 +147,15 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         """
         Returns the SaveObj.
         """
-        return self.save_obj
+        return self.save_obj        
+    
+    def _on_close(self, use_global_defaults: bool) -> None:
+        """
+        Triggered when closing the screen.
+        """
+        if not use_global_defaults:
+            if _saveobj_cache.check('first'):
+                _saveobj_cache.remove('first')
+            self._update_save_obj()
+            _saveobj_cache.add('first', self.save_obj)
+        super().close()

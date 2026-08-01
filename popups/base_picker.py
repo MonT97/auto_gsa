@@ -102,11 +102,13 @@ class BaseToggle(ctk.CTkFrame, HasToolTip):
     """
     Picking whether to save the raw file or not.
     """
-    def __init__(self, master, label_text: str, tooltip_msg: str = '') -> None:
+    def __init__(self, master, label_text: str, default_value: bool = False, tooltip_msg: str = '') -> None:
         super().__init__(master)
 
+        self.val = ctk.BooleanVar(self, value=default_value)
+
         self.toggle: ctk.CTkCheckBox = ctk.CTkCheckBox(self,
-                    text=label_text, border_width=2,
+                    text=label_text, border_width=2, variable=self.val,
                     checkbox_height=20, checkbox_width=20)
 
         if tooltip_msg:
@@ -119,4 +121,4 @@ class BaseToggle(ctk.CTkFrame, HasToolTip):
         """
         Returns the color.
         """
-        return bool(self.toggle.get())
+        return self.val.get()

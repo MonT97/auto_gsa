@@ -73,7 +73,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         self.entry.bind("<KeyPress-Escape>", lambda _: self._reset_focus())
         self.htt_tip(self.entry, 'path to import from\npress [Enter/Return] to quick import')
         utls.bg_transparent(self.entry)
-    
+
         self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import",
             image=self.import_icon,
@@ -187,7 +187,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         self.export_btn.configure(state=ctk.NORMAL, image=self.export_btn_icon)
         self._reset_focus()
         self.obs_broadcast(Signal.LOG, self, 
-            (f'imported [{self.number_of_valid_files}] files from [{self.save_obj.files_path}].', LogMsgType.NORMAL))
+            (f'imported [{self.number_of_valid_files}] files from [{self.save_obj.files_path}].',))
 
     def _set_data(self) -> None:
         
@@ -206,10 +206,9 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
             _sample: Sample = Sample(_file_path)
             self.samples_cache.add(_file_path, _sample)
 
-        #! Observer!:
         self._set_analysis_data(_sample, graph_type)
-        self.obs_broadcast(Signal.ANALYZE, self, (self.crnt_sample, self.save_obj, None))
-        self.obs_broadcast(Signal.LOG, self, (f'analyzed sample [{_sample.get_name().lower()}].', LogMsgType.NORMAL))
+        self.obs_broadcast(Signal.ANALYZE, self, (self.crnt_sample, self.save_obj))
+        self.obs_broadcast(Signal.LOG, self, (f'analyzed sample [{_sample.get_name().lower()}].',))
 
         self.after(5, self.file_viewer.focus_set)
         if self.save_btn.cget('state') == ctk.DISABLED:
@@ -228,7 +227,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         self.cs_save_results(sample, save_obj)
         self.obs_broadcast(Signal.LOG, self,
-                (f'saved sample [{sample.get_name().lower()}] to [{save_obj.get_results_path()}]', LogMsgType.NORMAL))
+                (f'saved sample [{sample.get_name().lower()}] to [{save_obj.get_results_path()}]',))
 
     def _on_export_btn_pressed(self, use_global_defaults: bool = False) -> None:
         """
@@ -247,17 +246,16 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         Triggered by an outside signal from [MainPanel].
         """
-        self.obs_broadcast(Signal.LOG, self, ('saving all samples...', LogMsgType.NORMAL))
+        self.obs_broadcast(Signal.LOG, self, ('saving all samples...',))
 
         _trigger_ui_update: Callable[[list[str],int],bool] = lambda list_,cap=20: len(list_) > cap
         
         _index, _interval = save_obj.interval #!config
 
-        def _prep_files_list(index: int, list_: list[str], interval: list[int|None]) -> list[str]:
+        def _prep_files_list(index: int, list_: list[str], interval: list[int]) -> list[str]:
             """
             Partition/slice the list of files depending on the index provided, the index is a mode selection of sorts.
             """
-            
             match index:
                 case 0:
                     list_ = list_
@@ -275,8 +273,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
             _sample = Sample(_path)
             self.cs_save_results(_sample, save_obj)
             self.obs_broadcast(Signal.LOG, self,
-                               (f'[{_ind}] out of [{len(_files)}] samples saved.',
-                                LogMsgType.NORMAL))
+                               (f'[{_ind}] out of [{len(_files)}] samples saved.',))
 
             #TODO: is there a better option??, queue/thread??
             if _trigger_ui_update(_files, 0):
@@ -285,8 +282,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
                 time.sleep(.001)
 
         self.obs_broadcast(Signal.LOG, self,
-                           (f'saved [{len(_files)}] samples to [{save_obj.get_results_path()}]',
-                            LogMsgType.NORMAL))
+                           (f'saved [{len(_files)}] samples to [{save_obj.get_results_path()}]',))
         self.obs_broadcast(Signal.EXPORTED, self)
 
     def on_exported(self) -> None:
@@ -296,7 +292,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         self.export_popup.on_exported()
 
 
-class FileViewer(ttk.Treeview, Validator, Observer):
+class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
     """
     ttk.Treeview:
     The class that views and gives the ability to select samples.
@@ -338,6 +334,8 @@ class FileViewer(ttk.Treeview, Validator, Observer):
 
             self.heading("no", text="NO", anchor="center")
             self.heading("file_name", text="File Name", anchor="w")
+
+        self.configure(style='F_Viewer.Treeview', show="headings")
 
     def display_files(self, path: str, files: list[str], from_screen: bool) -> list[str]:
         """

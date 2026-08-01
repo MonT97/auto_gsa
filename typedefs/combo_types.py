@@ -1,8 +1,13 @@
 from dataclasses import dataclass
+from enum import Enum
+from tkinter import Widget
+from types import UnionType
+from typing import Any
 
-from models import Analyzer
+from models import Analyzer, Sample
 
-from .enums import GraphType
+from .base_types import SaveObject
+from .enums import GraphType, LogMsgType
 
 
 @dataclass
@@ -39,3 +44,44 @@ class GraphParameters():
                 setattr(self, k, v)
             else:
                 raise AttributeError
+
+
+@dataclass
+class SignalSchema():
+    """
+    Use to define the signal schema.
+    """
+    name: str
+    args: tuple[Any,...]
+
+
+class Signal(Enum):
+    """
+    An Enum representing the signals, done to mitigate the string trap:\n
+    Use print(Signal.name.value) to know the args to pass into the lister.
+    - LOG: signal to log a massage into the [LoggingPanel].
+    - ANALYZE: signals the [AnalysisPanel] to analyze the data.
+    - EXPORTED: signals [FilePanel] the end of the exporting process.
+    - EXPAND: signals the [MainPanel] to expand a Widget.
+    - COLOR: signals the [FilePanel] to update the [SaveObject] color.
+    """
+    LOG = SignalSchema('log', (str, LogMsgType|None))
+    ANALYZE = SignalSchema('analyze', (Sample, SaveObject, GraphType|None))
+    EXPORTED = SignalSchema('exported', ())
+    EXPAND = SignalSchema('expand', (Widget,))
+    COLOR = SignalSchema('color', (str,))
+
+    def __lt__(self, other) -> bool:
+        return len(self.value.args) < len(other)
+    
+    def __gt__(self, other) -> bool:
+        return len(self.value.args) > len(other)
+
+    def get_name(self) -> str:
+        return self.value.name
+
+    def get_args(self) -> tuple[Any,...]:
+        """
+        Returns the [args] from the SignalSchema.
+        """
+        return self.value.args

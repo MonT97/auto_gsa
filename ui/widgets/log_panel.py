@@ -71,11 +71,12 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
             f.write(text+'\n')
         os.chmod(self.log_file_path, READ_ONLY)
         
-    def write(self, text: str, prefix: LogMsgType) -> None:
+    def write(self, text: str, prefix: LogMsgType|None=None) -> None:
         """
         Write [text] into the text box.
         prefix: to append to the [text] as in [prefix]+[text].
         """
+        prefix = LogMsgType.NORMAL if prefix is None else prefix
         _text: str = prefix.value + text
 
         self.text_box.configure(state=ctk.NORMAL)

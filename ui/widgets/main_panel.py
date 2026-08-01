@@ -1,10 +1,11 @@
 import inspect
 from tkinter import Widget
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import customtkinter as ctk
 
 from mixins import Observer
+from models import Sample
 from typedefs import GraphType, LogMsgType, SaveObject, Signal
 
 from .analysis_panel import AnalysisPanel
@@ -12,7 +13,7 @@ from .file_panel import FilePanel
 from .log_panel import LoggingLabel
 
 if TYPE_CHECKING:
-    from models import Sample
+    from models import Analyzer
 
 
 class MainPanel(ctk.CTkFrame, Observer):
@@ -50,14 +51,14 @@ class MainPanel(ctk.CTkFrame, Observer):
         self.analysis_panel.grid(column=1, row=0, sticky='nsew')
         self.logging_label.grid(column=0, row=1, columnspan=2, sticky='nsew')
 
-    def log(self, msg: str, prefix: LogMsgType) -> None:
+    def log(self, msg: str, prefix: LogMsgType|None=None) -> None:
         """
         Log the massage into the logging widget; signal triggered.
         """
         self.logging_label.write(msg, prefix)
 
-    def analyze(self, sample: 'Sample', save_obj: SaveObject,
-                graph_type: GraphType|None= None) -> None:
+    def analyze(self, sample: Sample, save_obj: SaveObject,
+                graph_type: GraphType|None=None) -> None:
         """
         Tells the analysis widget to analyze the sample; signal triggered.
         """
@@ -70,7 +71,7 @@ class MainPanel(ctk.CTkFrame, Observer):
         """
         self.file_panel.on_exported()
     
-    def update_color(self, color) -> None:
+    def update_color(self, color: str) -> None:
         """
         Tells the save object about the graph color; signal triggered.
         """
