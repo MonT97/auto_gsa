@@ -24,9 +24,9 @@ class ImportScreen(Open, BaseWidget, Observer):
                  connection_function: Callable[[str,list[str]],None], multiple: bool =True) -> None:
         """
         Import dialogue screen widget.
-        - path: the path to look into.
-        - connection_func: function to call on approve.
-        - multiple: enables multi-file selection.
+        - `path`: the path to look into.
+        - `connection_func`: function to call on approve.
+        - `multiple`: enables multi-file selection.
         """
         self._title: str = 'Select sample files'
         self._defaultextension: str = FileFormat.CSV.value
@@ -44,15 +44,17 @@ class ImportScreen(Open, BaseWidget, Observer):
         return f'{__class__} title: {self._title}'
 
     def show(self, func: Callable[[str,list[str]],None]) -> None:
-
-        _f_list = super().show()
+        """
+        Show the dialogue screen.
+        """
+        _files_list: list[str] = super().show()
         _get_file_name: Callable[[str],str] = lambda x: os.path.split(x)[-1]
 
-        if not _f_list:
+        if not _files_list:
             self.obs_broadcast(Signal.LOG, self, ('No Files where picked!', LogMsgType.WARNING))
             return
         
-        _path: str = os.path.split(_f_list[0])[0]
-        _f_list = [_get_file_name(i) for i in _f_list]
+        _path: str = os.path.split(_files_list[0])[0]
+        _files_list = [_get_file_name(i) for i in _files_list]
 
-        func(_path, _f_list)
+        func(_path, _files_list)

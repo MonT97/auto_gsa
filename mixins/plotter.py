@@ -16,8 +16,8 @@ class CanPlot():
         """
         Part of the CanPlot mixin.
         The plotting function:
-            - face_color: face color, hexadecimal.
-            - edge_color: bin lines color, hexadecimal.
+            - `face_color`: face color, hexadecimal.
+            - `edge_color`: bin lines color, hexadecimal.
         """
         def _plot_histo(ax: Axes, x: PlotInput,
                         y: PlotInput, color: str, edge_color: str) -> None:

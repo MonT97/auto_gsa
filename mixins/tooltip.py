@@ -1,6 +1,6 @@
 from tkinter import Widget
+from typing import Literal
 
-from customtkinter import CTkBaseClass
 from tktooltip import ToolTip
 
 # Constants
@@ -8,6 +8,7 @@ from tktooltip import ToolTip
 FG_CLR = '#ffffff'
 BG_CLR = '#000000'
 
+FW = Literal['normal', 'bold']
 
 class HasToolTip():
     """
@@ -17,11 +18,12 @@ class HasToolTip():
     
     def htt_tip(self, widget: Widget,
                 msg: str, delay: float = .75, font_size: int = 12,
-                font_family_name: str = 'Arial', id_: str = '', kw={}) -> ToolTip:
+                font_family_name: str = 'Arial', font_weight: FW = 'normal', id_: str = '', kw={}) -> ToolTip:
         """
         Part of the HasTooltip mixin.
         Adds a tooltip for the given [widget] using the provided [msg].
-        - delay: in seconds.
+        - `delay`: in seconds.
+        - `kw`: a typical **kw to pass to ToolTip super() tk.Massage.
         """
         # Something wrecks the tooltip when the [widget] is cached, hence, this if statement:
         if id_ and id_ in self._ttip_dict:
@@ -32,7 +34,7 @@ class HasToolTip():
             _ttip = self._ttip_dict.pop(widget)[-1]
             _ttip.destroy()
 
-        ttip = ToolTip(widget, msg=msg, font=(font_family_name, font_size),
+        ttip = ToolTip(widget, msg=msg, font=(font_family_name, font_size, font_weight),
                 fg=FG_CLR, bg=BG_CLR, delay=delay, **kw)
         
         if id_:

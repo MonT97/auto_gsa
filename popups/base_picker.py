@@ -102,7 +102,8 @@ class BaseToggle(ctk.CTkFrame, HasToolTip):
     """
     Picking whether to save the raw file or not.
     """
-    def __init__(self, master, label_text: str, default_value: bool = False, tooltip_msg: str = '') -> None:
+    def __init__(self, master, label_text: str,
+                 default_value: bool = False, tooltip_msg: str = '') -> None:
         super().__init__(master)
 
         self.val = ctk.BooleanVar(self, value=default_value)

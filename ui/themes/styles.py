@@ -64,7 +64,7 @@ class Styles():
             background=DATA_TABLE_ROW_BG_CLR,
             bordercolor=DATA_TABLE_HDR_BG_CLR,
             borderwidth=0,
-            rowheight=ROW_HEIGHT,
+            rowheight=30,
             font=TABLE_ROW_FONT,
             fieldbackground=DATA_TABLE_ROW_BG_CLR)
         _d_style.map('DataTable.Treeview')

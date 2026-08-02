@@ -53,13 +53,13 @@ class DirPickScreen(fd.Directory):
     """
     The directory confirmation dialogue screen.
     """
-    def __init__(self, master, initialdir: str) -> None:
+    def __init__(self, master, initialdir: str, title: str='Pick the folder') -> None:
         """
         The export confirmation dialogue screen.
         - initialdir: the dir in which to start the screen.
         """
         super().__init__(master=master,
-            title='Pick the folder',
+            title=title,
             initialdir=initialdir)
     
     def show(self) -> str:

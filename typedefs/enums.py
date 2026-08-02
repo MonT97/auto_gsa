@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 class GraphType(Enum):
     """
     An Enum representing the graph types:
-    - CUM -----> cumulative.
-    - HIST ----> histogram.
+    - `CUM`: cumulative.
+    - `HIST`: histogram.
     """
     HIST = 0
     CUM = 1
@@ -24,9 +24,9 @@ class GraphType(Enum):
 class LogMsgType(Enum):
     """
     An Enum representing various log massage types:
-    - NORMAL -----> normal massage.
-    - WARNING ----> warning massage.
-    - ERROR ----> error massage.
+    - `NORMAL`: normal massage.
+    - `WARNING`: warning massage.
+    - `ERROR`: error massage.
     """
     NORMAL = ''
     WARNING = '<!> Warning: '
@@ -36,8 +36,8 @@ class LogMsgType(Enum):
 class FileFormat(Enum):
     """
     An Enum representing the data file's formats:
-    - EXCEL ----> .xlsx excel file.
-    - CSV ------> .csv file.
+    - `EXCEL`: .xlsx excel file.
+    - `CSV`: .csv comma separated values file.
     """
     EXCEL = 'xlsx'
     CSV = 'csv'
@@ -46,9 +46,9 @@ class FileFormat(Enum):
 class AnalysisMethod(Enum):
     """
     An Enum representing the analysis method type:
-    - TWO_POINTS ----> A special case where the sample only has less than three data points.
-    - GRAPHICAL ----> graphical method using Folk&Ward, 1957 equations.
-    - MOMENTS ------> the statistical moments based method.
+    - `TWO_POINTS`: A special case where the sample only has less than three data points.
+    - `GRAPHICAL`: graphical method using Folk&Ward, 1957 equations.
+    - `MOMENTS`: the statistical moments based method.
     """
     TWO_POINTS = 'Two Points'
     GRAPHICAL = 'Graphical'
@@ -58,9 +58,9 @@ class AnalysisMethod(Enum):
 class SkewnessSchema(Enum):
     """
     An Enum representing the verbal interpretation schema.
-    - ANASEDI -------> Analytical Sedimentology book.
-    - FOLKWARD57 ----> Folk & Ward 1957 article.
-    - OBSERVATIONAL -> A more intuitive version ANASEDI, basically, it's the same, but inverted.
+    - `ANASEDI`: Analytical Sedimentology book.
+    - `FOLKWARD57`: Folk & Ward 1957 article.
+    - `OBSERVATIONAL`: A more intuitive version ANASEDI, basically, it's the same, but inverted.
     """
     ANASEDI = 0
     FOLKWARD57 = 1

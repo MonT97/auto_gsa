@@ -1,6 +1,7 @@
 # The various [type:: ignore] is due to an issue with pylance, the linter I use, for some reason, it thinks that _root() isn't a part of tkinter's base widget class [BaseWidget], although it clearly is!!
 from inspect import getfile, getsourcelines, signature
 from tkinter import Toplevel, Widget
+from tkinter.commondialog import Dialog
 from types import NoneType, UnionType
 from typing import TYPE_CHECKING, Any, Callable, Literal, get_args, overload
 
@@ -20,7 +21,7 @@ class ArgumentsMismatch(Exception):
     To prevent, at least in part, the silent failure when the listener func doesn't match the caller func's arguments by exposing relevant information in an error massage and suggesting a solution.
     """
     def __init__(self, signal: Signal, sender_args: list[Any],
-                 func_args: list[Any], sender: Widget|None, func: Callable|None,
+                 func_args: list[Any], sender: Dialog|Widget|None, func: Callable|None,
                  func_name: str, func_location: str, func_line_number: int,
                  type_str: dict[int,Any], args_to_add: dict[int,Any],
                  args_to_remove: dict[int,Any]) -> None:
@@ -101,7 +102,7 @@ class Observer():
     - broadcast using [obs_broadcast].
     - listen using [obs_listen]
     """
-    def _validate_input(self, signal: Signal, sender: Widget|None = None,
+    def _validate_input(self, signal: Signal, sender:Widget|Dialog|None = None,
                         sender_args: list[Any] = [], func: Callable|None = None) -> None:
         """
         Validates that the [signal] and the paired [args] or [func] args have a matching number of arguments and matching argument types.
@@ -218,7 +219,7 @@ class Observer():
             print(e)
             quit()
 
-    def _set_broadcast_data(self, signal: Signal, sender: Widget, args: list[Any]) -> None:
+    def _set_broadcast_data(self, signal: Signal, sender: Dialog|Widget, args: list[Any]) -> None:
         """
         Adds a signal named [signal_name] to [_signals] then creates a SignalData() and populates its [sender] and [arg] attributes.
         """        
@@ -250,13 +251,13 @@ class Observer():
         """
     ...
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.LOG], sender: Widget,
+    def obs_broadcast(self, signal: Literal[Signal.LOG], sender: Widget|Dialog,
                             args: tuple[str, 'LogMsgType']) -> None:
         """
         - signal: Signal.LOG.
         """
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.LOG], sender: Widget, args: tuple[str]) -> None:
+    def obs_broadcast(self, signal: Literal[Signal.LOG], sender: Widget|Dialog, args: tuple[str]) -> None:
         """
         - signal: Signal.LOG.
         """
@@ -282,14 +283,14 @@ class Observer():
         - signal: Signal.EXPAND.
         """
     ...
-    def obs_broadcast(self, signal: Signal, sender: Widget,
+    def obs_broadcast(self, signal: Signal, sender: Widget|Dialog,
                       args: tuple[Any,...]|None = None) -> None:
         """
         A function from the Observer mixin.
         Creates and broadcasts a signal.
-        - signal: from the Signal enum.
-        - sender: the signal broadcaster.
-        - args: arguments to send for the listener function.
+        - `signal`: from the Signal enum.
+        - `sender`: the signal broadcaster.
+        - `args`: arguments to send for the listener function.
         """
         _args: list[Any] = list(args) if args else []
         self._validate_input(signal, sender=sender, sender_args=_args)
@@ -303,9 +304,9 @@ class Observer():
         """
         A function from the Observer mixin.
         Listens for a broadcasted signal.
-        - signal: from the Signal enum.
-        - listener: the broadcast listener.
-        - func: the listener function to be called.
+        - `signal`: from the Signal enum.
+        - `listener`: the broadcast listener.
+        - `func`: the listener function to be called.
         """
         if signal not in _signals:
             self._validate_input(signal, func=func)

@@ -1,6 +1,5 @@
-import inspect
 from tkinter import Widget
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import customtkinter as ctk
 
@@ -11,9 +10,6 @@ from typedefs import GraphType, LogMsgType, SaveObject, Signal
 from .analysis_panel import AnalysisPanel
 from .file_panel import FilePanel
 from .log_panel import LoggingLabel
-
-if TYPE_CHECKING:
-    from models import Analyzer
 
 
 class MainPanel(ctk.CTkFrame, Observer):

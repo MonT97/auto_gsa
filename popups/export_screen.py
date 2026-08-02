@@ -19,10 +19,13 @@ SCREEN_SIZE: Final[tuple[int,int]] = (450,315)
 # fonts:
 BTN_FRAME_FONT: Final[tuple[str,int]] = ('Arial', 16)
 
-_saveobj_cache = Cache(1)
+# cache:
+KEY: Final[str] = 'final'
+
+_saveobj_cache = Cache(1) # one element cache for one step go back
 
 
-#TODO: a way to remember what we did before, a running singleton of sorts; LTS, Currently the SaveObj does this mission.
+#TODO: a way to remember what we did before, a running singleton of sorts; LTS, Currently the SaveObj does this mission, should it?!.
 class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
     """
     The export confirmation dialogue screen.
@@ -31,10 +34,11 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
                  save_obj: SaveObject, use_global_defaults: bool = False) -> None:
         """
         The export confirmation dialogue screen.
-        - use_global_defaults: If true, the [ExportScreen] uses the global default values instead of the latest used.
+        - `use_global_defaults`: If true, the [ExportScreen] uses the global default values instead of the latest used.
         """
         super().__init__(master, title='export screen', approve_label='export', size=SCREEN_SIZE)
         self.master = master
+
         self.approve_btn.configure(command=lambda: self._on_approve(connection_func))
         self.wm_protocol("WM_DELETE_WINDOW", lambda: self._on_close(use_global_defaults))
         self.cancel_btn.configure(command=lambda: self._on_close(use_global_defaults))
@@ -50,8 +54,8 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         if use_global_defaults:
             self.save_obj = self.df_get_from_file(SaveObject)
         else:
-            if _saveobj_cache.check('first') and (save_obj != _saveobj_cache.get('first')):
-                self.save_obj = _saveobj_cache.get('first')
+            if _saveobj_cache.check(KEY) and (save_obj != _saveobj_cache.get(KEY)):
+                self.save_obj = _saveobj_cache.get(KEY)
             else:
                 self.save_obj = save_obj
 
@@ -154,8 +158,8 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         Triggered when closing the screen.
         """
         if not use_global_defaults:
-            if _saveobj_cache.check('first'):
-                _saveobj_cache.remove('first')
+            if _saveobj_cache.check(KEY):
+                _saveobj_cache.remove(KEY)
             self._update_save_obj()
-            _saveobj_cache.add('first', self.save_obj)
+            _saveobj_cache.add(KEY, self.save_obj)
         super().close()

@@ -30,8 +30,8 @@ class AnalysisPanel(ctk.CTkFrame, Observer):
     """
     CTkFrame:
     The class that handles viewing and analyzing the data.
-        - display the sample graphs [graph_panel: ctk.CTkLabel].
-        - display the sample data and the analysis result [data_panel: AnalysisBook]
+        - displays the sample graphs [graph_panel: ctk.CTkLabel].
+        - displays the sample data and the analysis result [data_panel: AnalysisBook]
     """
     def __init__(self, master: ctk.CTkFrame) -> None:
         """
@@ -159,7 +159,7 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
                     graph_color:str, graph_type: GraphType|None = None) -> None:
         """
         Layout the graphs:
-        - graph_type = None -> layout all the graphs in enums.GraphType.
+        - `graph_type` = None -> layout all the graphs in enums.GraphType.
         """
         _color_id = str(int(graph_color[1:],16))
         _graphs_list: list[tk.Canvas] = []
@@ -170,7 +170,7 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
             """
             _in_cache: bool = self.graphs_cache.check(id_)
             if _in_cache:
-                _graph: tk.Canvas = self.graphs_cache.get(id_) #type: ignore
+                _graph: tk.Canvas = self.graphs_cache.get(id_)
             else:
                 _graph = self._generate_graph(analyzer.get_plot_data(type_), sample_name, type_, graph_color)
                 self.graphs_cache.add(id_, _graph)
@@ -258,8 +258,8 @@ class DataPanel(ctk.CTkFrame):
         """
         Extracts data form [analyzer] and [sample] then writes it into the [self.data_table] and the [self.stats_note].
         """
-        _stats = analyzer.get_stats()
-        _interpretation = analyzer.get_interpretation()
+        _stats: SampleStats = analyzer.get_stats()
+        _interpretation: StatsInterpretation = analyzer.get_interpretation()
         _ana_method: AnalysisMethod = analyzer.get_method()        
 
         @overload
@@ -280,11 +280,11 @@ class DataPanel(ctk.CTkFrame):
                 
             return _msg
         
-        _sample_data_msg: pd.DataFrame = _get_msg(sample)
+        _sample_msg: pd.DataFrame = _get_msg(sample)
         _stats_msg: str = _get_msg(_stats)
         _interp_msg: str = _get_msg(_interpretation)
         
-        self.data_table.populate_table(_sample_data_msg) # type: ignore
+        self.data_table.populate_table(_sample_msg)
         self.stats_note.update_note(_stats_msg, _interp_msg, _ana_method)
 
 
@@ -295,12 +295,22 @@ class DataTable(ttk.Treeview, HasToolTip):
     def __init__(self, master: ctk.CTkFrame) -> None:
         super().__init__(master)
 
-        # Fonts are set using the theme module.
+        # Fonts and colors are set using the theme module.
         self.width: int = 0
         self.pad_value: int = 4 #subtracted from other cols to account for the bigger last one.
         self.col_width: int = 0
 
+        self.activate_tip: bool = False
+        #TODO: mm scale?!, Analyzer is the starting point for this
+        self.hdr_tip_dict: dict[str,str] = {}
+        self.hdr_names: list[str] = ['sieve size in phi scale',
+                                     'weight fraction in grams',
+                                     'weight fraction as percent of the total',
+                                     'cumulative weight fractions as percents']
+
         self.bind("<Map>", lambda _: _set_element_width(self.winfo_width()))
+        self.bind("<Motion>", lambda event: self._on_mouse_motion(event))
+        self.bind("<Leave>", lambda _: self._on_mouse_exited())
 
         def _set_element_width(width: int) -> None:
             """
@@ -312,12 +322,38 @@ class DataTable(ttk.Treeview, HasToolTip):
 
         self.configure(style='DataTable.Treeview', selectmode="none", show="headings")
 
+    def _on_mouse_motion(self, event: tk.Event) -> None:
+        """
+        To manage to the initialization of the tooltip.
+        """
+        _pos: tuple[float,float] = (event.x, event.y)
+        _area: str = self.identify_region(*_pos)
+        if _area == 'heading':
+            _col_id = self.identify_column(_pos[0])
+            _hdr_name = self.heading(_col_id)['text']
+            if not self.activate_tip:
+                self.tip = self.htt_tip(self, self.hdr_tip_dict[_hdr_name],
+                                        font_size=14, id_=_hdr_name)
+                self.tip.on_enter(event)
+                self.activate_tip = True
+        else:
+            self._on_mouse_exited()
+
+    def _on_mouse_exited(self) -> None:
+        """
+        To disable the tooltip.
+        """
+        if self.activate_tip:
+            self.tip.destroy()
+            self.activate_tip = False
+
     def populate_table(self, data: pd.DataFrame) -> None:
         """
         Fills the table.
-        - data: used to populate the table.
+        - `data`: used to populate the table.
         """    
-        _header: list = data.columns.to_list()
+        _header: list[str] = data.columns.to_list()
+        self.hdr_tip_dict = {k: v for k,v in zip(_header, self.hdr_names)}
         _last_col_width = self.width - (self.col_width*(len(_header)-1))
 
         _n_rows = data.shape[0]-1 # as the first row is the header
@@ -332,14 +368,13 @@ class DataTable(ttk.Treeview, HasToolTip):
 
         # handle headers:
         for hdr in _header:
+            _width = self.col_width
             self.heading(hdr, text=hdr, anchor="center")
             if _header.index(hdr) == len(_header)-1:
-                # this 21 is trail&error driven, as the last column name is typically longer.
-                self.column(hdr, width=_last_col_width,
-                        minwidth=_last_col_width, stretch=True, anchor="center")
-                continue
-            self.column(hdr, width=self.col_width,
-                    minwidth=self.col_width, stretch=True, anchor="center")
+                # this 21 is trail&error driven, as the last column name is typically longer. 
+                _width = _last_col_width
+            self.column(hdr, width=_width,
+                    minwidth=_width, stretch=True, anchor="center")
         
         # handle data:
         for ele in _rows:
@@ -410,6 +445,7 @@ class CustomizationBar(ctk.CTkFrame, HasToolTip, Observer):
                 height=100, text=f'\\ {self.move_btn_txt} /', state=ctk.DISABLED,
                 command=lambda: self.animate(anim_speed))
 
+        # Layout:
         self.clr_pikr.grid(column=0, row=0, sticky='nsew')
         self.move_btn.grid(column=0, row=1, sticky='nsew')
 

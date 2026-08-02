@@ -4,7 +4,7 @@ ExportScreen inputs manipulation.
 import os
 import re
 from collections.abc import Callable
-from typing import Final
+from typing import Final, Literal
 
 import customtkinter as ctk
 
@@ -20,6 +20,7 @@ from .base_screen import DirPickScreen
 ACTIVE_ENTRY_CLR: Final[str] = '#ffffff'
 DEFAULT_ENTRY_CLR: Final[str] = '#565b5e'
 
+LIMIT = Literal['u', 'l']
 
 class DirPicker(ctk.CTkFrame, HasToolTip):
     """
@@ -150,7 +151,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 self.to: ctk.CTkLabel = ctk.CTkLabel(self, text='to')
            
                 self.u_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                        width=40, textvariable=self.u_var, border_color='#ffffff')
+                        width=40, textvariable=self.u_var, border_color=ACTIVE_ENTRY_CLR)
                 self.htt_tip(self.u_limit_entry, 'The start of the interval, enclusive.')
                 self.u_limit_entry.bind("<FocusOut>",
                     lambda _: self._validate_input(self.u_var, 'u'))
@@ -158,7 +159,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                                         lambda _: self._on_mouse_enter(self.u_limit_entry))
 
                 self.l_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                        width=40, textvariable=self.l_var, border_color='#ffffff')
+                        width=40, textvariable=self.l_var, border_color=ACTIVE_ENTRY_CLR)
                 self.htt_tip(self.l_limit_entry, 'The end of the interval, enclusive.')
                 self.l_limit_entry.bind("<FocusOut>",
                     lambda _: self._validate_input(self.l_var, 'l'))
@@ -169,6 +170,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 self.to.place(anchor='n', relx=.5, rely=0)
                 self.l_limit_entry.place(anchor='e', relx=1-_padding, rely=.5)
 
+                # if the SaveObj in export screen has these values:
                 if self.u_var.get() and self.l_var.get():
                     self._validate_input(self.u_var, 'u')
                     self._validate_input(self.l_var, 'l')
@@ -180,7 +182,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 self.after(1,entry.focus_set)
                 entry.select_range('0', ctk.END)
 
-            def _validate_input(self, var: ctk.StringVar, limit: str) -> None:
+            def _validate_input(self, var: ctk.StringVar, limit: LIMIT) -> None:
                 """
                 Input validation.
                 """
@@ -219,11 +221,12 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 self.variable: ctk.StringVar = ctk.StringVar(self)
 
                 self.list_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                            textvariable=self.variable, border_color='#ffffff')
+                            textvariable=self.variable, border_color=ACTIVE_ENTRY_CLR)
                 self.htt_tip(self.list_entry, 'List of sample numbers, for example:\n- [1,2,6]: chooses samples 1, 2 and 6.\n- use only [,]as a delimiter.')
                 self.list_entry.bind('<Enter>', lambda _: self._on_mouse_enter())
                 self.list_entry.bind("<FocusOut>", lambda _: self._validate_input(self.variable))
 
+                # if the SaveObj in export screen has this value
                 if self.variable.get():
                     self._validate_input(self.variable)
 
@@ -317,14 +320,14 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         self.interval_pckr.u_lim = val
         self.list_pckr.u_lim = val
 
-    def get_value(self) -> tuple[int,list[int|None]]:
+    def get_value(self) -> tuple[int,list[int]]:
         """
         Returns the parameter
         """
         _output = []
         
         if self.index != 0:
-            _output: list[int|None] = [int(i)-1 for i in self.getter_function().split(',')]
+            _output: list[int] = [int(i)-1 for i in self.getter_function().split(',')]
         
         return  (self.index, _output)
     
@@ -350,7 +353,9 @@ class GraphColorPicker(ctk.CTkFrame, Observer):
         self._toggle.pack(side='left')
 
     def _on_check(self) -> None:
- 
+        """
+        When the toggle is toggled.
+        """
         if self._toggle.get():
             self.color_pckr.pack_forget()
             self._toggle.configure(text='Use preview color')
@@ -361,6 +366,7 @@ class GraphColorPicker(ctk.CTkFrame, Observer):
     def on_preview_press(self, color: str) -> None:
         """
         Triggered by a preview button press From the clr_pikr: ColorPicker.
+        - `color`: hex color.
         """
         self.color = color
 

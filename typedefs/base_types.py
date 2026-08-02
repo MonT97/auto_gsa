@@ -19,6 +19,10 @@ type PlotInput = pd.Series[Any]|np.ndarray[Any, Any]
 class SampleStats():
     """
     An object holding the calculated sample statistics.
+    - `mean`: mean, the type of which is set by the analysis method.
+    - `std`: standard deviation, a proxy for sorting.
+    - `kurtosis`: the degree of the graph peakedness, a proxy for sorting.
+    - `skewness`: the direction of the data skewness, a proxy for process.
     """
     mean: float = 0.0
     std: float = 0.0
@@ -39,6 +43,9 @@ class SampleStats():
 class StatsInterpretation():
     """
     An object holding the interpretation of the calculated sample stats.
+    - `sorting`: the interpretation of.
+    - `kurtosis`: the interpretation of.
+    - `skewness`: the interpretation of.
     """
     sorting: str = ''
     kurtosis: str = ''
@@ -69,16 +76,16 @@ class SaveObject(DefaultObj):
     """
     Data model for data needed for exporting/saving output data.\n
     Designed to wander around carrying data.
-    - prefix: To append to the beginning of the file's name.
-    - files_path: The dir housing the files.
-    - results_path: To save the file within.
-    - results_dir_name: The dir name.
-    - raw_results_dir_name: Then name of dir to save raw files into.
-    - color: The color of graph elements.
-    - dpi: The png image resolution.
-    - save_raw_files: If true a non interpreted spreadsheet would be exported as well.
-    - interval: To inclusively export files between.
-    - transparent: Sets the graph background to transparent.
+    - `prefix`: To append to the beginning of the file's name.
+    - `files_path`: The dir housing the files.
+    - `results_path`: To save the file within.
+    - `results_dir_name`: The dir name.
+    - `raw_results_dir_name`: Then name of dir to save raw files into.
+    - `color`: The color of graph elements.
+    - `dpi`: The png image resolution.
+    - `save_raw_files`: If true a non interpreted spreadsheet would be exported as well.
+    - `interval`: To inclusively export files between [start, end].
+    - `transparent`: Sets the graph background to transparent.
     """
     prefix: str = ''
     files_path: str = ''
@@ -110,6 +117,6 @@ class SaveObject(DefaultObj):
     def get_results_path(self) -> str:
         """
         Returns the full path to the results dir.\n
-        - -> os.path.join(results_path, results_folder_name)
+        - -> os.path.join(results_path, results_dir_name)
         """
         return os.path.join(self.results_path, self.results_dir_name)

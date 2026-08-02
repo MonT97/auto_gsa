@@ -16,7 +16,7 @@ class Sample():
         - name: str.
         - data: pd.DataFrame, a minimum of 3 points is necessary for calculations.
     """
-    def __init__(self, path: str = "") -> None:
+    def __init__(self, path: str = '') -> None:
         self._full_name: str = ''
         self._data: pd.DataFrame = pd.DataFrame()
 

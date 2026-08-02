@@ -84,7 +84,7 @@ class Defaults():
 
     def df_get_from_file(self, obj: Type[T]):
         """
-        Retrieves the default version of the provided [obj] from the defaults.json file.
+        Retrieves the default version of the provided [obj] from the `defaults.json` file.
         """
         id_: str = obj.__name__
 

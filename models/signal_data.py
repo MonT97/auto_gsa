@@ -1,5 +1,6 @@
 # Due to the way tkinter handles event bindings race conditions are bound to happen, in which a listener might be added before the broadcaster/sender leading to a situation where we don't know the [args] to listen to, hence the convoluted args logic resulting from the need to handle multiple entry points to append new [arg] to [self.args]!!
 from tkinter import BaseWidget
+from tkinter.commondialog import Dialog
 from typing import Any
 
 
@@ -15,9 +16,8 @@ class SignalData():
         - [.add_args], [.add_listeners], [.set_sender] to set the signal data. 
         - [.pop_arg] to get arguments to pass to the listener function.
         """
-        # self.added_func: bool = False
-        self.sender: BaseWidget|None = None
-        self.listeners: list[BaseWidget] = []
+        self.sender: Dialog|BaseWidget|None = None
+        self.listeners: list[BaseWidget|Dialog] = []
         self.args: list[list[Any]] = [[]]
     
     def __repr__(self) -> str:
@@ -38,13 +38,13 @@ class SignalData():
         if arg != _temp_arg:
             self.args = [arg for arg_ in self.args]
         
-    def add_listener(self, listener: BaseWidget) -> None:
+    def add_listener(self, listener: BaseWidget|Dialog) -> None:
         """
         Adds a listener.
         """
         self.listeners.append(listener)
     
-    def set_sender(self, sender: BaseWidget) -> None:
+    def set_sender(self, sender: BaseWidget|Dialog) -> None:
         """
         Adds a sender.
         """

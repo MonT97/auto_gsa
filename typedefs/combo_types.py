@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
 from tkinter import Widget
-from types import UnionType
 from typing import Any
 
 from models import Analyzer, Sample
@@ -14,7 +13,10 @@ from .enums import GraphType, LogMsgType
 class GraphParameters():
     """
     Object housing parameters needed for graph creation.
-    - graph_type: from the enum [GraphType].
+    - `analyzer`: Analyzer.
+    - `sample_name`: str.
+    - `graph_type`: from the enum [GraphType].
+    - `graph_color`: str.
     """
     analyzer: Analyzer = Analyzer()
     sample_name: str = ''
@@ -34,10 +36,10 @@ class GraphParameters():
         """
         Updates the instance values in-place.
         kwargs:
-        - analyzer.: Analyzer
-        - sample_name: str.
-        - graph_type: GraphType.
-        - graph_color: str.
+        - `analyzer`: Analyzer
+        - `sample_name`: str.
+        - `graph_type`: GraphType.
+        - `graph_color`: str.
         """
         for k, v in kwargs.items():
             if hasattr(self, k):
@@ -59,11 +61,11 @@ class Signal(Enum):
     """
     An Enum representing the signals, done to mitigate the string trap:\n
     Use print(Signal.name.value) to know the args to pass into the lister.
-    - LOG: signal to log a massage into the [LoggingPanel].
-    - ANALYZE: signals the [AnalysisPanel] to analyze the data.
-    - EXPORTED: signals [FilePanel] the end of the exporting process.
-    - EXPAND: signals the [MainPanel] to expand a Widget.
-    - COLOR: signals the [FilePanel] to update the [SaveObject] color.
+    - `LOG`: signal to log a massage into the [LoggingPanel].
+    - `ANALYZE`: signals the [AnalysisPanel] to analyze the data.
+    - `EXPORTED`: signals [FilePanel] the end of the exporting process.
+    - `EXPAND`: signals the [MainPanel] to expand a Widget.
+    - `COLOR`: signals the [FilePanel] to update the [SaveObject] color.
     """
     LOG = SignalSchema('log', (str, LogMsgType|None))
     ANALYZE = SignalSchema('analyze', (Sample, SaveObject, GraphType|None))
