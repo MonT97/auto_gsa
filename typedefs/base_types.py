@@ -1,7 +1,7 @@
 import os
 from copy import copy
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Any, Self, Literal
 
 import customtkinter as ctk
 import numpy as np
@@ -71,11 +71,14 @@ class DefaultObj():
         return self.__dict__
 
 
+ATRRIBS = Literal['prefix','files_path',
+                  'results_path','results_dir_name',
+                  'raw_results_dir_name','color','dpi',
+                  'save_raw_files','interval','transparent']
 @dataclass
 class SaveObject(DefaultObj):
     """
-    Data model for data needed for exporting/saving output data.\n
-    Designed to wander around carrying data.
+    Data model for data needed for exporting/saving output data, designed to wander around carrying data.
     - `prefix`: To append to the beginning of the file's name.
     - `files_path`: The dir housing the files.
     - `results_path`: To save the file within.
@@ -98,19 +101,43 @@ class SaveObject(DefaultObj):
     interval: tuple[int,list[int]] = (0,[])
     transparent: bool = False
 
+    def see(self, attrib: ATRRIBS) -> Any:
+        """
+        Prints the value of [attrib]
+        """
+        return print(getattr(self, attrib))
+    
+    def get(self, attrib: ATRRIBS) -> Any:
+        """
+        Returns the value of [attrib]
+        """
+        return getattr(self, attrib)
+
     def update(self, **kwargs) -> None:
         """
         Updates the instance values in-place.
+        - options:
+        - `prefix`: To append to the beginning of the file's name.
+        - `files_path`: The dir housing the files.
+        - `results_path`: To save the file within.
+        - `results_dir_name`: The dir name.
+        - `raw_results_dir_name`: Then name of dir to save raw files into.
+        - `color`: The color of graph elements.
+        - `dpi`: The png image resolution.
+        - `save_raw_files`: If true a non interpreted spreadsheet would be exported as well.
+        - `interval`: To inclusively export files between [start, end].
+        - `transparent`: Sets the graph background to transparent.
         """
         for k, v in kwargs.items():
             if hasattr(self, k):
                 setattr(self, k, v)
             else:
+                print(f'<!> Error:\n  > SaveObj has no attribute named {k}')
                 raise AttributeError
 
     def copy(self) -> Self:
         """
-        Returns a copy of it self.
+        Returns a copy of the object self.
         """
         return copy(self)
 

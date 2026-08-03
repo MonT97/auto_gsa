@@ -61,7 +61,7 @@ class DirPickScreen(fd.Directory):
         super().__init__(master=master,
             title=title,
             initialdir=initialdir)
-    
+
     def show(self) -> str:
         """
         An overload of the parent [tkinter.filedialog.Directory.show()].

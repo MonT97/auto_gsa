@@ -18,6 +18,9 @@ SAMPLE_HEADER: Final[tuple] = ('phi', 'wht', 'wht%', 'cum.wht%')
 class Validator():
     """
     Responsible for validating data.
+    - functions:
+    - `val_samples`: for now, a format validator.
+    - `val_handle_aio`: checks for All-in-one, AIO, file.
     """
     def val_samples(self, samples_dir_path: str, sample_file_name: str) -> bool:
         """

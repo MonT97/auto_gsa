@@ -1,5 +1,6 @@
 import os
 import time
+import tkinter as tk
 from tkinter import ttk
 from typing import Callable, Final
 
@@ -12,25 +13,30 @@ from popups import ExportScreen, ImportScreen
 from typedefs import GraphType, LogMsgType, SaveObject, Signal
 from utils import utls
 
-# Constants
-# colors:
+# Constants:
+# colors
 DEFAULT_GRAPH_COLOR: Final[str] = '#1f7bb4'
 ACTIVE_ENTRY: Final[str] = '#ffffff' #! Base entry class?!
 DEFAULT_ENTRY: Final[str] = '#565b5e'
 
-# fonts:
+# fonts
 ENTRY_FONT: Final[tuple[str, int]] = ('Arial', 16)
 
-# icons:
+# icons
 ICON_SIZE: Final[tuple[int,int]] = (15,15)
 IMPORT_ICON: Final = Image.open('assets/import.png')
 EXPORT_ICON: Final = Image.open('assets/upload.png')
 EXPORT_DIS_ICON: Final = Image.open('assets/upload_dis.png')
 
+# shortcuts
+IMPORT: Final[str] = 'i'
+EXPORT: Final[str] = 'e'
+ANALYZE: Final[str] = 'a'
 
 # convention to keep:
 # file -> file_name.extension
 # sample -> Sample(file_path)
+
 class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
     """
     CTkFrame:
@@ -45,109 +51,150 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         #!config = add to a permanent config file!.
         self.configure(corner_radius=0)
 
-        self.master = master
-
-        # pass around data holder.
-        self.save_obj: SaveObject = self.df_get(SaveObject)
-
-        #type due to the strange return of the treeview selection method
-        self.data: tuple[str,...] = ('',)
-        self.valid_files: list[str] = []
-        self.number_of_valid_files: int = 0
+        self._master = master
+        self.__root = utls.get_root(self)
+        self._crnt_sample: Sample = Sample()
+        self._use_global_defaults: bool = False
 
         # Caching:
-        self.samples_cache: Cache = Cache(50)
+        self._path_cache: list[str] = []
+        self._samples_cache: Cache = Cache(50)
 
-        # Entry related:
-        self.import_icon: ctk.CTkImage = ctk.CTkImage(IMPORT_ICON, size=ICON_SIZE)
+        # pass around data holder.
+        self._save_obj: SaveObject = self.df_get(SaveObject)
 
-        self.entry_font = ctk.CTkFont(*ENTRY_FONT)
+        #type due to the strange return of the treeview selection method
+        self._data: tuple[str,...] = ('',)
+        self._valid_files: list[str] = []
+        self._number_of_valid_files: int = 0
 
-        self.entry_frame: ctk.CTkFrame = ctk.CTkFrame(self, height=30)
+        # global shortcuts
+        self.__root.bind(f"<Control-KeyPress-{EXPORT}>",
+                         lambda _: self._on_export_btn_pressed(self._use_global_defaults))
+        self.__root.bind(f"<Control-KeyPress-{IMPORT_ICON}>",
+                         lambda _: self._screen_import())
 
-        self.entry = ctk.CTkEntry(self.entry_frame,
+        # Entry related
+        self._entry_font = ctk.CTkFont(*ENTRY_FONT)
+        self._import_icon: ctk.CTkImage = ctk.CTkImage(IMPORT_ICON, size=ICON_SIZE)
+
+        self._entry_frame: ctk.CTkFrame = ctk.CTkFrame(self, height=30)
+        self._entry = ctk.CTkEntry(self._entry_frame,
             border_color=DEFAULT_ENTRY,
             placeholder_text="sample files folder path...")
-        self.entry.bind("<KeyPress-Return>", lambda _: self._direct_import(self.entry.get()))
-        self.entry.bind("<Enter>", lambda _: self._on_entry_active())
-        self.entry.bind("<KeyPress-Escape>", lambda _: self._reset_focus())
-        self.htt_tip(self.entry, 'path to import from\npress [Enter/Return] to quick import')
-        utls.bg_transparent(self.entry)
+        
+        self._entry.bind("<KeyPress-Return>", lambda _: self._direct_import(self._entry.get()))
+        self._entry.bind("<Enter>", lambda _: self._on_entry_active())
+        self._entry.bind("<KeyPress-Up>", lambda _: self._get_from_path_cache())
+        self._entry.bind("<KeyPress-Escape>", lambda _: self._reset_focus())
 
-        self.file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
+        self.htt_tip(self._entry, 'path to import from\n[Enter/Return]: quick import.\n[Up]: cycle back to previous entries.')
+        utls.bg_transparent(self._entry)
+
+        self._file_import_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="import",
-            image=self.import_icon,
+            image=self._import_icon,
             compound='right',
-            font=self.entry_font,
+            font=self._entry_font,
             command=lambda: self._screen_import())
-        self.htt_tip(self.file_import_btn, 'open import screen')
+        self.htt_tip(self._file_import_btn, 'open import screen')
 
         # Viewer:
-        self.file_viewer: FileViewer = FileViewer(self)
-        self.file_viewer.bind("<<TreeviewSelect>>", lambda _: self._set_data())
-        self.file_viewer.bind("<KeyPress-Return>", 
-                lambda _: self._analyze(self.data))
-        self.file_viewer.bind("<Leave>", lambda _: self._reset_focus())
+        self._viewer_frame = ctk.CTkFrame(self) # <--- Necessary for ttip signal handling!
+        self._file_viewer: FileViewer = FileViewer(self._viewer_frame)
+        self._file_viewer.bind("<<TreeviewSelect>>", lambda _: self._set_data())
+        self._file_viewer.bind("<KeyPress-Return>", lambda _: self._analyze(self._data))
+        self._file_viewer.bind(f"<Control-KeyPress-{ANALYZE}>", lambda _: self._analyze(self._data))
+        self._file_viewer.bind("<Leave>", lambda _: self._reset_focus())
         
         # Lower buttons:
-        self.analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
+        self._analyze_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="analyze",
-            font=self.entry_font,
+            font=self._entry_font,
             state=ctk.DISABLED,
-            command=lambda: self._analyze(self.data))
-        self.htt_tip(self.analyze_btn, 'Analyze and preview the sample file selected above')
+            command=lambda: self._analyze(self._data))
+        self.htt_tip(self._analyze_btn, 'Analyze and preview the sample file selected above')
         
-        self.save_btn: ctk.CTkButton = ctk.CTkButton(self,
+        self._save_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="save",
-            font=self.entry_font,
+            font=self._entry_font,
             state=ctk.DISABLED,
-            command=lambda: self._on_save_btn_pressed(self.crnt_sample, self.save_obj))
-        self.htt_tip(self.save_btn, 'save the analysis results of the currently selected sample')
+            command=lambda: self._on_save_btn_pressed())
+        self.htt_tip(self._save_btn, 'save the analysis results of the currently selected sample')
 
-        self.export_btn_icon: ctk.CTkImage = ctk.CTkImage(
+        self._export_btn_icon: ctk.CTkImage = ctk.CTkImage(
             EXPORT_ICON, size=ICON_SIZE)
-        self.export_btn_dis_icon: ctk.CTkImage = ctk.CTkImage(
+        self._export_btn_dis_icon: ctk.CTkImage = ctk.CTkImage(
             EXPORT_DIS_ICON, size=ICON_SIZE)
-        self.export_btn: ctk.CTkButton = ctk.CTkButton(self,
+        self._export_btn: ctk.CTkButton = ctk.CTkButton(self,
             text="export",
-            image=self.export_btn_dis_icon,
+            image=self._export_btn_dis_icon,
             compound='right',
-            font=self.entry_font,
+            font=self._entry_font,
             state=ctk.DISABLED, 
             command=lambda: self._on_export_btn_pressed())
-        self.export_btn.bind('<Control-Button-1>', lambda _: self._on_export_btn_pressed(True))
-        self.htt_tip(self.export_btn, 'open export screen')        
+        self._export_btn.bind('<Control-Button-1>',
+                              lambda _: self._on_export_btn_pressed(self._use_global_defaults))
+        self.htt_tip(self._export_btn, 'open export screen')        
 
         # layout:
-        self.entry.pack(side='top', fill='x')
-        self.entry_frame.pack(side="top", fill="x", padx=5, pady=(5,0))
+        self._entry.pack(side='top', fill='x')
+        self._entry_frame.pack(side="top", fill="x", padx=5, pady=(5,0))
 
-        self.file_import_btn.pack(side="top", fill="x", padx=5, pady=(5,5))
-        self.file_viewer.pack(side="top", expand=1, fill="both", padx=5, pady=(5,5))
-        self.export_btn.pack(side="bottom", fill="x", padx=5, pady=(5,5))
-        self.save_btn.pack(side="bottom", fill="x", padx=5, pady=(5,0))
-        self.analyze_btn.pack(side="bottom", fill="x", padx=5, pady=(5,0))
+        self._file_viewer.pack(side="top", expand=1, fill="both")
+
+        self._file_import_btn.pack(side="top", fill="x", padx=5, pady=(5,5))
+        self._viewer_frame.pack(side="top", expand=1, fill="both", padx=5, pady=(5,5))
+        self._export_btn.pack(side="bottom", fill="x", padx=5, pady=(5,5))
+        self._save_btn.pack(side="bottom", fill="x", padx=5, pady=(5,0))
+        self._analyze_btn.pack(side="bottom", fill="x", padx=5, pady=(5,0))
 
     def _reset_focus(self) -> None:
         """
-        Resets the focus to master from [self.entry].
+        Resets the focus to master from [self._entry].
         """
-        self.entry.configure(border_color=DEFAULT_ENTRY)
-        self.master.focus_set()
+        self._entry.configure(border_color=DEFAULT_ENTRY)
+        self._master.focus_set()
 
     def _on_entry_active(self) -> None:
         """
-        Behavior when hovering over [self.entry].
+        Behavior when hovering over [self._entry].
         """
-        self.entry.focus_set()
-        self.entry.configure(border_color=ACTIVE_ENTRY)
-        self.entry.select_range('0', ctk.END)
-        
+        self._entry.focus_set()
+        self._entry.configure(border_color=ACTIVE_ENTRY)
+        self._entry.select_range('0', ctk.END)
+        self._entry.xview_scroll(len(self._save_obj.get('files_path')),'units')
+
+    def _add_to_path_cache(self, new_path: str) -> None:
+        """
+        Cache [new_path] if it is not.
+        """
+        _crnt_path: str = self._save_obj.get('files_path')
+        if (_crnt_path != new_path) and(new_path not in self._path_cache):
+            self._path_cache.append(_crnt_path)
+
+    def _get_from_path_cache(self) -> None:
+        """
+        Get the path from the cache if it exists.
+        """
+        self._path_cache.insert(0,self._save_obj.get('files_path'))
+        self._save_obj.update(files_path=self._path_cache.pop())
+
+        self._update_entry(self._save_obj.get('files_path'))
+
+    def _update_entry(self, path: str) -> None:
+        """
+        Updates the [self._entry] text and scrolls to the rightmost limit.
+        - call when [files_path] is updated.
+        """
+        self._entry.delete(0, ctk.END)
+        self._entry.insert(0, path)
+        self._entry.xview_scroll(len(path),'units')
+
     def _direct_import(self, path: str) -> None:
         """
-        From [self.entry].
+        From [self._entry].
         """
-        self.save_obj.files_path = path
         if not os.path.exists(path):
             self.obs_broadcast(Signal.LOG, self,
                     (f'path [{path}] is invalid or doesn\'t exist.', LogMsgType.ERROR))
@@ -159,98 +206,98 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         From the import pop-up screen.
         """
-        ImportScreen(self, self.save_obj.files_path, self.set_valid_files)
+        ImportScreen(self, self._save_obj.get('files_path'), self.set_valid_files)
 
     def set_valid_files(self, path:str, files: list[str] = []) -> None:
         """
-        Sets all of:
-        - self.valid_files.
-        - self.number_of_valid_files.
+        Sets all the following through the [ImportScreen]:
+        - self._valid_files.
+        - self._number_of_valid_files.
         """
-        self.save_obj.files_path = path
+        self._add_to_path_cache(path)
+        self._save_obj.update(files_path=path)
         _from_screen = bool(files)
         
-        self.valid_files = self.file_viewer.display_files(path, files, _from_screen) 
-        self.number_of_valid_files = len(self.valid_files)
+        self._valid_files = self._file_viewer.display_files(path, files, _from_screen) 
+        self._number_of_valid_files = len(self._valid_files)
 
         if _from_screen:
-            self.entry.delete(0, ctk.END)
-            self.entry.insert(0, self.save_obj.files_path)
+            self._update_entry(self._save_obj.get('files_path'))
         
-        if self.valid_files:
+        if self._valid_files:
             self._on_imported()
 
     def _on_imported(self) -> None:
         """
-        Sub-routine for importing files is successfully done.
+        Sub-routine for when importing the files is successfully done.
         """
-        self.export_btn.configure(state=ctk.NORMAL, image=self.export_btn_icon)
         self._reset_focus()
-        self.obs_broadcast(Signal.LOG, self, 
-            (f'imported [{self.number_of_valid_files}] files from [{self.save_obj.files_path}].',))
+        self.obs_broadcast(Signal.LOG,self, 
+            (f'imported [{self._number_of_valid_files}] files from [{self._save_obj.get('files_path')}].',))
 
     def _set_data(self) -> None:
-        
-        self.analyze_btn.configure(state=ctk.NORMAL)
-        self.data = self.file_viewer.selection()
+        """
+        Sets [self._data].
+        """
+        self._analyze_btn.configure(state=ctk.NORMAL)
+        self._data = self._file_viewer.selection()
 
     def _analyze(self, table_selection: tuple, graph_type: GraphType|None = None) -> None:
-
-        _file_name: str = self.file_viewer.get_data(table_selection)[-1] #type: ignore
-        _file_path: str = os.path.join(self.save_obj.files_path, _file_name)
-        _in_cache: bool = self.samples_cache.check(_file_path)
+        """
+        Start the analysis process via signal broadcasting.
+        """
+        _file_name: str = self._file_viewer.get_data(table_selection)[-1] #type: ignore
+        _file_path: str = os.path.join(self._save_obj.get('files_path'), _file_name)
+        _in_cache: bool = self._samples_cache.check(_file_path)
 
         if _in_cache:
-            _sample = self.samples_cache.get(_file_path) #type: ignore
+            _sample = self._samples_cache.get(_file_path)
         else:
             _sample: Sample = Sample(_file_path)
-            self.samples_cache.add(_file_path, _sample)
+            self._samples_cache.add(_file_path, _sample)
 
-        self._set_analysis_data(_sample, graph_type)
-        self.obs_broadcast(Signal.ANALYZE, self, (self.crnt_sample, self.save_obj))
+        self._crnt_sample = _sample
+
+        self.obs_broadcast(Signal.ANALYZE, self, (_sample, self._save_obj, graph_type))
         self.obs_broadcast(Signal.LOG, self, (f'analyzed sample [{_sample.get_name().lower()}].',))
 
-        self.after(5, self.file_viewer.focus_set)
-        if self.save_btn.cget('state') == ctk.DISABLED:
-            self.save_btn.configure(state=ctk.NORMAL)
+        self.after(5, self._file_viewer.focus_set)
+        if self._save_btn.cget('state') == ctk.DISABLED:
+            self._export_btn.configure(state=ctk.NORMAL, image=self._export_btn_icon)
+            self._save_btn.configure(state=ctk.NORMAL)
 
-    def _set_analysis_data(self, sample: Sample, graph_type: GraphType|None) -> None:
+    def _on_save_btn_pressed(self) -> None:
         """
-        Setting for an outside signal trigger.
+        Saves a single sample, using:
+        - self._crnt_sample.
+        - self._save_obj.
         """
-        self.crnt_sample = sample
-        self.graph_type = graph_type
-    
-    def _on_save_btn_pressed(self, sample: Sample, save_obj: SaveObject) -> None:
-        """
-        Saves a single sample.
-        """
-        self.cs_save_results(sample, save_obj)
+        self.cs_save_results(self._crnt_sample, self._save_obj)
         self.obs_broadcast(Signal.LOG, self,
-                (f'saved sample [{sample.get_name().lower()}] to [{save_obj.get_results_path()}]',))
+                (f'saved sample [{self._crnt_sample.get_name().lower()}] to [{self._save_obj.get_results_path()}]',))
 
     def _on_export_btn_pressed(self, use_global_defaults: bool = False) -> None:
         """
         Launches the save all dialogue.
         """
-        self.export_popup = ExportScreen(self, self.save_all, self.save_obj, use_global_defaults)
-        self.export_popup.set_limit(self.number_of_valid_files)
+        self._export_popup = ExportScreen(self, self.save_all, self._save_obj, use_global_defaults)
+        self._export_popup.set_limit(self._number_of_valid_files)
 
     def update_color_obj(self, color: str) -> None:
         """
         Triggered by an outside signal from [MainPanel].
         """
-        self.save_obj.color = color
+        self._save_obj.update(color=color)
 
     def save_all(self, save_obj: SaveObject) -> None:
         """
-        Triggered by an outside signal from [MainPanel].
+        Delegated to [ExportScreen].
         """
         self.obs_broadcast(Signal.LOG, self, ('saving all samples...',))
 
         _trigger_ui_update: Callable[[list[str],int],bool] = lambda list_,cap=20: len(list_) > cap
         
-        _index, _interval = save_obj.interval #!config
+        _index, _interval = save_obj.get('interval') #!config
 
         def _prep_files_list(index: int, list_: list[str], interval: list[int]) -> list[str]:
             """
@@ -266,10 +313,10 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
             
             return list_
 
-        _files: list[str] = _prep_files_list(_index, self.valid_files, _interval)
+        _files: list[str] = _prep_files_list(_index, self._valid_files, _interval)
     
         for _ind, file_ in enumerate(_files):
-            _path: str = os.path.join(self.save_obj.files_path, file_)
+            _path: str = os.path.join(self._save_obj.get('files_path'), file_)
             _sample = Sample(_path)
             self.cs_save_results(_sample, save_obj)
             self.obs_broadcast(Signal.LOG, self,
@@ -289,53 +336,97 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         Triggered by an outside signal from [MainPanel].
         """
-        self.export_popup.on_exported()
+        self._export_popup.on_exported()
 
 
 class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
     """
     ttk.Treeview:
     The class that views and gives the ability to select samples.
-    - display_files(dir: str) writes in the samples id and file_name.
-    - get_data(selection_id: str) -> [id: int, sample_file_name: str].
+    - `display_files`: writes in the samples id and file_name.
+    - `get_data`: returns the data.
     """
-    def __init__(self, master: FilePanel) -> None :
+    def __init__(self, master: ctk.CTkFrame) -> None :
         super().__init__(master)
         
-        self.master: FilePanel = master
+        self._master: ctk.CTkFrame = master
 
-        self.width: int = 0
-        self.no_col_width: int = 40
-        self.name_col_width: int = 0
+        self._width: int = 0
+        self._no_col_width: int = 40
+        self._name_col_width: int = 0
+
+        self._tip = None
+        self._activate_tip: bool = False
+
+        #TODO: mm scale?!, Analyzer is the starting point for this
+        self._hdr_strs: list[str] = ['NO', 'File Name']
+        self._hdr_tip_dict: dict[str,str] = {}
+        self._hdr_tips: list[str] = ['file number', 'sample file name']
 
         # otherwise it wont work as intended!.
         self.bind("<Map>", lambda _: _set_element_width(self.winfo_width()))
+        self.bind("<Motion>", lambda event: self._on_mouse_motion(event))
+        self.bind("<Leave>", lambda _: self._on_mouse_exited())
 
         def _set_element_width(width: int) -> None:
             """
             Programmatically set the size of each TreeView column.
             """
-            self.width = width
+            self._width = width
             width -= width%2
-            self.name_col_width = self.width - self.no_col_width
+            self._name_col_width = self._width - self._no_col_width
 
             _layout()
 
         def _layout() -> None:
+            """
+            Self documenting name.
+            """
             self.configure(style='F_Viewer.Treeview', selectmode="browse",
                         show="headings",
                         columns = ["no", "file_name"])
             
             self.column('no',
-                    width=self.no_col_width,
-                    minwidth=self.no_col_width, stretch=False, anchor="center")
+                    width=self._no_col_width,
+                    minwidth=self._no_col_width, stretch=False, anchor="center")
             self.column('file_name',
-                    width=self.name_col_width, minwidth=self.name_col_width)
+                    width=self._name_col_width, minwidth=self._name_col_width)
 
             self.heading("no", text="NO", anchor="center")
             self.heading("file_name", text="File Name", anchor="w")
 
-        self.configure(style='F_Viewer.Treeview', show="headings")
+            self.configure(style='F_Viewer.Treeview', show="headings")
+            
+            self._hdr_tip_dict = {k:v for k,v in zip(self._hdr_strs, self._hdr_tips)}
+
+
+    def _on_mouse_motion(self, event: tk.Event) -> None:
+        """
+        To manage to the initialization of the tooltip.
+        """
+        _pos: tuple[int,int] = (event.x, event.y)
+        _area: str = self.identify_region(*_pos)
+
+        if _area == 'heading':
+            _col_id = self.identify_column(_pos[0])
+            _hdr_name = self.heading(_col_id)['text']
+
+            if not self._activate_tip:
+                self._tip = self.htt_tip(self, self._hdr_tip_dict[_hdr_name],
+                                        font_size=14, id_=_hdr_name)
+                self._tip.on_enter(event)
+                self._activate_tip = True
+        else:
+            self._on_mouse_exited()
+
+    def _on_mouse_exited(self) -> None:
+        """
+        To disable the tooltip.
+        """
+        if self._activate_tip:
+            if self._tip:
+                self._tip.destroy()
+            self._activate_tip = False
 
     def display_files(self, path: str, files: list[str], from_screen: bool) -> list[str]:
         """
@@ -355,9 +446,7 @@ class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
         # screen imports are already val_samples validated!
         if not from_screen:
             _files: list[str] = os.listdir(path)
-            _valid_files = [
-                file_ for file_ in _files if self.val_samples(path, file_)
-                ]
+            _valid_files = [file_ for file_ in _files if self.val_samples(path, file_)]
         else:
             for _file in files:
                 _valid_files +=  self.val_handle_aio(path, _file)
@@ -367,8 +456,11 @@ class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
         return _valid_files
 
     def display(self, valid_files: list[str]) -> None:
-
+        """
+        Inserts the data [valid_files] into the table.
+        """
         _padding: int = len(f'{len(valid_files)}')
+
         if not valid_files:
             self.obs_broadcast(Signal.LOG, self,
                     (f'No valid files where found.', LogMsgType.ERROR,))
@@ -377,5 +469,7 @@ class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
             self.insert("", "end", values=[f'{_index+1:0{_padding}}', file_])
 
     def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
-        
+        """
+        Retrieves the selected data [selection_id].
+        """
         return self.item(selection_id)["values"] # type: ignore

@@ -11,6 +11,8 @@ from typedefs import FileFormat, LogMsgType, Signal
 class ImportScreen(Open, BaseWidget, Observer):
     """
     Import dialogue screen widget.
+    - function:
+    - `show`: open the import dialogue and returns the selection.
     """
     _formats: list[str] = [i.value for i in FileFormat]
 

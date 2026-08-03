@@ -58,8 +58,7 @@ class MainPanel(ctk.CTkFrame, Observer):
         """
         Tells the analysis widget to analyze the sample; signal triggered.
         """
-        self.analysis_panel.write(sample, graph_type)
-        self.analysis_panel.draw_graphs(sample, save_obj, graph_type)
+        self.analysis_panel.analyze(sample, save_obj, graph_type)
 
     def exported(self) -> None:
         """

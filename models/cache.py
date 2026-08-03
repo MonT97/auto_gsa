@@ -8,11 +8,19 @@ Element = TypeVar('Element')
 class Cache():
     """
     Caching functionality.
+    - functions:
+    - `size`: sets the size limit, in terms of number of entries
+    - `check`: for an item in the cache.
+    - `add`: add an item to the cache.
+    - `remove`: an item from the cache.
+    - `get`: an item from the cache.
     """
     def __init__(self, size: int = 1000) -> None:
         """
         Caching functionality.
-        - size: sets the size limit, in terms of number of entries
+        - functions:
+        - data: data to cache.
+        - limit: the caches size.
         """
         self.data: dict = {}
         self.limit = size

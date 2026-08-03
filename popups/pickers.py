@@ -15,8 +15,8 @@ from typedefs import Signal
 from .base_picker import BasePicker  # needed for export_screen
 from .base_screen import DirPickScreen
 
-# Constants
-# color:
+# Constants:
+# color
 ACTIVE_ENTRY_CLR: Final[str] = '#ffffff'
 DEFAULT_ENTRY_CLR: Final[str] = '#565b5e'
 
@@ -25,9 +25,9 @@ LIMIT = Literal['u', 'l']
 class DirPicker(ctk.CTkFrame, HasToolTip):
     """
     Directory picker dialog.
-    - label_txt: the toggle's label.
-    - full_path: the default value.
-    - tooltip_msg: the text to be shown in the tool tip.
+    - `functions`:
+    - `get_path`: returns the path.
+    - `get_name`: get the name of the file.
     """
     def __init__(self, master, label_txt: str, full_path: str, tooltip_msg: str = '') -> None:
         """
@@ -142,38 +142,38 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 super().__init__(master)
                 _padding: float = .2
 
-                self.u_lim: int = 0 # set from master
+                self._u_lim: int = 0 # set from master
                 self.configure(height=28)
 
-                self.u_var: ctk.StringVar = ctk.StringVar(self)
-                self.l_var: ctk.StringVar = ctk.StringVar(self)
+                self._u_var: ctk.StringVar = ctk.StringVar(self)
+                self._l_var: ctk.StringVar = ctk.StringVar(self)
                 
-                self.to: ctk.CTkLabel = ctk.CTkLabel(self, text='to')
+                self._to: ctk.CTkLabel = ctk.CTkLabel(self, text='to')
            
-                self.u_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                        width=40, textvariable=self.u_var, border_color=ACTIVE_ENTRY_CLR)
-                self.htt_tip(self.u_limit_entry, 'The start of the interval, enclusive.')
-                self.u_limit_entry.bind("<FocusOut>",
-                    lambda _: self._validate_input(self.u_var, 'u'))
-                self.u_limit_entry.bind('<Enter>',
-                                        lambda _: self._on_mouse_enter(self.u_limit_entry))
+                self._u_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
+                        width=40, textvariable=self._u_var, border_color=ACTIVE_ENTRY_CLR)
+                self.htt_tip(self._u_limit_entry, 'The start of the interval, enclusive.')
+                self._u_limit_entry.bind("<FocusOut>",
+                    lambda _: self._validate_input(self._u_var, 'u'))
+                self._u_limit_entry.bind('<Enter>',
+                                        lambda _: self._on_mouse_enter(self._u_limit_entry))
 
-                self.l_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                        width=40, textvariable=self.l_var, border_color=ACTIVE_ENTRY_CLR)
-                self.htt_tip(self.l_limit_entry, 'The end of the interval, enclusive.')
-                self.l_limit_entry.bind("<FocusOut>",
-                    lambda _: self._validate_input(self.l_var, 'l'))
-                self.l_limit_entry.bind('<Enter>',
-                                        lambda _: self._on_mouse_enter(self.l_limit_entry))
+                self._l_limit_entry: ctk.CTkEntry = ctk.CTkEntry(self,
+                        width=40, textvariable=self._l_var, border_color=ACTIVE_ENTRY_CLR)
+                self.htt_tip(self._l_limit_entry, 'The end of the interval, enclusive.')
+                self._l_limit_entry.bind("<FocusOut>",
+                    lambda _: self._validate_input(self._l_var, 'l'))
+                self._l_limit_entry.bind('<Enter>',
+                                        lambda _: self._on_mouse_enter(self._l_limit_entry))
 
-                self.u_limit_entry.place(anchor='w', relx=0+_padding, rely=.5)
-                self.to.place(anchor='n', relx=.5, rely=0)
-                self.l_limit_entry.place(anchor='e', relx=1-_padding, rely=.5)
+                self._u_limit_entry.place(anchor='w', relx=0+_padding, rely=.5)
+                self._to.place(anchor='n', relx=.5, rely=0)
+                self._l_limit_entry.place(anchor='e', relx=1-_padding, rely=.5)
 
                 # if the SaveObj in export screen has these values:
-                if self.u_var.get() and self.l_var.get():
-                    self._validate_input(self.u_var, 'u')
-                    self._validate_input(self.l_var, 'l')
+                if self._u_var.get() and self._l_var.get():
+                    self._validate_input(self._u_var, 'u')
+                    self._validate_input(self._l_var, 'l')
 
             def _on_mouse_enter(self, entry: ctk.CTkEntry) -> None:
                 """
@@ -191,15 +191,15 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 _val_is_valid: Callable = lambda x: bool(re.match('^-[0-9]+$|^[0-9]+$', x))
                 
                 if _val_is_valid(_val):
-                    var.set(f'{max(int(_val), 0)}') if limit == 'u' else var.set(f'{min(int(_val), self.u_lim)}')
+                    var.set(f'{max(int(_val), 0)}') if limit == 'u' else var.set(f'{min(int(_val), self._u_lim)}')
                     return
 
                 var.set('')
 
             def get_var(self) -> str:
 
-                _u_lim: int = int(self.u_var.get())
-                _l_lim: int = int(self.l_var.get())+1 #for the exclusivity of python list indexing
+                _u_lim: int = int(self._u_var.get())
+                _l_lim: int = int(self._l_var.get())+1 #for the exclusivity of python list indexing
 
                 return f'{_u_lim},{_l_lim}'
             
@@ -208,8 +208,8 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 Sets the var before viewing the widget.
                 """
                 _u, _l = interval
-                self.u_var.set(value=str(_u+1))
-                self.l_var.set(value=str(_l))
+                self._u_var.set(value=str(_u+1))
+                self._l_var.set(value=str(_l))
 
 
         class ListPckr(ctk.CTkFrame, HasToolTip):
@@ -217,27 +217,27 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
             def __init__(self, master) -> None:
                 super().__init__(master)
 
-                self.u_lim: int = 0 # set from master
-                self.variable: ctk.StringVar = ctk.StringVar(self)
+                self._u_lim: int = 0 # set from master
+                self._variable: ctk.StringVar = ctk.StringVar(self)
 
-                self.list_entry: ctk.CTkEntry = ctk.CTkEntry(self,
-                            textvariable=self.variable, border_color=ACTIVE_ENTRY_CLR)
-                self.htt_tip(self.list_entry, 'List of sample numbers, for example:\n- [1,2,6]: chooses samples 1, 2 and 6.\n- use only [,]as a delimiter.')
-                self.list_entry.bind('<Enter>', lambda _: self._on_mouse_enter())
-                self.list_entry.bind("<FocusOut>", lambda _: self._validate_input(self.variable))
+                self._list_entry: ctk.CTkEntry = ctk.CTkEntry(self,
+                            textvariable=self._variable, border_color=ACTIVE_ENTRY_CLR)
+                self.htt_tip(self._list_entry, 'List of sample numbers, for example:\n- [1,2,6]: chooses samples 1, 2 and 6.\n- use only [,]as a delimiter.')
+                self._list_entry.bind('<Enter>', lambda _: self._on_mouse_enter())
+                self._list_entry.bind("<FocusOut>", lambda _: self._validate_input(self._variable))
 
                 # if the SaveObj in export screen has this value
-                if self.variable.get():
-                    self._validate_input(self.variable)
+                if self._variable.get():
+                    self._validate_input(self._variable)
 
-                self.list_entry.pack()
+                self._list_entry.pack()
             
             def _on_mouse_enter(self) -> None:
                 """
                 When the mouse enters the entry widget.
                 """
-                self.after(1,self.list_entry.focus_set)
-                self.list_entry.select_range('0', ctk.END)
+                self.after(1,self._list_entry.focus_set)
+                self._list_entry.select_range('0', ctk.END)
 
             def _validate_input(self, value: ctk.StringVar) -> None:
                 """
@@ -247,78 +247,81 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
                 _numbers: list[str] = re.findall(r'[0-9]+', _value)
 
-                _cap_number: Callable = lambda x: f'{min(int(x), self.u_lim)}'
+                _cap_number: Callable = lambda x: f'{min(int(x), self._u_lim)}'
                 _str_numbers: str = ','.join([_cap_number(i) for i in _numbers])
 
                 value.set(_str_numbers)
 
             def get_var(self) -> str:
 
-                return self.variable.get()
+                return self._variable.get()
 
             def set_var(self, interval: list[int]) -> None:
                 """
                 Sets the var before viewing the widget.
                 """
                 _interv = ','.join(f'{i+1}' for i in interval)
-                self.variable.set(_interv)
+                self._variable.set(_interv)
 
+        self._index: int = 0
         _options: list[str] = ['all', 'interval', 'list']
         _ind, self._interv = default_interval
 
-        self.getter_function: Callable[[],str]
-        self.pick_var: ctk.StringVar = ctk.StringVar(self, value=_options[0])
+        self._getter_function: Callable[[],str]
+        self._pick_var: ctk.StringVar = ctk.StringVar(self, value=_options[0])
 
-        self.label: ctk.CTkLabel = ctk.CTkLabel(self,
+        self._label: ctk.CTkLabel = ctk.CTkLabel(self,
                     anchor='w', text='Selection method:', height=17)
-        self.htt_tip(self.label, 'The method used to scelect samples to export.')
+        self.htt_tip(self._label, 'The method used to scelect samples to export.')
 
-        self.drop_down: ctk.CTkComboBox = ctk.CTkComboBox(self,
-                    values=_options, variable=self.pick_var,
+        self._drop_down: ctk.CTkComboBox = ctk.CTkComboBox(self,
+                    values=_options, variable=self._pick_var,
                     command=lambda _: self._update_layout(_))
 
-        self.interval_pckr: IntPckr = IntPckr(self)
-        self.list_pckr: ListPckr = ListPckr(self)
+        self._interval_pckr: IntPckr = IntPckr(self)
+        self._list_pckr: ListPckr = ListPckr(self)
 
-        self.label.pack(side='top', fill='x', padx=2)
+        self._label.pack(side='top', fill='x', padx=2)
         self._update_layout(_options[_ind])
 
     def _update_layout(self, option: str) -> None:
-
+        """
+        Updates the layout based on [option].
+        """
         for i in self.winfo_children()[1:]:
             i.pack_forget()
 
         match option:
             case 'all':
-                self.drop_down.pack(side='left', expand=True, fill='x', padx=2, pady=2)
-                self.index = 0
+                self._drop_down.pack(side='left', expand=True, fill='x', padx=2, pady=2)
+                self._index = 0
             case 'interval':
-                self.drop_down.pack(side='left', fill='x', padx=2, pady=2)
-                self.interval_pckr.pack(side='top', fill='x', padx=2, pady=2)
+                self._drop_down.pack(side='left', fill='x', padx=2, pady=2)
+                self._interval_pckr.pack(side='top', fill='x', padx=2, pady=2)
                 if self._interv:
-                    self.interval_pckr.set_var(self._interv)
-                self._set_getter(self.interval_pckr)
-                self.index = 1
+                    self._interval_pckr.set_var(self._interv)
+                self._set_getter(self._interval_pckr)
+                self._index = 1
             case 'list':
-                self.drop_down.pack(side='left', fill='x', padx=2, pady=2)
-                self.list_pckr.pack(side='left', fill='x', padx=2, pady=2, expand=True)
+                self._drop_down.pack(side='left', fill='x', padx=2, pady=2)
+                self._list_pckr.pack(side='left', fill='x', padx=2, pady=2, expand=True)
                 if self._interv:
-                    self.list_pckr.set_var(self._interv)
-                self._set_getter(self.list_pckr)
-                self.index = 2
+                    self._list_pckr.set_var(self._interv)
+                self._set_getter(self._list_pckr)
+                self._index = 2
 
     def _set_getter(self, widget) -> None:
         """
         Sets the getter function based on child widget picked.
         """
-        self.getter_function = widget.get_var
+        self._getter_function = widget.get_var
     
     def set_upper_limit(self, val: int) -> None:
         """
         Tells the widget how many samples there is.
         """
-        self.interval_pckr.u_lim = val
-        self.list_pckr.u_lim = val
+        self._interval_pckr._u_lim = val
+        self._list_pckr._u_lim = val
 
     def get_value(self) -> tuple[int,list[int]]:
         """
@@ -326,10 +329,10 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
         """
         _output = []
         
-        if self.index != 0:
-            _output: list[int] = [int(i)-1 for i in self.getter_function().split(',')]
+        if self._index != 0:
+            _output: list[int] = [int(i)-1 for i in self._getter_function().split(',')]
         
-        return  (self.index, _output)
+        return  (self._index, _output)
     
 
 class GraphColorPicker(ctk.CTkFrame, Observer):
@@ -339,13 +342,13 @@ class GraphColorPicker(ctk.CTkFrame, Observer):
     def __init__(self, master, color: str) -> None:
         super().__init__(master)
 
-        self.color: str = ''
+        self._color: str = color
 
         self._toggle: ctk.CTkSwitch = ctk.CTkSwitch(self,
             text='Use preview color', width=150,
             command=lambda: self._on_check())
-        self.color_pckr: ColorPicker = ColorPicker(self)
-        self.color_pckr.update_clr_and_intvars(color)
+        self._color_pckr: ColorPicker = ColorPicker(self)
+        self._color_pckr.update_clr_and_intvars(color)
         self._toggle.toggle()
 
         self.obs_listen(Signal.COLOR, self, self.on_preview_press)
@@ -357,21 +360,21 @@ class GraphColorPicker(ctk.CTkFrame, Observer):
         When the toggle is toggled.
         """
         if self._toggle.get():
-            self.color_pckr.pack_forget()
+            self._color_pckr.pack_forget()
             self._toggle.configure(text='Use preview color')
         else:
             self._toggle.configure(text='Pick a color')
-            self.color_pckr.pack(side='top', padx=2, pady=2)
+            self._color_pckr.pack(side='top', padx=2, pady=2)
 
     def on_preview_press(self, color: str) -> None:
         """
         Triggered by a preview button press From the clr_pikr: ColorPicker.
         - `color`: hex color.
         """
-        self.color = color
+        self._color = color
 
     def get_value(self) -> str:
         """
         Returns the color.
         """
-        return self.color
+        return self._color

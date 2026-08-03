@@ -1,5 +1,5 @@
 """
-The data model for the Sample.
+Data models for the application.
 """
 from .analyzer import Analyzer
 from .cache import Cache

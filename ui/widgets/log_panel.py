@@ -9,13 +9,13 @@ from mixins import HasToolTip, Observer
 from typedefs import LogMsgType, Signal
 
 # Constants:
-# names:
+# names
 CNFG_DIR_NAME: Final[str] = 'auto_gsa'
 LOG_FILE_NAME: Final[str] = 'log.txt'
 CNFG_DIR: Final[str|None] = os.environ.get('LOCALAPPDATA')
 assert CNFG_DIR, 'Strange!, you don\'t have an appdata dir??!!'
 
-# file permission:
+# file permission
 FULL_PERMISSION: Final[int] = 0o700
 READ_ONLY: Final[int] = 0o400
 
@@ -30,26 +30,26 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
 
         self.configure(corner_radius=0)
 
-        self.cnfg_path: str = ''
-        self.log_file_path: str = ''
+        self._cnfg_path: str = ''
+        self._log_file_path: str = ''
 
-        self.label: ctk.CTkLabel = ctk.CTkLabel(self, anchor='w', text='Log:')
-        self.text_box: ctk.CTkTextbox = ctk.CTkTextbox(self,
+        self._label: ctk.CTkLabel = ctk.CTkLabel(self, anchor='w', text='Log:')
+        self._text_box: ctk.CTkTextbox = ctk.CTkTextbox(self,
                     state=ctk.DISABLED, corner_radius=0, activate_scrollbars=False)
-        self.label.bind('<Double-Button-1>', lambda _: self._expand())
-        self.htt_tip(self.label, 'double click to expand/shrink')
+        self._label.bind('<Double-Button-1>', lambda _: self._expand())
+        self.htt_tip(self._label, 'double click to expand/shrink')
 
-        self.label.pack(side='left', padx=5)
-        self.text_box.pack(side='left', fill='both', expand=True)
+        self._label.pack(side='left', padx=5)
+        self._text_box.pack(side='left', fill='both', expand=True)
         
         self._setup_log_file()
 
     def _setup_log_file(self) -> None:
     
-        self.cnfg_path = os.path.join(CNFG_DIR, CNFG_DIR_NAME)
+        self._cnfg_path = os.path.join(CNFG_DIR, CNFG_DIR_NAME)
 
-        if not os.path.exists(self.cnfg_path):
-            os.mkdir(self.cnfg_path)
+        if not os.path.exists(self._cnfg_path):
+            os.mkdir(self._cnfg_path)
 
     def _log_to_file(self, text: str) -> None:
         """
@@ -58,18 +58,18 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
         _mode: str = 'a'
         _header: str = f'created in: {dt.datetime.now().ctime()}\n---------------------------<\nAuto_GSA logfile\n>---------------------------\n'
         
-        self.log_file_path = os.path.join(self.cnfg_path, LOG_FILE_NAME)
-        _file_exists: bool = os.path.exists(self.log_file_path)
+        self._log_file_path = os.path.join(self._cnfg_path, LOG_FILE_NAME)
+        _file_exists: bool = os.path.exists(self._log_file_path)
         if not _file_exists: #TODO: additional conditions??
             _mode: str = 'w'
             text+=_header
 
         # Linux like [user,group,others], 4=r,2=w,1=exc,0=none.
         if _file_exists:
-            os.chmod(self.log_file_path, FULL_PERMISSION)
-        with open(self.log_file_path, _mode) as f:
+            os.chmod(self._log_file_path, FULL_PERMISSION)
+        with open(self._log_file_path, _mode) as f:
             f.write(text+'\n')
-        os.chmod(self.log_file_path, READ_ONLY)
+        os.chmod(self._log_file_path, READ_ONLY)
         
     def write(self, text: str, prefix: LogMsgType|None=None) -> None:
         """
@@ -79,11 +79,11 @@ class LoggingLabel(ctk.CTkFrame, HasToolTip, Observer):
         prefix = LogMsgType.NORMAL if prefix is None else prefix
         _text: str = prefix.value + text
 
-        self.text_box.configure(state=ctk.NORMAL)
-        self.text_box.insert(tk.INSERT, _text)
-        self.text_box.see(tk.END)
-        self.text_box.insert(tk.INSERT, '\n')
-        self.text_box.configure(state=ctk.DISABLED)
+        self._text_box.configure(state=ctk.NORMAL)
+        self._text_box.insert(tk.INSERT, _text)
+        self._text_box.see(tk.END)
+        self._text_box.insert(tk.INSERT, '\n')
+        self._text_box.configure(state=ctk.DISABLED)
 
         self._log_to_file(_text)
     

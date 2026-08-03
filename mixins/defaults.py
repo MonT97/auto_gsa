@@ -3,13 +3,17 @@ Creating, storing and retrieving default values.
 """
 import json
 import os
-from typing import Type, TypeVar, cast
+from typing import Type, TypeVar, cast, Final
 
 from typedefs import DefaultObj, SaveObject
 
 # Constants
 # color:
 DEFAULT_CLR = '#1f7bb4'
+
+# file permission:
+FULL_PERMISSION: Final[int] = 0o700
+READ_ONLY: Final[int] = 0o400
 
 T = TypeVar('T', bound=DefaultObj)
 
@@ -23,6 +27,10 @@ _cnfg_file_path: str = os.path.join(_cnfg_dir_path, _defaults_file_name)
 class Defaults():
     """
     A mixin wrapping the functionality to create default values.
+    - functions:
+    - `df_get_all`: gets all the values from the [_obj].
+    - `df_get_from_file`: get the unchanged default version from the [defaults.json].
+    - `df_get`: get the default value of the given class.
     """
     def _add_default(self, obj: Type[T]) -> None:
         """
@@ -41,17 +49,17 @@ class Defaults():
         """
         if obj is SaveObject:
 
-            _data = SaveObject()
-            _data.prefix = 'results_'
-            _data.files_path  = 'd:/documents/auto gsa data'
-            _data.results_path = 'd:/documents/auto gsa data'
-            _data.results_dir_name = 'analysis_results'
-            _data.raw_results_dir_name = 'raw_files' #!confg
-            _data.color = DEFAULT_CLR
-            _data.dpi = 300
-            _data.save_raw_files = False
-            _data.interval = (0,[])
-            _data.transparent = False
+            _data = SaveObject(
+                prefix = 'results_',
+                files_path  = r'D:/Documents/auto gsa data',
+                results_path = r'D:/Documents/auto gsa data',
+                results_dir_name = 'analysis_results',
+                raw_results_dir_name = 'raw_files', #!confg
+                color = DEFAULT_CLR,
+                dpi = 300,
+                save_raw_files = False,
+                interval = (0,[]),
+                transparent = False)
 
         return cast(T, _data)
 
@@ -62,7 +70,8 @@ class Defaults():
         _json: dict = {}
 
         _dir_exist: bool = os.path.exists(_cnfg_dir_path)
-        _file_exist: bool = os.path.exists(_cnfg_file_path)
+        _cnfg_file_exist: bool = os.path.exists(_cnfg_file_path)
+
         if not _dir_exist:
              os.mkdir(_cnfg_dir_path)
         try:
@@ -76,11 +85,13 @@ class Defaults():
         _json[id_] = default_obj.to_dict()
 
         # Linux like [user,group,others], 4=r,2=w,1=exc,0=none.
-        if _file_exist:
-            os.chmod(_cnfg_file_path, 0o700)
+        if _cnfg_file_exist:
+            os.chmod(_cnfg_file_path, FULL_PERMISSION)
+
         with open(_cnfg_file_path, 'w') as f:
                 json.dump(_json, f, indent=4)
-        os.chmod(_cnfg_file_path, 0o400)
+                
+        os.chmod(_cnfg_file_path, READ_ONLY)
 
     def df_get_from_file(self, obj: Type[T]):
         """

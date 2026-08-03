@@ -1,5 +1,9 @@
 """
 Consider a theme/styles module down the line.
+- functions:
+- `bg_trancparent`: make a widgets background transparent.
+- `import_from_path`: intended for data validation.
+- `get_root`: a wrapper for ._root().
 """
 from tkinter import BaseWidget, Toplevel
 from tkinter.commondialog import Dialog

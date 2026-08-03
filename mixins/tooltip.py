@@ -12,7 +12,8 @@ FW = Literal['normal', 'bold']
 
 class HasToolTip():
     """
-    Adds a tooltip using the function: htt_tip().
+    Adds a tooltip using the function:
+    - `htt_tip`: adds a tooltip for a function.
     """
     _ttip_dict: dict[Widget|str,tuple[str,ToolTip]] = {}
     

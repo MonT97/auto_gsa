@@ -14,15 +14,14 @@ from shared_widgets import ColorPicker
 from typedefs import (AnalysisMethod, GraphParameters, GraphType, PlotData,
                       SampleStats, SaveObject, Signal, StatsInterpretation)
 
-# Constants
-# fonts:
+# Constants:
+# fonts
 STATS_NOTE_FONT: Final[tuple[str, int, str]] = ('Arial', 14, 'bold')
 
-# colors:
+# colors
 GRAPH_COLOR_DEFAULT: Final[str] = '#1f7bb4'
 
-
-# customization bar:
+# customization bar
 CUST_BAR_PARAMS: Final[tuple[float, float, float]] =  (.3, .25, .04)
 
 
@@ -44,45 +43,56 @@ class AnalysisPanel(ctk.CTkFrame, Observer):
 
         self.configure(corner_radius=0)
 
-        self.current_sample: Sample = Sample()
+        self._current_sample: Sample = Sample()
+        self._analyzer: Analyzer = Analyzer()
 
-        self.graph_panel: GraphPanel = GraphPanel(self)
-        self.data_panel: DataPanel = DataPanel(self)
+        self._graph_panel: GraphPanel = GraphPanel(self)
+        self._data_panel: DataPanel = DataPanel(self)
 
         self.columnconfigure(0, weight=1, uniform='a')
         self.columnconfigure(1, weight=1, uniform='a')
         self.rowconfigure(0, weight=5, uniform='a')
         self.rowconfigure(1, weight=4, uniform='a')
 
-        self.graph_panel.grid(
-            column=0, columnspan=2, row=0, rowspan=1,
-            padx=5, pady=(5,0),sticky='nsew')
-        self.data_panel.grid(
-            column=0, columnspan=2, row=1, rowspan=1,
-            padx=5, pady=5, sticky='nsew')
+        self._graph_panel.grid(
+                column=0, columnspan=2, row=0, rowspan=1,
+                padx=5, pady=(5,0),sticky='nsew')
+        self._data_panel.grid(
+                column=0, columnspan=2, row=1, rowspan=1,
+                padx=5, pady=5, sticky='nsew')
 
-    def _create_analyzer(self, sample: Sample) -> None:
+    def _update_analyzer(self, sample: Sample) -> None:
         """
         Creates an Analyzer object for the given [sample].
         """
-        if self.current_sample != sample:
-            self.analyzer: Analyzer = Analyzer(sample.get_data())
+        if self._current_sample != sample:
+            self._analyzer = Analyzer(sample.get_data())
 
-    def draw_graphs(self, sample: Sample, save_obj: SaveObject, graph_type: GraphType|None = None) -> None:
+    def analyze(self,
+                sample: Sample,
+                save_obj: SaveObject,
+                graph_type: GraphType|None = None) -> None:
         """
-        Triggered by an outside signal from [MainPanel].
+        Analyze the given [sample], triggered by an outside signal from [MainPanel].
         """
-        self._create_analyzer(sample)
+        self._update_analyzer(sample)
+        self._draw_graphs(sample, save_obj, graph_type)
+        self._write(sample, graph_type)
+
+    def _draw_graphs(self, sample: Sample, save_obj: SaveObject,
+                     graph_type: GraphType|None) -> None:
+        """
+        Draws the graphs using it.
+        """
         #? is this the best place for this? NO, actually it might
-        self.graph_panel.draw_graphs(
-            self.analyzer, sample.get_name(), save_obj.color, graph_type)      
+        self._graph_panel.draw_graphs(
+            self._analyzer, sample.get_name(), save_obj.get('color'), graph_type)      
 
-    def write(self, sample: Sample, graph_type: GraphType|None = None) -> None:
+    def _write(self, sample: Sample, graph_type: GraphType|None) -> None:
         """
-        Triggered by an outside signal from [MainPanel].
+        Writes the data and it's analysis into the [DataPanel].
         """
-        self._create_analyzer(sample)
-        self.data_panel.write(self.analyzer, sample, graph_type)
+        self._data_panel.write(self._analyzer, sample, graph_type)
     
 
 class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
@@ -98,36 +108,35 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
         super().__init__(master, height=height)
 
         # Cache:
-        self.graphs_cache: Cache = Cache()
+        self._graphs_cache: Cache = Cache()
 
-        self.graphs: list[Axes] = []
-        self.graph_params: GraphParameters = GraphParameters()
-        self.graph_is_expanded: bool = False
-        self.graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
+        self._graph_params: GraphParameters = GraphParameters()
+        self._graph_is_expanded: bool = False
+        self._graph_names = {GraphType.HIST: "Histogram", GraphType.CUM: "Cumulative Curve"}
 
-        self.graph_frame: ctk.CTkFrame = ctk.CTkFrame(self)
-        self.graph_frame.columnconfigure(0, weight=1, uniform='a')
-        self.graph_frame.columnconfigure(1, weight=1, uniform='a')
-        self.graph_frame.rowconfigure(0, weight=1, uniform='a')
+        self._graph_frame: ctk.CTkFrame = ctk.CTkFrame(self)
+        self._graph_frame.columnconfigure(0, weight=1, uniform='a')
+        self._graph_frame.columnconfigure(1, weight=1, uniform='a')
+        self._graph_frame.rowconfigure(0, weight=1, uniform='a')
 
-        self.label = ctk.CTkLabel(self, text='Graphs:', font=STATS_NOTE_FONT)
+        self._label = ctk.CTkLabel(self, text='Graphs:', font=STATS_NOTE_FONT)
         
-        self.label.pack(side='top', padx=5, anchor='w')
-        self.graph_frame.pack(fill='both', expand=1, padx=5, pady=5)
+        self._label.pack(side='top', padx=5, anchor='w')
+        self._graph_frame.pack(fill='both', expand=1, padx=5, pady=5)
 
-        self.cust_bar = CustomizationBar(self,
-                        self.graph_params, self.update_graphs, *CUST_BAR_PARAMS)
+        self.cust_bar = CustomizationBar(self, 
+                        self._graph_params, self.update_graphs, *CUST_BAR_PARAMS)
 
     def _generate_graph(self, 
-                       plot_data: PlotData, sample_name: str, graph_type: GraphType,
-                       color: str) -> tk.Canvas:
+                       plot_data: PlotData, sample_name: str,
+                       graph_type: GraphType, color: str) -> tk.Canvas:
         """
         Generates the graph/plot as a layout ready widget.
         """
         _fig, _ax = plt.subplots()
         _fig.set_layout_engine('constrained')
-        _canvas = FigureCanvasTkAgg(_fig, self.graph_frame) 
-        _graph_name = self.graph_names[graph_type]
+        _canvas = FigureCanvasTkAgg(_fig, self._graph_frame) 
+        _graph_name = self._graph_names[graph_type]
 
         _title: str = f"{_graph_name}\n{sample_name}"
 
@@ -143,7 +152,7 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
         """
         Saves the current params used to produce the graph as a GraphParameters object.
         """
-        self.graph_params.update(
+        self._graph_params.update(
                 analyzer=analyzer, sample_name=sample_name,
                 graph_type=graph_type, graph_color=graph_color)
 
@@ -168,18 +177,18 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
             """
             Using the given [id_] and [type_], creates or retrieves from cache then returns the tk.Canvas obj to plot.
             """
-            _in_cache: bool = self.graphs_cache.check(id_)
+            _in_cache: bool = self._graphs_cache.check(id_)
             if _in_cache:
-                _graph: tk.Canvas = self.graphs_cache.get(id_)
+                _graph: tk.Canvas = self._graphs_cache.get(id_)
             else:
                 _graph = self._generate_graph(analyzer.get_plot_data(type_), sample_name, type_, graph_color)
-                self.graphs_cache.add(id_, _graph)
+                self._graphs_cache.add(id_, _graph)
 
             _graphs_list.append(_graph)
 
             _graph.bind('<Button-1>', lambda _: self._expand_graph(_graph))
             _graph.bind('<Leave>', lambda _: self._revert_layout(_graphs_list))
-            self.htt_tip(_graph, f'{self.graph_names[type_].lower()}\nclick to expand/shrink')
+            self.htt_tip(_graph, f'{self._graph_names[type_].lower()}\nclick to expand/shrink')
 
             return _graph
 
@@ -205,9 +214,9 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
         Fills the grid layout with the provided [graph].
         """
         self._clear_layout()
-        if not self.graph_is_expanded:
+        if not self._graph_is_expanded:
             graph.grid(column=0, row=0, columnspan=2, rowspan=1, sticky='nsew')
-            self.graph_is_expanded = True
+            self._graph_is_expanded = True
 
     def _revert_layout(self, graphs_list: list[tk.Canvas]) -> None:
         """
@@ -216,13 +225,13 @@ class GraphPanel(ctk.CTkFrame, CanPlot, HasToolTip):
         self._clear_layout()
         for ind, graph in enumerate(graphs_list):
             graph.grid(column=ind, row=0, columnspan=1, rowspan=1)
-        self.graph_is_expanded = False
+        self._graph_is_expanded = False
 
     def _clear_layout(self) -> None:
         """
         Clears the layout.
         """
-        for graph in self.graph_frame.grid_slaves():
+        for graph in self._graph_frame.grid_slaves():
             graph.grid_forget()
 
 
@@ -233,7 +242,7 @@ class DataPanel(ctk.CTkFrame):
     """
     def __init__(self, master: AnalysisPanel, height: int = 200) -> None:
         super().__init__(master, height=height)
-        self.label = ctk.CTkLabel(self,
+        self._label = ctk.CTkLabel(self,
                 text='Data and analysis:', font=STATS_NOTE_FONT)
 
         # housing frame:
@@ -251,7 +260,7 @@ class DataPanel(ctk.CTkFrame):
         self.data_table.grid(column=0, row=0, sticky='nsew', padx=(5,0), pady=(5,5))
         self.stats_note.grid(column=1, row=0, sticky='nsew', padx=5, pady=(5,5))
         
-        self.label.pack(side='top', padx=5, anchor='w')
+        self._label.pack(side='top', padx=5, anchor='w')
         self.table_note_frame.pack(side='top', fill='both', expand=1, padx=5, pady=(0,5))
 
     def write(self, analyzer: Analyzer, sample: Sample, _type: GraphType|None):
@@ -326,7 +335,7 @@ class DataTable(ttk.Treeview, HasToolTip):
         """
         To manage to the initialization of the tooltip.
         """
-        _pos: tuple[float,float] = (event.x, event.y)
+        _pos: tuple[int,int] = (event.x, event.y)
         _area: str = self.identify_region(*_pos)
         if _area == 'heading':
             _col_id = self.identify_column(_pos[0])

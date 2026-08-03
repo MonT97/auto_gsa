@@ -13,10 +13,16 @@ HEADER: tuple = ('phi', 'wht', 'wht%', 'cum.wht%')
 class Sample():
     """
     The class resembling the sample:
-        - name: str.
-        - data: pd.DataFrame, a minimum of 3 points is necessary for calculations.
+    - functions:
+    - `get_name`: get the file name.
+    - `get_data`: get the samples data.
     """
     def __init__(self, path: str = '') -> None:
+        """
+        The class resembling the sample:
+            - name: str.
+            - data: pd.DataFrame, a minimum of 3 points is necessary for calculations.
+        """
         self._full_name: str = ''
         self._data: pd.DataFrame = pd.DataFrame()
 

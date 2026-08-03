@@ -7,14 +7,17 @@ from typing import Any
 class SignalData():
     """
     A class that holds signal data, use:
-    - [.add_args], [.add_listeners], [.set_sender] to set the signal data. 
-    - [.pop_arg] to get arguments to pass to the listener function.
+    - `add_args`: adds arguments into the signal data.
+    - `add_listener`: adds a listener into the signal data.
+    - `set_sender`: adds a sender into the signal data.
+    - `pop_arg`: retrieves an argument from the args. 
     """
     def __init__(self) -> None:
         """
-        A class that holds signal data, use:
-        - [.add_args], [.add_listeners], [.set_sender] to set the signal data. 
-        - [.pop_arg] to get arguments to pass to the listener function.
+        A class that holds signal data, it holds:
+        - sender.
+        - listener.
+        - args.
         """
         self.sender: Dialog|BaseWidget|None = None
         self.listeners: list[BaseWidget|Dialog] = []

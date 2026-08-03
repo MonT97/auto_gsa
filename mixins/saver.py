@@ -20,7 +20,8 @@ EDGE_PADDING: Final[float] = 10/72
 class CanSave(Defaults, CanPlot):
     """
     A mixin wrapping the saving functionality.
-    - save_results.
+    - functions:
+    - `cs_save_results`: save the result.
     """
     def cs_save_results(self, sample: Sample, save_obj: SaveObject, rounding: int = 3) -> None:
         """

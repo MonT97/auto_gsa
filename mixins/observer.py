@@ -99,8 +99,9 @@ class ArgumentsMismatch(Exception):
 class Observer():
     """
     A signal communication system.
-    - broadcast using [obs_broadcast].
-    - listen using [obs_listen]
+    - functions:
+    - `obs_broadcast`: to broadcast.
+    - `obs_listen`: to listen.
     """
     def _validate_input(self, signal: Signal, sender:Widget|Dialog|None = None,
                         sender_args: list[Any] = [], func: Callable|None = None) -> None:
@@ -264,7 +265,7 @@ class Observer():
     ...
     @overload
     def obs_broadcast(self, signal: Literal[Signal.ANALYZE], sender: Widget,
-                            args: tuple['Sample', 'SaveObject', 'GraphType']) -> None:
+                            args: tuple['Sample', 'SaveObject', 'GraphType|None']) -> None:
         """
         - signal: Signal.ANALYZE.
         """
@@ -326,4 +327,4 @@ class Observer():
         try:
             func(*_args)
         except Exception as e:
-            print(e, "Past validation!")
+            print(f"{e}\n Past validation!\nsig name: {signal.get_name()}\nfunction: {func},\nargs: {_args}.")
