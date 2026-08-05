@@ -5,7 +5,7 @@ import customtkinter as ctk
 
 from mixins import Defaults, HasToolTip, Observer
 from models import Cache
-from typedefs import SaveObject
+from typedefs import SaveObject, Signal
 
 from .base_picker import BasePicker, BaseToggle
 from .base_screen import BaseScreen
@@ -32,7 +32,7 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
     - function:
     - `use_global_defaults`: If true, the [ExportScreen] uses the global default values instead of the latest used.
     """
-    def __init__(self, master, connection_func: Callable,
+    def __init__(self, master, state_func: Callable, connection_func: Callable,
                  save_obj: SaveObject, use_global_defaults: bool = False) -> None:
         """
         The export confirmation dialogue screen.
@@ -40,10 +40,13 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         """
         super().__init__(master, title='export screen', approve_label='export', size=SCREEN_SIZE)
         self._master = master
+        self._state_func = state_func
+        self._state_func(False)
+        self._use_blob_def: bool = use_global_defaults
 
         self.approve_btn.configure(command=lambda: self._on_approve(connection_func))
-        self.wm_protocol("WM_DELETE_WINDOW", lambda: self._on_close(use_global_defaults))
-        self.cancel_btn.configure(command=lambda: self._on_close(use_global_defaults))
+        self.wm_protocol("WM_DELETE_WINDOW", lambda: self._on_close())
+        self.cancel_btn.configure(command=lambda: self._on_close())
         
         #This is a hard coded value; trail&error driven.
         self._pos: tuple[int,int] = (
@@ -51,17 +54,15 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
             self._master.winfo_screenheight()//4)
         
         self.geometry(f'{self.size[0]}x{self.size[1]+20}+{self._pos[0]}+{self._pos[1]}')
-
+        
         # Pick SaveObj:
-        if use_global_defaults:
+        if self._use_blob_def:
             self._save_obj = self.df_get_from_file(SaveObject)
         else:
-            if _saveobj_cache.check(KEY) and (save_obj != _saveobj_cache.get(KEY)):
-                self._save_obj = _saveobj_cache.get(KEY)
-            else:
-                self._save_obj = save_obj
-
-        # self._default_color: str = self._save_obj.get('color')
+            if _saveobj_cache.check(KEY):
+                _saveobj_cache.remove(KEY)
+            _saveobj_cache.add(KEY, save_obj)
+            self._save_obj = save_obj
 
         self.show_btn: ctk.CTkButton = ctk.CTkButton(self.button_frame,
                     text='show folder', width=150, state=ctk.DISABLED,
@@ -70,15 +71,15 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         self._qualifiers_frame = ctk.CTkFrame(self.main_frame)
 
         # Pickers:
+        self._inter_pckr = IntervalPicker(self.main_frame, self._save_obj.get('interval'))
         self._prfx_pckr = BasePicker(self.main_frame,
                 'Prefix', self._save_obj.get('prefix'),
                 'A prefix to add to the resulting files, [prefix_example_name]')
-        self._dir_picker = DirPicker(self.main_frame, 'Folder picker',
-                self._save_obj.get_results_path(), 'Enable to pick a folder to export into')
         self._dpi_picker = DpiPicker(self.main_frame, 'Dpi',
                 str(self._save_obj.get('dpi')), 'The resolution of the graphs, higher is better')
+        self._dir_picker = DirPicker(self.main_frame, 'Export to',
+                self._save_obj.get_results_path(), 'Enable to pick a folder to export into')
         self._graph_clr_pckr = GraphColorPicker(self.main_frame, self._save_obj.get('color'))  
-        self._inter_pckr = IntervalPicker(self.main_frame, self._save_obj.get('interval'))
         
         self._raws_pckr = BaseToggle(self._qualifiers_frame,
                 'Save raw files?', 
@@ -101,9 +102,9 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         # main_frame:
         self._inter_pckr.pack(fill='x', padx=2, pady=(2,2))
         self._qualifiers_frame.pack(fill='x', padx=2, pady=(2,0))
-        self._dir_picker.pack(fill='x', padx=2, pady=(2,0))
         self._prfx_pckr.pack(fill='x', padx=2, pady=(2,0))
         self._dpi_picker.pack(fill='x', padx=2, pady=(2,0))
+        self._dir_picker.pack(fill='x', padx=2, pady=(2,0))
         self._graph_clr_pckr.pack(fill='x', padx=2, pady=(2,2))
 
     def set_limit(self, val: int) -> None:
@@ -155,13 +156,19 @@ class ExportScreen(BaseScreen, Defaults, HasToolTip, Observer):
         """
         return self._save_obj        
     
-    def _on_close(self, use_global_defaults: bool) -> None:
+    def _on_close(self) -> None:
         """
         Triggered when closing the screen.
         """
-        if not use_global_defaults:
+        if not self._use_blob_def:
             if _saveobj_cache.check(KEY):
                 _saveobj_cache.remove(KEY)
             self._update_save_obj()
             _saveobj_cache.add(KEY, self._save_obj)
+        else:
+            _clr: str = _saveobj_cache.get(KEY).get('color')
+            self.obs_broadcast(Signal.COLOR, self, (_clr,))
+        
+        self._state_func(True)
+
         super().close()

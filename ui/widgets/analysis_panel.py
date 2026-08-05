@@ -313,7 +313,7 @@ class DataTable(ttk.Treeview, HasToolTip):
         #TODO: mm scale?!, Analyzer is the starting point for this
         self.hdr_tip_dict: dict[str,str] = {}
         self.hdr_names: list[str] = ['sieve size in phi scale',
-                                     'weight fraction in grams',
+                                     'retained weight fraction in grams',
                                      'weight fraction as percent of the total',
                                      'cumulative weight fractions as percents']
 
@@ -341,8 +341,7 @@ class DataTable(ttk.Treeview, HasToolTip):
             _col_id = self.identify_column(_pos[0])
             _hdr_name = self.heading(_col_id)['text']
             if not self.activate_tip:
-                self.tip = self.htt_tip(self, self.hdr_tip_dict[_hdr_name],
-                                        font_size=14, id_=_hdr_name)
+                self.tip = self.htt_tip(self, self.hdr_tip_dict[_hdr_name], id_=_hdr_name)
                 self.tip.on_enter(event)
                 self.activate_tip = True
         else:
@@ -386,9 +385,13 @@ class DataTable(ttk.Treeview, HasToolTip):
                     minwidth=_width, stretch=True, anchor="center")
         
         # handle data:
-        for ele in _rows:
+        for ind, ele in enumerate(_rows):
+            if (ind%2 != 0):
+                self.insert("", "end", values=ele, tags='odd')
+                continue
             self.insert("", "end", values=ele)
         
+        self.tag_configure('odd', background='#2b2b2b')
         
 class StatsNote(ctk.CTkTextbox):
     """

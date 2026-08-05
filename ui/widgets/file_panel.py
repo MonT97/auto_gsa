@@ -1,5 +1,6 @@
 import os
 import time
+import numpy as np
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable, Final
@@ -54,7 +55,6 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         self._master = master
         self.__root = utls.get_root(self)
         self._crnt_sample: Sample = Sample()
-        self._use_global_defaults: bool = False
 
         # Caching:
         self._path_cache: list[str] = []
@@ -68,11 +68,11 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         self._valid_files: list[str] = []
         self._number_of_valid_files: int = 0
 
-        # global shortcuts
-        self.__root.bind(f"<Control-KeyPress-{EXPORT}>",
-                         lambda _: self._on_export_btn_pressed(self._use_global_defaults))
-        self.__root.bind(f"<Control-KeyPress-{IMPORT_ICON}>",
+        # global keyboard shortcuts:
+        self.__root.bind(f"<Control-KeyPress-{IMPORT}>",
                          lambda _: self._screen_import())
+        self.__root.bind(f"<Control-KeyPress-{EXPORT}>",
+                         lambda _: self._on_export_btn_pressed())
 
         # Entry related
         self._entry_font = ctk.CTkFont(*ENTRY_FONT)
@@ -134,7 +134,7 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
             state=ctk.DISABLED, 
             command=lambda: self._on_export_btn_pressed())
         self._export_btn.bind('<Control-Button-1>',
-                              lambda _: self._on_export_btn_pressed(self._use_global_defaults))
+                              lambda _: self._on_export_btn_pressed(True))
         self.htt_tip(self._export_btn, 'open export screen')        
 
         # layout:
@@ -246,25 +246,52 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         Start the analysis process via signal broadcasting.
         """
-        _file_name: str = self._file_viewer.get_data(table_selection)[-1] #type: ignore
-        _file_path: str = os.path.join(self._save_obj.get('files_path'), _file_name)
-        _in_cache: bool = self._samples_cache.check(_file_path)
+        _ids: list[int] = []
+        for sel_id in table_selection:
+            _id, _file_name = self._file_viewer.get_data(sel_id)
+            _ids.append(_id)
+            _file_path: str = os.path.join(self._save_obj.get('files_path'), _file_name)
+            _in_cache: bool = self._samples_cache.check(_file_path)
 
-        if _in_cache:
-            _sample = self._samples_cache.get(_file_path)
-        else:
-            _sample: Sample = Sample(_file_path)
-            self._samples_cache.add(_file_path, _sample)
+            if _in_cache:
+                _sample = self._samples_cache.get(_file_path)
+            else:
+                _sample: Sample = Sample(_file_path)
+                self._samples_cache.add(_file_path, _sample)
 
-        self._crnt_sample = _sample
+            self._crnt_sample = _sample
 
-        self.obs_broadcast(Signal.ANALYZE, self, (_sample, self._save_obj, graph_type))
-        self.obs_broadcast(Signal.LOG, self, (f'analyzed sample [{_sample.get_name().lower()}].',))
+            self.obs_broadcast(Signal.ANALYZE, self, (_sample, self._save_obj, graph_type))
+            self.obs_broadcast(Signal.LOG, self, (f'analyzed sample [{_sample.get_name().lower()}].',))
+
+        self._set_interval(_ids)
 
         self.after(5, self._file_viewer.focus_set)
         if self._save_btn.cget('state') == ctk.DISABLED:
-            self._export_btn.configure(state=ctk.NORMAL, image=self._export_btn_icon)
             self._save_btn.configure(state=ctk.NORMAL)
+            self._update_export_btn_state(enable=True)
+
+    def _set_interval(self, id_list: list[int]) -> None:
+        """
+        Sets the [SaveObj] interval for later use by the [export_screen].
+        """
+        _mode: int = 0
+        _interval: list[int] = []
+        _consecutive: bool =(np.diff(id_list).cumprod() == 1).all()
+
+        if len(id_list) == 1:
+            _mode = 2
+            _interval = id_list
+        elif len(id_list) == self._number_of_valid_files:
+            _interval = id_list
+        elif _consecutive:
+            _mode = 1
+            _interval = [id_list[0], id_list[-1]]
+        elif not _consecutive:
+            _mode = 2
+            _interval = id_list
+
+        self._save_obj.update(interval=(_mode, list(np.array(_interval)-1)))
 
     def _on_save_btn_pressed(self) -> None:
         """
@@ -280,8 +307,18 @@ class FilePanel(ctk.CTkFrame, CanSave, Defaults, HasToolTip, Observer):
         """
         Launches the save all dialogue.
         """
-        self._export_popup = ExportScreen(self, self.save_all, self._save_obj, use_global_defaults)
+        self._export_popup = ExportScreen(self,
+                self._update_export_btn_state, self.save_all, self._save_obj, use_global_defaults)
         self._export_popup.set_limit(self._number_of_valid_files)
+        
+    def _update_export_btn_state(self, enable: bool = False) -> None:
+        """
+        Updates the state of the export button in relation to the [ExportScreen].
+        """
+        if enable and self._export_btn.cget('state') == ctk.DISABLED:
+            self._export_btn.configure(state=ctk.NORMAL, image=self._export_btn_icon)
+            return
+        self._export_btn.configure(state=ctk.DISABLED, image=self._export_btn_dis_icon)
 
     def update_color_obj(self, color: str) -> None:
         """
@@ -356,33 +393,28 @@ class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
         self._name_col_width: int = 0
 
         self._tip = None
+        self._cid: str = ''
         self._activate_tip: bool = False
 
         #TODO: mm scale?!, Analyzer is the starting point for this
         self._hdr_strs: list[str] = ['NO', 'File Name']
-        self._hdr_tip_dict: dict[str,str] = {}
         self._hdr_tips: list[str] = ['file number', 'sample file name']
+        self._hdr_tip_dict: dict[str,str] = {k:v for k,v in zip(self._hdr_strs, self._hdr_tips)}
 
         # otherwise it wont work as intended!.
-        self.bind("<Map>", lambda _: _set_element_width(self.winfo_width()))
+        self.bind("<Map>", lambda _: _layout(self.winfo_width()))
         self.bind("<Motion>", lambda event: self._on_mouse_motion(event))
         self.bind("<Leave>", lambda _: self._on_mouse_exited())
 
-        def _set_element_width(width: int) -> None:
+        def _layout(width: int) -> None:
             """
-            Programmatically set the size of each TreeView column.
+            Programmatically set the size of each TreeView column and creates the layout.
             """
             self._width = width
             width -= width%2
             self._name_col_width = self._width - self._no_col_width
 
-            _layout()
-
-        def _layout() -> None:
-            """
-            Self documenting name.
-            """
-            self.configure(style='F_Viewer.Treeview', selectmode="browse",
+            self.configure(style='F_Viewer.Treeview', selectmode="extended",
                         show="headings",
                         columns = ["no", "file_name"])
             
@@ -394,12 +426,7 @@ class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
 
             self.heading("no", text="NO", anchor="center")
             self.heading("file_name", text="File Name", anchor="w")
-
-            self.configure(style='F_Viewer.Treeview', show="headings")
             
-            self._hdr_tip_dict = {k:v for k,v in zip(self._hdr_strs, self._hdr_tips)}
-
-
     def _on_mouse_motion(self, event: tk.Event) -> None:
         """
         To manage to the initialization of the tooltip.
@@ -408,22 +435,35 @@ class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
         _area: str = self.identify_region(*_pos)
 
         if _area == 'heading':
+            self._on_mouse_exited()
             _col_id = self.identify_column(_pos[0])
             _hdr_name = self.heading(_col_id)['text']
 
             if not self._activate_tip:
-                self._tip = self.htt_tip(self, self._hdr_tip_dict[_hdr_name],
-                                        font_size=14, id_=_hdr_name)
+                self._tip = self.htt_tip(self, self._hdr_tip_dict[_hdr_name], id_=_hdr_name)
+                self._tip.on_enter(event)
+                self._activate_tip = True
+
+        elif _area == 'cell':
+            _cell_id = self.identify_row(event.y)
+
+            if _cell_id != self._cid:
+                self._on_mouse_exited(_cell_id)
+            _f_name = self.item(_cell_id)['values'][-1]
+            if not self._activate_tip:
+                self._cid = _cell_id
+                self._tip = self.htt_tip(self, _f_name, id_=_f_name)
                 self._tip.on_enter(event)
                 self._activate_tip = True
         else:
             self._on_mouse_exited()
 
-    def _on_mouse_exited(self) -> None:
+    def _on_mouse_exited(self, cid: str = '') -> None:
         """
         To disable the tooltip.
         """
         if self._activate_tip:
+            self._cid = cid
             if self._tip:
                 self._tip.destroy()
             self._activate_tip = False
@@ -466,10 +506,15 @@ class FileViewer(ttk.Treeview, Validator, Observer, HasToolTip):
                     (f'No valid files where found.', LogMsgType.ERROR,))
             return
         for _index, file_ in enumerate(valid_files):
+            if _index%2 != 0:
+                self.insert("", "end", values=[f'{_index+1:0{_padding}}', file_], tags='odd')
+                continue
             self.insert("", "end", values=[f'{_index+1:0{_padding}}', file_])
+            
+        self.tag_configure('odd', background='#2b2b2b')
 
-    def get_data(self, selection_id: tuple[int, None]) -> list[int|str]:
+    def get_data(self, selection_id: tuple[int, None]) -> tuple[int,str]:
         """
         Retrieves the selected data [selection_id].
         """
-        return self.item(selection_id)["values"] # type: ignore
+        return tuple(self.item(selection_id)["values"]) # type: ignore

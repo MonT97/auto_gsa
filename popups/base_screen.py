@@ -62,8 +62,11 @@ class DirPickScreen(fd.Directory):
             title=title,
             initialdir=initialdir)
 
-    def show(self) -> str:
+    def show(self, dir_:str='') -> str:
         """
         An overload of the parent [tkinter.filedialog.Directory.show()].
         """
+        if dir_:
+            self.options['initialdir'] = dir_ #type: ignore <-- although it complains, it works fine
+            
         return super().show()

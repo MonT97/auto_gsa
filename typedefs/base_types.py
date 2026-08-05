@@ -98,14 +98,14 @@ class SaveObject(DefaultObj):
     color: str = '' #!config
     dpi: int = 0
     save_raw_files: bool = False
-    interval: tuple[int,list[int]] = (0,[])
+    interval: tuple[int,list[int|None]] = (0,[])
     transparent: bool = False
 
-    def see(self, attrib: ATRRIBS) -> Any:
+    def see(self, attrib: ATRRIBS) -> str:
         """
-        Prints the value of [attrib]
+        String representation of the [attrib] value.
         """
-        return print(getattr(self, attrib))
+        return f'{attrib}: {getattr(self, attrib)}'
     
     def get(self, attrib: ATRRIBS) -> Any:
         """

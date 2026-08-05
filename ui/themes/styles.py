@@ -11,7 +11,7 @@ TABLE_HDR_FONT: Final[tuple[str, int, str]] = ('Arial', 14, 'bold')
 GRAPH_COLOR_DEFAULT: Final[str] = '#1f7bb4'
 TABLE_HDR_BG_ACTV_CLR: Final[str] = '#144870'
 DATA_TABLE_HDR_BG_CLR: Final[str] = '#1f6aa5'
-DATA_TABLE_ROW_BG_CLR: Final[str] = '#2b2b2b'
+DATA_TABLE_ROW_BG_CLR: Final[str] = '#262626'
 DATA_TABLE_FONT_CLR: Final[str] = '#ffffff'
 
 # dimensions

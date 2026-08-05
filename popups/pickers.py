@@ -4,6 +4,7 @@ ExportScreen inputs manipulation.
 import os
 import re
 from collections.abc import Callable
+from PIL import Image
 from typing import Final, Literal
 
 import customtkinter as ctk
@@ -19,6 +20,13 @@ from .base_screen import DirPickScreen
 # color
 ACTIVE_ENTRY_CLR: Final[str] = '#ffffff'
 DEFAULT_ENTRY_CLR: Final[str] = '#565b5e'
+ACTIVE_TXT_CLR: Final[str] = '#dce4ee'
+DISABLED_TXT_CLR: Final[str] = '#9e9e9e'
+
+# icons
+ICON_SIZE: Final[tuple[int,int]] = (20,20)
+IMPORT_ICON: Final = Image.open(r'assets\folder_b.png')
+DIS_IMPORT_ICON: Final = Image.open(r'assets\folder_b_dis.png')
 
 LIMIT = Literal['u', 'l']
 
@@ -37,24 +45,37 @@ class DirPicker(ctk.CTkFrame, HasToolTip):
         - tooltip_msg: the text to be shown in the tool tip.
         """
         super().__init__(master)
+        self._tip_msg: str = '[Enter/Return]x2: open import screen'
         self._full_path: str = full_path
-        self._path, self._dir_name = os.path.split(self._full_path)
         self._master = master.master
 
-        self._dir_screen = DirPickScreen(self, initialdir=self._full_path)
-
+        self._dir_screen = DirPickScreen(self, self._full_path)
         self._toggle = ctk.CTkSwitch(self,
                     text=label_txt, width= 150, command=lambda: self._activation())
         if tooltip_msg:
             self.htt_tip(self._toggle, tooltip_msg)
 
-        self._entry = ctk.CTkEntry(self, placeholder_text=self._full_path)
-        self._entry.bind('<FocusIn>', lambda _: self._on_in_focus())
-        self._update_entry_tooltip_and_scroll()
-        self._entry.configure(state=ctk.DISABLED, border_color=DEFAULT_ENTRY_CLR)
+        self._entry = ctk.CTkEntry(self, state=ctk.DISABLED)
+        self._entry.set(full_path)
+        self._entry.bind('<FocusIn>', lambda _: self._update_tip_and_scroll())
+        self._entry.bind('<KeyPress-Return>', lambda _: self._update_full_path())
+        self._entry.bind('<FocusOut>', lambda _: self._update_full_path(reset=True))
+        self._entry.bind('<KeyPress-Escape>', lambda _: self._update_full_path(reset=True))
+        self._entry.bind('<Double-KeyPress-Return>', lambda _: self._open_import_screen())
+        self._update_tip_and_scroll()
+        self._entry.configure(border_color=DEFAULT_ENTRY_CLR, text_color=DISABLED_TXT_CLR)
+
+        self._import_icon = ctk.CTkImage(IMPORT_ICON, size=ICON_SIZE)
+        self._dis_import_icon = ctk.CTkImage(DIS_IMPORT_ICON, size=ICON_SIZE)
+
+        self._import_btn = ctk.CTkButton(self, text='', image=self._dis_import_icon,
+                    command=lambda: self._open_import_screen(), width=15)
+        self._import_btn.configure(state=ctk.DISABLED)
+        self.htt_tip(self._import_btn, 'browse for folders')
 
         self._toggle.pack(side='left', padx=2)
-        self._entry.pack(side='left', fill='x', expand=True, padx=2, pady=2)
+        self._entry.pack(side='left', fill='x', expand=True, padx=(2,0), pady=2)
+        self._import_btn.pack(side='left', fill='x', expand=False, padx=2, pady=2)
     
     def _activation(self) -> None:
         """
@@ -63,46 +84,56 @@ class DirPicker(ctk.CTkFrame, HasToolTip):
         _enabled = bool(self._toggle.get())
         
         if _enabled:
-            self._entry.configure(state=ctk.NORMAL, border_color=ACTIVE_ENTRY_CLR)
+            self._entry.configure(state=ctk.NORMAL,
+                        border_color=ACTIVE_ENTRY_CLR, text_color=ACTIVE_TXT_CLR)
+            self._import_btn.configure(state=ctk.NORMAL, image=self._import_icon)
             self.after(1, self._entry.focus_set)
-            self._entry.select_range('0', ctk.END)
+            self._entry.select_range(0, ctk.END)
         else:
-            self._entry.configure(placeholder_text=self._full_path)
-            self._entry.configure(state=ctk.DISABLED, border_color=DEFAULT_ENTRY_CLR)
+            self._entry.configure(state=ctk.DISABLED, 
+                        border_color=DEFAULT_ENTRY_CLR, text_color=DISABLED_TXT_CLR)
+            self._import_btn.configure(state=ctk.DISABLED, image=self._dis_import_icon)
     
-    def _update_entry_tooltip_and_scroll(self) -> None:
+    def _update_tip_and_scroll(self) -> None:
         """
         Scrolls to the [self._entry] widget to the end of the text and updates the [tooltip].
         """
         _scroll_unit: int = len(self._full_path)
         self._entry.xview_scroll(_scroll_unit,'units')
-        self.htt_tip(self._entry, self._full_path)
+        self._entry.select_range(0, ctk.END)
+        self.htt_tip(self._entry, self._tip_msg+f'\npath: {self._full_path}')
 
-    def _on_in_focus(self) -> None:
+    def _update_full_path(self, reset: bool = False) -> None:
+        if not os.path.exists(self._entry.get()) or reset:
+            self._entry.set(self._full_path)
+            return
+        self._full_path = self._entry.get()
+        self._update_tip_and_scroll()
+
+    def _open_import_screen(self) -> None:
         """
         When the mouse enters the entry widget.
         """
         if self._toggle.get():
             self._master.attributes('-topmost', False)
-            _full_path = self._dir_screen.show()
+            _full_path = self._dir_screen.show(self._full_path)
             if _full_path:
                 self._full_path = _full_path
-                self._path, self._dir_name = os.path.split(self._full_path)
-                self._entry.insert(0, self._full_path)
-                self._update_entry_tooltip_and_scroll()
+                self._entry.set(self._full_path)
+                self._update_tip_and_scroll()
             self._master.attributes('-topmost', True)
 
     def get_path(self) -> str:
         """
         Returns the path.
         """
-        return self._path
+        return os.path.split(self._full_path)[0]
     
     def get_dir_name(self) -> str:
         """
         Returns the directory/folder name.
         """
-        return self._dir_name
+        return os.path.split(self._full_path)[-1]
 
 
 class DpiPicker(BasePicker):
@@ -133,6 +164,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
     def __init__(self, master, default_interval: tuple[int,list[int]] = (0,[])) -> None:
         """
         Picking the interval, which files to save.
+        - default_interval: determines the launch state of the widget.
         """
         super().__init__(master)
 
@@ -207,7 +239,7 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
                 """
                 Sets the var before viewing the widget.
                 """
-                _u, _l = interval
+                _u, _l = interval if len(interval) == 2 else [-1,0]
                 self._u_var.set(value=str(_u+1))
                 self._l_var.set(value=str(_l))
 
@@ -265,24 +297,24 @@ class IntervalPicker(ctk.CTkFrame, HasToolTip):
 
         self._index: int = 0
         _options: list[str] = ['all', 'interval', 'list']
-        _ind, self._interv = default_interval
+        self._index, self._interv = default_interval
 
         self._getter_function: Callable[[],str]
-        self._pick_var: ctk.StringVar = ctk.StringVar(self, value=_options[0])
+        self._pick_var: ctk.StringVar = ctk.StringVar(self, value=_options[self._index])
 
         self._label: ctk.CTkLabel = ctk.CTkLabel(self,
                     anchor='w', text='Selection method:', height=17)
-        self.htt_tip(self._label, 'The method used to scelect samples to export.')
+        self.htt_tip(self._label, 'The method used to select samples to export.')
 
         self._drop_down: ctk.CTkComboBox = ctk.CTkComboBox(self,
-                    values=_options, variable=self._pick_var,
+                    values=_options, variable=self._pick_var, state='readonly',
                     command=lambda _: self._update_layout(_))
 
         self._interval_pckr: IntPckr = IntPckr(self)
         self._list_pckr: ListPckr = ListPckr(self)
 
         self._label.pack(side='top', fill='x', padx=2)
-        self._update_layout(_options[_ind])
+        self._update_layout(_options[self._index])
 
     def _update_layout(self, option: str) -> None:
         """

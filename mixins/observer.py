@@ -1,6 +1,6 @@
 # The various [type:: ignore] is due to an issue with pylance, the linter I use, for some reason, it thinks that _root() isn't a part of tkinter's base widget class [BaseWidget], although it clearly is!!
 from inspect import getfile, getsourcelines, signature
-from tkinter import Toplevel, Widget
+from tkinter import Toplevel, BaseWidget
 from tkinter.commondialog import Dialog
 from types import NoneType, UnionType
 from typing import TYPE_CHECKING, Any, Callable, Literal, get_args, overload
@@ -14,14 +14,14 @@ from typedefs import Signal
 from utils import utls
 
 _signals: dict[Signal, SignalData] = {}
-_itr = 0
+
 
 class ArgumentsMismatch(Exception):
     """
     To prevent, at least in part, the silent failure when the listener func doesn't match the caller func's arguments by exposing relevant information in an error massage and suggesting a solution.
     """
     def __init__(self, signal: Signal, sender_args: list[Any],
-                 func_args: list[Any], sender: Dialog|Widget|None, func: Callable|None,
+                 func_args: list[Any], sender: Dialog|BaseWidget|None, func: Callable|None,
                  func_name: str, func_location: str, func_line_number: int,
                  type_str: dict[int,Any], args_to_add: dict[int,Any],
                  args_to_remove: dict[int,Any]) -> None:
@@ -103,7 +103,7 @@ class Observer():
     - `obs_broadcast`: to broadcast.
     - `obs_listen`: to listen.
     """
-    def _validate_input(self, signal: Signal, sender:Widget|Dialog|None = None,
+    def _validate_input(self, signal: Signal, sender:BaseWidget|Dialog|None = None,
                         sender_args: list[Any] = [], func: Callable|None = None) -> None:
         """
         Validates that the [signal] and the paired [args] or [func] args have a matching number of arguments and matching argument types.
@@ -220,7 +220,7 @@ class Observer():
             print(e)
             quit()
 
-    def _set_broadcast_data(self, signal: Signal, sender: Dialog|Widget, args: list[Any]) -> None:
+    def _set_broadcast_data(self, signal: Signal, sender: Dialog|BaseWidget, args: list[Any]) -> None:
         """
         Adds a signal named [signal_name] to [_signals] then creates a SignalData() and populates its [sender] and [arg] attributes.
         """        
@@ -229,7 +229,7 @@ class Observer():
         _signal.add_arg(args)
         _signal.set_sender(sender)
     
-    def _set_listener_data(self, signal: Signal, listener: Widget) -> None:
+    def _set_listener_data(self, signal: Signal, listener: BaseWidget) -> None:
         """
         Populates the [listener] and the related attributes of the SignalData object within _signals[signal_name].
         """
@@ -239,52 +239,52 @@ class Observer():
     
     # These overloads mirror the SignalSchemas in typedefs.enum!
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.EXPORTED], sender: Widget) -> None:
+    def obs_broadcast(self, signal: Literal[Signal.EXPORTED], sender: BaseWidget) -> None:
         """
         - signal: Signal.Exported.
         """
     ...
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.COLOR], sender: Widget,
+    def obs_broadcast(self, signal: Literal[Signal.COLOR], sender: BaseWidget,
                             args: tuple[str]) -> None:
         """
         - signal: Signal.COLOR.
         """
     ...
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.LOG], sender: Widget|Dialog,
+    def obs_broadcast(self, signal: Literal[Signal.LOG], sender: BaseWidget|Dialog,
                             args: tuple[str, 'LogMsgType']) -> None:
         """
         - signal: Signal.LOG.
         """
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.LOG], sender: Widget|Dialog, args: tuple[str]) -> None:
+    def obs_broadcast(self, signal: Literal[Signal.LOG], sender: BaseWidget|Dialog, args: tuple[str]) -> None:
         """
         - signal: Signal.LOG.
         """
     ...
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.ANALYZE], sender: Widget,
+    def obs_broadcast(self, signal: Literal[Signal.ANALYZE], sender: BaseWidget,
                             args: tuple['Sample', 'SaveObject', 'GraphType|None']) -> None:
         """
         - signal: Signal.ANALYZE.
         """
     ...
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.ANALYZE], sender: Widget,
+    def obs_broadcast(self, signal: Literal[Signal.ANALYZE], sender: BaseWidget,
                             args: tuple['Sample', 'SaveObject']) -> None:
         """
         - signal: Signal.ANALYZE.
         """
     ...
     @overload
-    def obs_broadcast(self, signal: Literal[Signal.EXPAND], sender: Widget,
-                            args: tuple[Widget]) -> None:
+    def obs_broadcast(self, signal: Literal[Signal.EXPAND], sender: BaseWidget,
+                            args: tuple[BaseWidget]) -> None:
         """
         - signal: Signal.EXPAND.
         """
     ...
-    def obs_broadcast(self, signal: Signal, sender: Widget|Dialog,
+    def obs_broadcast(self, signal: Signal, sender: BaseWidget|Dialog,
                       args: tuple[Any,...]|None = None) -> None:
         """
         A function from the Observer mixin.
@@ -301,7 +301,7 @@ class Observer():
         self._set_broadcast_data(signal, sender, _args)
         _top_level.event_generate(f'<<{_signal_name}>>')
 
-    def obs_listen(self, signal: Signal, listener: Widget, func: Callable) -> None:
+    def obs_listen(self, signal: Signal, listener: BaseWidget, func: Callable) -> None:
         """
         A function from the Observer mixin.
         Listens for a broadcasted signal.

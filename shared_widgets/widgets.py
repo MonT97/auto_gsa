@@ -4,7 +4,7 @@ from typing import Final, overload
 import customtkinter as ctk
 from PIL import Image
 
-from mixins import Observer
+from mixins import Observer, HasToolTip
 from typedefs import Signal
 
 # Constants:
@@ -29,7 +29,7 @@ DEFAULT_G_COLOR: Final[tuple[str,str,str]] = ('#00b500', '#00ff00', '#568556')
 DEFAULT_B_COLOR: Final[tuple[str,str,str]] = ('#0000b5', '#0000ff', '#565685')
 
 
-class ColorPicker(ctk.CTkFrame, Observer):
+class ColorPicker(ctk.CTkFrame, Observer, HasToolTip):
     """
     CTkFrame:
         An (RGB) color picker.
@@ -56,6 +56,10 @@ class ColorPicker(ctk.CTkFrame, Observer):
                 image=ctk.CTkImage(PREVIEW_ICON_OFF_WH,size=ICON_SIZE),
                 command= lambda: self._on_preview_btn_press(self._color))
 
+        self._preview.bind('<Button-3>', lambda _: self.update_clr_and_intvars(DEFAULT_COLOR))
+
+        self.htt_tip(self._preview, '[lift click]: to set the color\n[right click]: to reset to default')
+
         self._r: ctk.IntVar = ctk.IntVar(self, value=self._default_rgb[0])
         self._g: ctk.IntVar = ctk.IntVar(self, value=self._default_rgb[1])
         self._b: ctk.IntVar = ctk.IntVar(self, value=self._default_rgb[2])
@@ -70,9 +74,9 @@ class ColorPicker(ctk.CTkFrame, Observer):
                     lambda _: self._set_color((self._r,self._g,self._b)))
     
         self._preview.grid(column=0, row=0, rowspan=3, padx=5, pady=5, sticky='nsew')
-        _r_slider.grid(column=1, row=0, rowspan=1, padx=5)
-        _g_slider.grid(column=1, row=1, rowspan=1, padx=5)
-        _b_slider.grid(column=1, row=2, rowspan=1, padx=5)
+        _r_slider.grid(column=1, row=0, rowspan=1, padx=5, pady=(5,0))
+        _g_slider.grid(column=1, row=1, rowspan=1, padx=5, pady=0)
+        _b_slider.grid(column=1, row=2, rowspan=1, padx=5, pady=(0,5))
 
     def update_clr_and_intvars(self, color: str) -> None:
         _color: tuple = self._convert_clr(color) #type: ignore
@@ -153,18 +157,15 @@ class ColorSlider(ctk.CTkSlider):
     """
     CTkSlider:
         For picking the color bandwise.
-        - clr_band [str]:what band of the (R,G,B) band the slider represents.
-        - variable [ctk.IntVar]:value to be adjusted through the slider.
-        - command [Callable]:the behavior to be linked with.
     """
     def __init__(self,
                  master: ColorPicker, clr_band: str, variable: ctk.IntVar,
                  command: Callable) -> None:
         """
         For picking the color bandwise.
-        - clr_band [str]:what band of the (R,G,B) band the slider represents.
-        - variable [ctk.IntVar]:value to be adjusted through the slider.
-        - command [Callable]:the behavior to be linked with.
+        - clr_band: what band of the (R,G,B) band the slider represents.
+        - variable: value to be adjusted through the slider.
+        - command: the behavior to be linked with.
         """
         super().__init__(master)
         _clrs: tuple[str, str, str] = ('','','')
@@ -177,7 +178,7 @@ class ColorSlider(ctk.CTkSlider):
             case 'b':
                 _clrs = DEFAULT_B_COLOR
 
-        self.configure(variable=variable, height=13,
+        self.configure(variable=variable, height=15,
             button_color=_clrs[0], button_hover_color=_clrs[1], progress_color=_clrs[2],
-            button_corner_radius=5, border_width=5, button_length=18,
+            button_corner_radius=5, border_width=4, button_length=18,
             from_=0, to=255, number_of_steps=255, command=command)
